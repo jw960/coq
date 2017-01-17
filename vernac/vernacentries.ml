@@ -1763,8 +1763,8 @@ let vernac_search s gopt r =
 let vernac_locate = let open Feedback in function
   | LocateAny (AN qid)  -> msg_notice (print_located_qualid qid)
   | LocateTerm (AN qid) -> msg_notice (print_located_term qid)
-  | LocateAny (ByNotation (_, ntn, sc)) (** TODO : handle Ltac notations *)
-  | LocateTerm (ByNotation (_, ntn, sc)) ->
+  | LocateAny (ByNotation (_, (ntn, sc))) (** TODO : handle Ltac notations *)
+  | LocateTerm (ByNotation (_, (ntn, sc))) ->
       msg_notice
         (Notation.locate_notation
           (Constrextern.without_symbols pr_lglob_constr) ntn sc)
