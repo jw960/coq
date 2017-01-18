@@ -364,43 +364,43 @@ let msg_found_library = function
       Feedback.msg_info (hov 0
 	(pr_dirpath fulldir ++ strbrk " is bound to file " ++ str file))
 
-let err_unmapped_library loc ?from qid =
+let err_unmapped_library ?loc ?from qid =
   let dir = fst (repr_qualid qid) in
   let prefix = match from with
   | None -> str "."
   | Some from ->
     str " and prefix " ++ pr_dirpath from ++ str "."
   in
-  user_err ~loc
+  user_err ?loc
     ~hdr:"locate_library"
     (strbrk "Cannot find a physical path bound to logical path matching suffix " ++
        pr_dirpath dir ++ prefix)
 
-let err_notfound_library loc ?from qid =
+let err_notfound_library ?loc ?from qid =
   let prefix = match from with
   | None -> str "."
   | Some from ->
     str " with prefix " ++ pr_dirpath from ++ str "."
   in
-  user_err ~loc ~hdr:"locate_library"
+  user_err ?loc ~hdr:"locate_library"
      (strbrk "Unable to locate library " ++ pr_qualid qid ++ prefix)
 
 let print_located_library r =
   let (loc,qid) = qualid_of_reference r in
   try msg_found_library (Library.locate_qualified_library ~warn:false qid)
   with
-    | Library.LibUnmappedDir -> err_unmapped_library loc qid
-    | Library.LibNotFound -> err_notfound_library loc qid
+    | Library.LibUnmappedDir -> err_unmapped_library ?loc qid
+    | Library.LibNotFound -> err_notfound_library ?loc qid
 
 let smart_global r =
   let gr = Smartlocate.smart_global r in
-    Dumpglob.add_glob (Stdarg.loc_of_or_by_notation loc_of_reference r) gr;
+    Dumpglob.add_glob ?loc:(Stdarg.loc_of_or_by_notation loc_of_reference r) gr;
     gr
 
 let dump_global r =
   try
     let gr = Smartlocate.smart_global r in
-    Dumpglob.add_glob (Stdarg.loc_of_or_by_notation loc_of_reference r) gr
+    Dumpglob.add_glob ?loc:(Stdarg.loc_of_or_by_notation loc_of_reference r) gr
   with e when CErrors.noncritical e -> ()
 (**********)
 (* Syntax *)
@@ -608,14 +608,14 @@ let vernac_combined_scheme lid l =
 
 let vernac_universe loc poly l =
   if poly && not (Lib.sections_are_opened ()) then
-    user_err ~loc ~hdr:"vernac_universe"
+    user_err ?loc ~hdr:"vernac_universe"
 		 (str"Polymorphic universes can only be declared inside sections, " ++
 		  str "use Monomorphic Universe instead");
   do_universe poly l
 
 let vernac_constraint loc poly l =
   if poly && not (Lib.sections_are_opened ()) then
-    user_err ~loc ~hdr:"vernac_constraint"
+    user_err ?loc ~hdr:"vernac_constraint"
 		 (str"Polymorphic universe constraints can only be declared"
 		  ++ str " inside sections, use Monomorphic Constraint instead");
   do_constraint poly l
@@ -641,7 +641,7 @@ let vernac_declare_module export (loc, id) binders_ast mty_ast =
     Declaremods.declare_module Modintern.interp_module_ast
       id binders_ast (Enforce mty_ast) []
   in
-  Dumpglob.dump_moddef loc mp "mod";
+  Dumpglob.dump_moddef ?loc mp "mod";
   if_verbose Feedback.msg_info (str "Module " ++ pr_id id ++ str " is declared");
   Option.iter (fun export -> vernac_import export [Ident (Loc.tag id)]) export
 
@@ -662,7 +662,7 @@ let vernac_define_module export (loc, id) binders_ast mty_ast_o mexpr_ast_l =
          Declaremods.start_module Modintern.interp_module_ast
            export id binders_ast mty_ast_o
        in
-       Dumpglob.dump_moddef loc mp "mod";
+       Dumpglob.dump_moddef ?loc mp "mod";
        if_verbose Feedback.msg_info
          (str "Interactive Module " ++ pr_id id ++ str " started");
        List.iter
@@ -680,7 +680,7 @@ let vernac_define_module export (loc, id) binders_ast mty_ast_o mexpr_ast_l =
          Declaremods.declare_module Modintern.interp_module_ast
 	   id binders_ast mty_ast_o mexpr_ast_l
        in
-       Dumpglob.dump_moddef loc mp "mod";
+       Dumpglob.dump_moddef ?loc mp "mod";
        if_verbose Feedback.msg_info
 	 (str "Module " ++ pr_id id ++ str " is defined");
        Option.iter (fun export -> vernac_import export [Ident (Loc.tag id)])
@@ -688,7 +688,7 @@ let vernac_define_module export (loc, id) binders_ast mty_ast_o mexpr_ast_l =
 
 let vernac_end_module export (loc,id as lid) =
   let mp = Declaremods.end_module () in
-  Dumpglob.dump_modref loc mp "mod";
+  Dumpglob.dump_modref ?loc mp "mod";
   if_verbose Feedback.msg_info (str "Module " ++ pr_id id ++ str " is defined");
   Option.iter (fun export -> vernac_import export [Ident lid]) export
 
@@ -709,7 +709,7 @@ let vernac_declare_module_type (loc,id) binders_ast mty_sign mty_ast_l =
          Declaremods.start_modtype Modintern.interp_module_ast
            id binders_ast mty_sign
        in
-       Dumpglob.dump_moddef loc mp "modtype";
+       Dumpglob.dump_moddef ?loc mp "modtype";
        if_verbose Feedback.msg_info
 	 (str "Interactive Module Type " ++ pr_id id ++ str " started");
        List.iter
@@ -728,13 +728,13 @@ let vernac_declare_module_type (loc,id) binders_ast mty_sign mty_ast_l =
           Declaremods.declare_modtype Modintern.interp_module_ast
 	    id binders_ast mty_sign mty_ast_l
         in
-        Dumpglob.dump_moddef loc mp "modtype";
+        Dumpglob.dump_moddef ?loc mp "modtype";
 	if_verbose Feedback.msg_info
 	  (str "Module Type " ++ pr_id id ++ str " is defined")
 
 let vernac_end_modtype (loc,id) =
   let mp = Declaremods.end_modtype () in
-  Dumpglob.dump_modref loc mp "modtype";
+  Dumpglob.dump_modref ?loc mp "modtype";
   if_verbose Feedback.msg_info (str "Module Type " ++ pr_id id ++ str " is defined")
 
 let vernac_include l =
@@ -751,7 +751,7 @@ let vernac_begin_section (_, id as lid) =
   Lib.open_section id
 
 let vernac_end_section (loc,_) =
-  Dumpglob.dump_reference loc
+  Dumpglob.dump_reference ?loc
     (DirPath.to_string (Lib.current_dirpath true)) "<>" "sec";
   Lib.close_section ()
 
@@ -784,12 +784,12 @@ let vernac_require from import qidl =
       let (_, dir, f) = Library.locate_qualified_library ?root ~warn qid in
       (dir, f)
     with
-      | Library.LibUnmappedDir -> err_unmapped_library loc ?from:root qid
-      | Library.LibNotFound -> err_notfound_library loc ?from:root qid
+      | Library.LibUnmappedDir -> err_unmapped_library ?loc ?from:root qid
+      | Library.LibNotFound -> err_notfound_library ?loc ?from:root qid
   in
   let modrefl = List.map locate qidl in
   if Dumpglob.dump () then
-    List.iter2 (fun (loc, _) dp -> Dumpglob.dump_libref loc dp "lib") qidl (List.map fst modrefl);
+    List.iter2 (fun (loc, _) dp -> Dumpglob.dump_libref ?loc dp "lib") qidl (List.map fst modrefl);
   Library.require_library_from_dirpath modrefl import
 
 (* Coercions and canonical structures *)
@@ -1179,7 +1179,7 @@ let vernac_arguments locality reference args more_implicits nargs_for_red flags 
       let scopes = List.map (Option.map (fun (loc,k) -> 
         try ignore (Notation.find_scope k); k
         with UserError _ ->
-          Notation.find_delimiters_scope ~loc k)) scopes
+          Notation.find_delimiters_scope ?loc k)) scopes
       in
       vernac_arguments_scope locality reference scopes
     end;
@@ -1681,7 +1681,7 @@ let global_module r =
   let (loc,qid) = qualid_of_reference r in
   try Nametab.full_name_module qid
   with Not_found ->
-    user_err ~loc ~hdr:"global_module"
+    user_err ?loc ~hdr:"global_module"
      (str "Module/section " ++ pr_qualid qid ++ str " not found.")
 
 let interp_search_restriction = function
@@ -1904,7 +1904,7 @@ let vernac_load interp fname =
  * is the outdated/deprecated "Local" attribute of some vernacular commands
  * still parsed as the obsolete_locality grammar entry for retrocompatibility.
  * loc is the Loc.t of the vernacular command being interpreted. *)
-let interp ?proof ~loc locality poly c =
+let interp ?proof ?loc locality poly c =
   vernac_pperr_endline (fun () -> str "interpreting: " ++ Ppvernac.pr_vernac c);
   match c with
   (* The below vernac are candidates for removal from the main type
@@ -2059,15 +2059,15 @@ let interp ?proof ~loc locality poly c =
   | VernacShow s -> vernac_show s
   | VernacCheckGuard -> vernac_check_guard ()
   | VernacProof (None, None) ->
-      Aux_file.record_in_aux_at ~loc "VernacProof" "tac:no using:no"
+      Aux_file.record_in_aux_at ?loc "VernacProof" "tac:no using:no"
   | VernacProof (Some tac, None) ->
-      Aux_file.record_in_aux_at ~loc "VernacProof" "tac:yes using:no";
+      Aux_file.record_in_aux_at ?loc "VernacProof" "tac:yes using:no";
       vernac_set_end_tac tac
   | VernacProof (None, Some l) ->
-      Aux_file.record_in_aux_at ~loc "VernacProof" "tac:no using:yes";
+      Aux_file.record_in_aux_at ?loc "VernacProof" "tac:no using:yes";
       vernac_set_used_variables l
   | VernacProof (Some tac, Some l) -> 
-      Aux_file.record_in_aux_at ~loc "VernacProof" "tac:yes using:yes";
+      Aux_file.record_in_aux_at ?loc "VernacProof" "tac:yes using:yes";
       vernac_set_end_tac tac; vernac_set_used_variables l
   | VernacProofMode mn -> Proof_global.set_proof_mode mn
 
@@ -2143,10 +2143,10 @@ let vernac_timeout f =
 
 let restore_timeout () = current_timeout := None
 
-let locate_if_not_already loc (e, info) =
+let locate_if_not_already ?loc (e, info) =
   match Loc.get_loc info with
-  | None -> (e, Loc.add_loc info loc)
-  | Some l -> if Loc.is_ghost l then (e, Loc.add_loc info loc) else (e, info)
+  | None   -> (e, Option.cata (Loc.add_loc info) info loc)
+  | Some l -> (e, info)
 
 exception HasNotFailed
 exception HasFailed of std_ppcmds
@@ -2213,8 +2213,8 @@ let interp ?(verbosely=true) ?proof (loc,c) =
         try
           vernac_timeout begin fun () ->
           if verbosely
-            then Flags.verbosely (interp ?proof ~loc locality poly) c
-            else Flags.silently  (interp ?proof ~loc locality poly) c;
+            then Flags.verbosely (interp ?proof ?loc locality poly) c
+            else Flags.silently  (interp ?proof ?loc locality poly) c;
           if orig_program_mode || not !Flags.program_mode || isprogcmd then
             Flags.program_mode := orig_program_mode;
 	  ignore (Flags.use_polymorphic_flag ())
@@ -2226,7 +2226,7 @@ let interp ?(verbosely=true) ?proof (loc,c) =
               | e -> CErrors.noncritical e)
           ->
             let e = CErrors.push reraise in
-            let e = locate_if_not_already loc e in
+            let e = locate_if_not_already ?loc e in
             let () = restore_timeout () in
             Flags.program_mode := orig_program_mode;
 	    ignore (Flags.use_polymorphic_flag ());

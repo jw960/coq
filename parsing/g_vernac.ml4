@@ -112,7 +112,7 @@ GEXTEND Gram
                   end ] ]
   ;
   located_vernac:
-    [ [ v = vernac -> !@loc, v ] ]
+    [ [ v = vernac -> Loc.tag ~loc:!@loc v ] ]
   ;
 END
 
@@ -552,8 +552,8 @@ GEXTEND Gram
   starredidentref:
     [ [ i = identref -> SsSingl i
       | i = identref; "*" -> SsFwdClose(SsSingl i)
-      | "Type" -> SsSingl (!@loc, Id.of_string "Type")
-      | "Type"; "*" -> SsFwdClose (SsSingl (!@loc, Id.of_string "Type")) ]]
+      | "Type" -> SsSingl (Loc.tag ~loc:!@loc @@ Id.of_string "Type")
+      | "Type"; "*" -> SsFwdClose (SsSingl (Loc.tag ~loc:!@loc @@ Id.of_string "Type")) ]]
   ;
   ssexpr:
     [ "35" 
@@ -730,7 +730,7 @@ GEXTEND Gram
   ;
   argument_spec: [
        [ b = OPT "!"; id = name ; s = OPT scope ->
-       snd id, not (Option.is_empty b), Option.map (fun x -> !@loc, x) s
+       snd id, not (Option.is_empty b), Option.map (fun x -> Loc.tag ~loc:!@loc x) s
     ]
   ];
   (* List of arguments implicit status, scope, modifiers *)
@@ -743,7 +743,7 @@ GEXTEND Gram
     | "/" -> [`Slash]
     | "("; items = LIST1 argument_spec; ")"; sc = OPT scope ->
        let f x = match sc, x with
-         | None, x -> x | x, None -> Option.map (fun y -> !@loc, y) x
+         | None, x -> x | x, None -> Option.map (fun y -> Loc.tag ~loc:!@loc y) x
          | Some _, Some _ -> error "scope declared twice" in
        List.map (fun (name,recarg_like,notation_scope) ->
            `Id { name=name; recarg_like=recarg_like;
@@ -751,7 +751,7 @@ GEXTEND Gram
                  implicit_status = NotImplicit}) items
     | "["; items = LIST1 argument_spec; "]"; sc = OPT scope ->
        let f x = match sc, x with
-         | None, x -> x | x, None -> Option.map (fun y -> !@loc, y) x
+         | None, x -> x | x, None -> Option.map (fun y -> Loc.tag ~loc:!@loc y) x
          | Some _, Some _ -> error "scope declared twice" in
        List.map (fun (name,recarg_like,notation_scope) ->
            `Id { name=name; recarg_like=recarg_like;
@@ -759,7 +759,7 @@ GEXTEND Gram
                  implicit_status = Implicit}) items
     | "{"; items = LIST1 argument_spec; "}"; sc = OPT scope ->
        let f x = match sc, x with
-         | None, x -> x | x, None -> Option.map (fun y -> !@loc, y) x
+         | None, x -> x | x, None -> Option.map (fun y -> Loc.tag ~loc:!@loc y) x
          | Some _, Some _ -> error "scope declared twice" in
        List.map (fun (name,recarg_like,notation_scope) ->
            `Id { name=name; recarg_like=recarg_like;
@@ -792,7 +792,7 @@ GEXTEND Gram
     [ [ name = pidentref; sup = OPT binders ->
 	  (let ((loc,id),l) = name in ((loc, Name id),l)),
           (Option.default [] sup)
-      | -> ((!@loc, Anonymous), None), []  ] ]
+      | -> ((Loc.tag ~loc:!@loc Anonymous), None), []  ] ]
   ;
   hint_info:
     [ [ "|"; i = OPT natural; pat = OPT constr_pattern ->
@@ -1158,8 +1158,8 @@ GEXTEND Gram
       | IDENT "only"; IDENT "parsing" -> SetOnlyParsing
       | IDENT "compat"; s = STRING ->
         SetCompatVersion (Coqinit.get_compat_version s)
-      | IDENT "format"; s1 = [s = STRING -> (!@loc,s)];
-                        s2 = OPT [s = STRING -> (!@loc,s)] ->
+      | IDENT "format"; s1 = [s = STRING -> Loc.tag ~loc:!@loc s];
+                        s2 = OPT [s = STRING -> Loc.tag ~loc:!@loc s] ->
           begin match s1, s2 with
           | (_,k), Some s -> SetFormat(k,s)
           | s, None -> SetFormat ("text",s) end
