@@ -87,6 +87,8 @@ type grammar_constr_prod_item =
     (* tells action rule to make a list of the n previous parsed items;
        concat with last parsed list if true *)
 
+type ptable = string
+
 type notation_grammar = {
   notgram_level : int;
   notgram_assoc : Extend.gram_assoc option;
@@ -94,4 +96,5 @@ type notation_grammar = {
   notgram_prods : grammar_constr_prod_item list list;
   notgram_typs : notation_var_internalization_type list;
   notgram_onlyprinting : bool;
+  notgram_parsing_table : ptable;
 }

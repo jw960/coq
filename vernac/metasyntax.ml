@@ -750,6 +750,8 @@ type notation_modifier = {
   compat        : compat_version option;
   format        : string Loc.located option;
   extra         : (string * string) list;
+
+  table         : ptable;
 }
 
 let default = {
@@ -761,6 +763,7 @@ let default = {
   compat        = None;
   format        = None;
   extra         = [];
+  table         = "user";
 }
 
 end
@@ -800,6 +803,8 @@ let interp_modifiers modl = let open NotationMods in
         interp { acc with format = Some s; } l
     | SetFormat (k,(_,s)) :: l ->
         interp { acc with extra = (k,s)::acc.extra; } l
+    | SetParsingTable s :: l ->
+        interp { acc with table = s } l
   in interp default modl
 
 let check_infix_modifiers modifiers =
@@ -1024,6 +1029,7 @@ module SynData = struct
     compat        : compat_version option;
     format        : string Loc.located option;
     extra         : (string * string) list;
+    table         : ptable;
 
     (* XXX: Callback to printing, must remove *)
     msgs          : ((std_ppcmds -> unit) * std_ppcmds) list;
@@ -1088,6 +1094,7 @@ let compute_syntax_data df modifiers =
     compat        = mods.compat;
     format        = mods.format;
     extra         = mods.extra;
+    table         = mods.table;
 
     msgs;
 
@@ -1225,7 +1232,7 @@ let recover_notation_syntax rawntn =
 (**********************************************************************)
 (* Main entry point for building parsing and printing rules           *)
 
-let make_pa_rule i_typs level (typs,symbols) ntn onlyprint =
+let make_pa_rule i_typs level (typs,symbols) ntn onlyprint table =
   let assoc = recompute_assoc typs in
   let prod = make_production typs symbols in
   { notgram_level = level;
@@ -1234,6 +1241,7 @@ let make_pa_rule i_typs level (typs,symbols) ntn onlyprint =
     notgram_prods = prod;
     notgram_typs = i_typs;
     notgram_onlyprinting = onlyprint;
+    notgram_parsing_table = table;
   }
 
 let make_pp_rule level (typs,symbols) fmt =
@@ -1244,7 +1252,7 @@ let make_pp_rule level (typs,symbols) fmt =
 (* let make_syntax_rules i_typs (ntn,prec,need_squash) sy_data fmt extra onlyprint compat = *)
 let make_syntax_rules (sd : SynData.syn_data) = let open SynData in
   let ntn, prec, need_squash = sd.not_data in
-  let pa_rule = make_pa_rule sd.intern_typs sd.level sd.syntax_data ntn sd.only_printing in
+  let pa_rule = make_pa_rule sd.intern_typs sd.level sd.syntax_data ntn sd.only_printing sd.table in
   let pp_rule = make_pp_rule sd.level sd.syntax_data sd.format in
   let sy = {
     synext_level    = (sd.level, prec);

@@ -220,6 +220,7 @@ type syntax_modifier =
   | SetOnlyPrinting
   | SetCompatVersion of Flags.compat_version
   | SetFormat of string * string located
+  | SetParsingTable of string
 
 type proof_end =
   | Admitted

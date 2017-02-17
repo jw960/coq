@@ -383,6 +383,7 @@ module GrammarInterpMap = GrammarCommand.Map(GrammarInterp)
 
 let grammar_interp = ref GrammarInterpMap.empty
 
+(* let grammar_stacks : (string, (int * GrammarCommand.t * GramState.t) list) Hashtbl.t = Hashtbl.empty *)
 let (grammar_stack : (int * GrammarCommand.t * GramState.t) list ref) = ref []
 
 type 'a grammar_command = 'a GrammarCommand.tag
@@ -394,6 +395,7 @@ let create_grammar_command name interp : _ grammar_command =
 
 let extend_grammar_command tag g =
   let modify = GrammarInterpMap.find tag !grammar_interp in
+  (* let grammar_state = match Hashtbla!grammar_stack with *)
   let grammar_state = match !grammar_stack with
   | [] -> GramState.empty
   | (_, _, st) :: _ -> st
