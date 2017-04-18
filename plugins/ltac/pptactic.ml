@@ -1036,7 +1036,7 @@ type 'a extra_genarg_printer =
             | TacSelect (s, tac) -> pr_goal_selector s ++ spc () ++ pr_tac ltop tac, latom
             | TacId l ->
               keyword "idtac" ++ prlist (pr_arg (pr_message_token pr.pr_name)) l, latom
-            | TacAtom (loc,t) ->
+            | TacAtom { CAst.loc; v = t } ->
               pr_with_comments ?loc (hov 1 (pr_atom pr strip_prod_binders tag_atom t)), ltatom
             | TacArg(_,Tacexp e) ->
               pr.pr_tactic (latom,E) e, latom

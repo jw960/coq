@@ -1178,7 +1178,7 @@ let rec val_interp ist ?(appl=UnnamedAppl) (tac:glob_tactic_expr) : Val.t Ftacti
       
 
 and eval_tactic ist tac : unit Proofview.tactic = match tac with
-  | TacAtom (loc,t) ->
+  | TacAtom { CAst.loc; v = t } ->
       let call = LtacAtomCall t in
       push_trace(loc,call) ist >>= fun trace ->
       Profile_ltac.do_profile "eval_tactic:2" trace

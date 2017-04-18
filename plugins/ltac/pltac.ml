@@ -10,6 +10,7 @@ open Names
 open Pcoq
 
 (* Main entry for extensions *)
+let atomic_simple_tactic = Gram.entry_create "atomic_tactic:simple_tactic"
 let simple_tactic = Gram.entry_create "tactic:simple_tactic"
 
 let make_gen_entry _ name = Gram.entry_create ("tactic:" ^ name)

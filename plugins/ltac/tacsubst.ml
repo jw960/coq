@@ -180,7 +180,7 @@ let rec subst_atomic subst (t:glob_atomic_tactic_expr) = match t with
       TacInversion (InversionUsing (subst_glob_constr subst c,cl),hyp)
 
 and subst_tactic subst (t:glob_tactic_expr) = match t with
-  | TacAtom (_loc,t) -> TacAtom (Loc.tag @@ subst_atomic subst t)
+  | TacAtom t -> TacAtom (CAst.map (subst_atomic subst) t)
   | TacFun tacfun -> TacFun (subst_tactic_fun subst tacfun)
   | TacLetIn (r,l,u) ->
       let l = List.map (fun (n,b) -> (n,subst_tacarg subst b)) l in

@@ -158,7 +158,7 @@ GEXTEND Gram
       | IDENT "idtac"; l = LIST0 message_token -> TacId l
       | g=failkw; n = [ n = int_or_var -> n | -> fail_default_value ];
 	  l = LIST0 message_token -> TacFail (g,n,l)
-      | st = simple_tactic -> st
+      | st = atomic_simple_tactic -> TacAtom (CAst.make ~loc:!@loc st)
       | a = tactic_arg -> TacArg(Loc.tag ~loc:!@loc a)
       | r = reference; la = LIST0 tactic_arg_compat ->
           TacArg(Loc.tag ~loc:!@loc @@ TacCall (Loc.tag ~loc:!@loc (r,la))) ]

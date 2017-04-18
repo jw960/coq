@@ -206,7 +206,7 @@ constraint 'a = <
     'r : ltac refs, 'n : idents, 'l : levels *)
 
 and 'a gen_tactic_expr =
-  | TacAtom of ('a gen_atomic_tactic_expr) Loc.located
+  | TacAtom of ('a gen_atomic_tactic_expr) CAst.ast
   | TacThen of
       'a gen_tactic_expr *
       'a gen_tactic_expr

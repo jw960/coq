@@ -307,7 +307,7 @@ open Tacexpr
 let initial_atomic () =
   let nocl = {onhyps=Some[];concl_occs=AllOccurrences} in
   let iter (s, t) =
-    let body = TacAtom (Loc.tag t) in
+    let body = TacAtom (CAst.make t) in
     Tacenv.register_ltac false false (Id.of_string s) body
   in
   let () = List.iter iter

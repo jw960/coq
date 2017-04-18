@@ -108,6 +108,7 @@ let interp_entry_name interp symb =
 
 let get_tactic_entry n =
   if Int.equal n 0 then
+    (* XXX: This is wrong *)
     Pltac.simple_tactic, None
   else if Int.equal n 5 then
     Pltac.binder_tactic, None
@@ -518,7 +519,7 @@ let () =
   let entries = [
     AnyEntry Pltac.tactic_expr;
     AnyEntry Pltac.binder_tactic;
-    AnyEntry Pltac.simple_tactic;
+    AnyEntry Pltac.atomic_simple_tactic;
     AnyEntry Pltac.tactic_arg;
   ] in
   register_grammar "tactic" entries

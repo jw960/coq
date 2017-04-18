@@ -547,10 +547,10 @@ let rec intern_atomic lf ist x =
 and intern_tactic onlytac ist tac = snd (intern_tactic_seq onlytac ist tac)
 
 and intern_tactic_seq onlytac ist = function
-  | TacAtom (loc,t) ->
+  | TacAtom { CAst.loc; v = t } ->
       let lf = ref ist.ltacvars in
       let t = intern_atomic lf ist t in
-      !lf, TacAtom (Loc.tag ?loc:(adjust_loc loc) t)
+      !lf, TacAtom (CAst.make ?loc:(adjust_loc loc) t)
   | TacFun tacfun -> ist.ltacvars, TacFun (intern_tactic_fun ist tacfun)
   | TacLetIn (isrec,l,u) ->
       let ltacvars = Id.Set.union (extract_let_names l) ist.ltacvars in

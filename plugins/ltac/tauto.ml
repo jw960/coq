@@ -206,7 +206,7 @@ let u_iff = make_unfold "iff"
 let u_not = make_unfold "not"
 
 let reduction_not_iff _ ist =
-  let make_reduce c = TacAtom (Loc.tag @@ TacReduce (Genredexpr.Unfold c, Locusops.allHypsAndConcl)) in
+  let make_reduce c = TacAtom (CAst.make @@ TacReduce (Genredexpr.Unfold c, Locusops.allHypsAndConcl)) in
   let tac = match !negation_unfolding, unfold_iff () with
     | true, true -> make_reduce [u_not; u_iff]
     | true, false -> make_reduce [u_not]
