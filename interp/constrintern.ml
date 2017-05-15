@@ -116,7 +116,10 @@ let global_reference_in_absolute_module dir id =
 type internalization_error =
   | VariableCapture of Id.t * Id.t
   | IllegalMetavariable
+<<<<<<< HEAD
   | NotAConstructor of qualid
+=======
+>>>>>>> [interp] Move notation pattern pass to its own file.
   | UnboundFixName of bool * Id.t
   | NonLinearPattern of Id.t
   | BadPatternsNumber of int * int
@@ -133,9 +136,12 @@ let explain_variable_capture id id' =
 let explain_illegal_metavariable =
   str "Metavariables allowed only in patterns"
 
+<<<<<<< HEAD
 let explain_not_a_constructor qid =
   str "Unknown constructor: " ++ pr_qualid qid
 
+=======
+>>>>>>> [interp] Move notation pattern pass to its own file.
 let explain_unbound_fix_name is_cofix id =
   str "The name" ++ spc () ++ Id.print id ++
   spc () ++ str "is not bound in the corresponding" ++ spc () ++
@@ -148,6 +154,7 @@ let explain_bad_patterns_number n1 n2 =
   str "Expecting " ++ int n1 ++ str (String.plural n1 " pattern") ++
   str " but found " ++ int n2
 
+<<<<<<< HEAD
 let explain_field_not_a_projection field_id =
   pr_qualid field_id ++ str ": Not a projection"
 
@@ -157,12 +164,14 @@ let explain_field_not_a_projection_of field_id inductive_id =
 let explain_projections_of_diff_records inductive1_id inductive2_id =
   str "This record contains fields of both " ++ pr_qualid inductive1_id ++
   str " and " ++ pr_qualid inductive2_id
+=======
+  (* | NotAConstructor ref -> explain_not_a_constructor ref *)
+>>>>>>> [interp] Move notation pattern pass to its own file.
 
 let explain_internalization_error e =
   let pp = match e with
   | VariableCapture (id,id') -> explain_variable_capture id id'
   | IllegalMetavariable -> explain_illegal_metavariable
-  | NotAConstructor ref -> explain_not_a_constructor ref
   | UnboundFixName (iscofix,id) -> explain_unbound_fix_name iscofix id
   | NonLinearPattern id -> explain_non_linear_pattern id
   | BadPatternsNumber (n1,n2) -> explain_bad_patterns_number n1 n2
@@ -172,10 +181,6 @@ let explain_internalization_error e =
   | ProjectionsOfDifferentRecords (inductive1_id, inductive2_id) ->
     explain_projections_of_diff_records inductive1_id inductive2_id
   in pp ++ str "."
-
-let error_bad_inductive_type ?loc =
-  user_err ?loc  (str
-    "This should be an inductive type applied to patterns.")
 
 let error_parameter_not_implicit ?loc =
   user_err ?loc  (str
@@ -250,6 +255,7 @@ let contract_curly_brackets ntn (l,ll,bl,bll) =
   (* side effect; don't inline *)
   (InConstrEntrySomeLevel,!ntn'),(l,ll,bl,bll)
 
+<<<<<<< HEAD
 let contract_curly_brackets_pat ntn (l,ll) =
   match ntn with
   | InCustomEntryLevel _,_ -> ntn,(l,ll)
@@ -266,6 +272,8 @@ let contract_curly_brackets_pat ntn (l,ll) =
   (* side effect; don't inline *)
   (InConstrEntrySomeLevel,!ntn'),(l,ll)
 
+=======
+>>>>>>> [interp] Move notation pattern pass to its own file.
 type intern_env = {
   ids: Names.Id.Set.t;
   unb: bool;
@@ -1100,6 +1108,7 @@ let interp_reference vars r =
 (**********************************************************************)
 (** {5 Cases }                                                        *)
 
+<<<<<<< HEAD
 (** Private internalization patterns *)
 type 'a raw_cases_pattern_expr_r =
   | RCPatAlias of 'a raw_cases_pattern_expr * lname
@@ -1110,35 +1119,23 @@ type 'a raw_cases_pattern_expr_r =
   | RCPatOr    of 'a raw_cases_pattern_expr list
 and 'a raw_cases_pattern_expr = ('a raw_cases_pattern_expr_r, 'a) DAst.t
 
+=======
+>>>>>>> [interp] Move notation pattern pass to its own file.
 (** {6 Elementary bricks } *)
 let apply_scope_env env = function
   | [] -> {env with tmp_scope = None}, []
   | sc::scl -> {env with tmp_scope = sc}, scl
 
-let rec simple_adjust_scopes n scopes =
-  (* Note: they can be less scopes than arguments but also more scopes *)
-  (* than arguments because extra scopes are used in the presence of *)
-  (* coercions to funclass *)
-  if Int.equal n 0 then [] else match scopes with
-  | [] -> None :: simple_adjust_scopes (n-1) []
-  | sc::scopes -> sc :: simple_adjust_scopes (n-1) scopes
+let merge_subst s1 s2 = Id.Map.fold Id.Map.add s1 s2
 
-let find_remaining_scopes pl1 pl2 ref =
-  let impls_st = implicits_of_global ref in
-  let len_pl1 = List.length pl1 in
-  let len_pl2 = List.length pl2 in
-  let impl_list = if Int.equal len_pl1 0
-    then select_impargs_size len_pl2 impls_st
-    else List.skipn_at_least len_pl1 (select_stronger_impargs impls_st) in
-  let allscs = find_arguments_scope ref in
-  let scope_list = List.skipn_at_least len_pl1 allscs in
-  let rec aux = function
-    |[],l -> l
-    |_,[] -> []
-    |h::t,_::tt when is_status_implicit h -> aux (t,tt)
-    |_::t,h::tt -> h :: aux (t,tt)
-  in ((try List.firstn len_pl1 allscs with Failure _ -> simple_adjust_scopes len_pl1 allscs),
-      simple_adjust_scopes len_pl2 (aux (impl_list,scope_list)))
+let product_of_cases_patterns ids idspl =
+  List.fold_right (fun (ids,pl) (ids',ptaill) ->
+    (ids @ ids',
+     (* Cartesian prod of the or-pats for the nth arg and the tail args *)
+     List.flatten (
+       List.map (fun (subst,p) ->
+	 List.map (fun (subst',ptail) -> (merge_subst subst subst',p::ptail)) ptaill) pl)))
+    idspl (ids,[Id.Map.empty,[]])
 
 (* @return the first variable that occurs twice in a pattern
 
@@ -1228,6 +1225,7 @@ let add_local_defs_and_check_length loc env g pl args = match g with
   | _ -> pl
 
 let add_implicits_check_length fail nargs nargs_with_letin impls_st len_pl1 pl2 =
+  let open Notationintern in
   let impl_list = if Int.equal len_pl1 0
     then select_impargs_size (List.length pl2) impls_st
     else List.skipn_at_least len_pl1 (select_stronger_impargs impls_st) in
@@ -1291,10 +1289,13 @@ let find_constructor loc add_params ref =
       List.make nb ([], [(Id.Map.empty, DAst.make @@ PatVar Anonymous)])
     | None -> []
 
+<<<<<<< HEAD
 let find_pattern_variable qid =
   if qualid_is_ident qid then qualid_basename qid
   else raise (InternalizationError(qid.CAst.loc,NotAConstructor qid))
 
+=======
+>>>>>>> [interp] Move notation pattern pass to its own file.
 let check_duplicate loc fields =
   let eq (ref1, _) (ref2, _) = qualid_eq ref1 ref2 in
   let dups = List.duplicates eq fields in
@@ -1458,6 +1459,7 @@ let alias_of als = match als.alias_ids with
 
 *)
 
+<<<<<<< HEAD
 let is_zero s =
   let rec aux i =
     Int.equal (String.length s) i || (s.[i] == '0' && aux (i+1))
@@ -1685,15 +1687,24 @@ let drop_notations_pattern looked_for genv =
   in in_pat true
 
 let rec intern_pat genv ntnvars aliases pat =
+=======
+let rec intern_pat genv aliases pat =
+>>>>>>> [interp] Move notation pattern pass to its own file.
   let intern_cstr_with_all_args loc c with_letin idslpl1 pl2 =
     let idslpl2 = List.map (intern_pat genv ntnvars empty_alias) pl2 in
     let (ids',pll) = product_of_cases_patterns aliases (idslpl1@idslpl2) in
     let pl' = List.map (fun (asubst,pl) ->
       (asubst, DAst.make ?loc @@ PatCstr (c,chop_params_pattern loc (fst c) pl with_letin,alias_of aliases))) pll in
     ids',pl' in
+<<<<<<< HEAD
   let loc = pat.loc in
   match DAst.get pat with
     | RCPatAlias (p, id) ->
+=======
+  let open Notationintern in
+  match pat with
+    | RCPatAlias (loc, p, id) ->
+>>>>>>> [interp] Move notation pattern pass to its own file.
       let aliases' = merge_aliases aliases id in
       intern_pat genv ntnvars aliases' p
     | RCPatCstr (head, expl_pl, pl) ->
@@ -1723,19 +1734,35 @@ let rec intern_pat genv ntnvars aliases pat =
       check_or_pat_variables loc ids (List.tl idsl);
       (ids,List.flatten pl')
 
+<<<<<<< HEAD
 let intern_cases_pattern genv ntnvars scopes aliases pat =
   intern_pat genv ntnvars aliases
     (drop_notations_pattern (function ConstructRef _ -> () | _ -> raise Not_found) genv scopes pat)
+=======
+let intern_cases_pattern genv scopes aliases pat =
+  intern_pat genv aliases
+    (Notationintern.drop_notations_pattern ~inductive_pattern:false scopes pat)
+>>>>>>> [interp] Move notation pattern pass to its own file.
 
 let _ =
   intern_cases_pattern_fwd :=
     fun ntnvars scopes p -> intern_cases_pattern (Global.env ()) ntnvars scopes empty_alias p
 
+<<<<<<< HEAD
 let intern_ind_pattern genv ntnvars scopes pat =
   let no_not =
     try
       drop_notations_pattern (function (IndRef _ | ConstructRef _) -> () | _ -> raise Not_found) genv scopes pat
     with InternalizationError(loc,NotAConstructor _) -> error_bad_inductive_type ?loc
+=======
+let error_bad_inductive_type ?loc =
+  CErrors.user_err ?loc Pp.(str
+    "This should be an inductive type applied to patterns.")
+
+let intern_ind_pattern genv scopes pat =
+  let open Notationintern in
+  let no_not = drop_notations_pattern ~inductive_pattern:true scopes pat
+>>>>>>> [interp] Move notation pattern pass to its own file.
   in
   let loc = no_not.CAst.loc in
   match DAst.get no_not with
@@ -2301,7 +2328,6 @@ let intern_pattern globalenv patt =
   with
       InternalizationError (loc,e) ->
 	user_err ?loc ~hdr:"internalize" (explain_internalization_error e)
-
 
 (*********************************************************************)
 (* Functions to parse and interpret constructions *)

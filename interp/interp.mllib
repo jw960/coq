@@ -12,6 +12,7 @@ Dumpglob
 Reserve
 Impargs
 Implicit_quantifiers
+Notationintern
 Constrintern
 Modintern
 Constrextern
