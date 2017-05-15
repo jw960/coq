@@ -24,3 +24,13 @@ val drop_notations_pattern :
   Notation.local_scopes ->
   Constrexpr.cases_pattern_expr ->
   raw_cases_pattern_expr
+
+type notation_scope_env = {
+  tmp_scope: Notation_term.tmp_scope_name option;
+  scopes: Notation_term.scope_name list;
+}
+
+val intern_notation :
+    (* (intern_env -> Constrexpr.constr_expr -> Glob_term.glob_constr) -> *)
+    ('a -> Constrexpr.constr_expr -> Glob_term.glob_constr) ->
+    notation_scope_env -> unit -> Loc.t -> string -> Constrexpr.constr_notation_substitution -> Glob_term.glob_constr

@@ -220,6 +220,7 @@ let compute_internalization_env env sigma ?(impls=empty_internalization_env) ty 
     impls
 
 (**********************************************************************)
+<<<<<<< HEAD
 (* Contracting "{ _ }" in notations *)
 
 let rec wildcards ntn n =
@@ -274,6 +275,8 @@ let contract_curly_brackets_pat ntn (l,ll) =
 
 =======
 >>>>>>> [interp] Move notation pattern pass to its own file.
+=======
+>>>>>>> [wip]
 type intern_env = {
   ids: Names.Id.Set.t;
   unb: bool;
@@ -281,7 +284,6 @@ type intern_env = {
   scopes: Notation_term.scope_name list;
   impls: internalization_env }
 
-(**********************************************************************)
 (* Remembering the parsing scope of variables in notations            *)
 
 let make_current_scope tmp scopes = match tmp, scopes with
@@ -562,6 +564,7 @@ let rec expand_binders ?loc mk bl c =
         expand_binders ?loc mk bl (mk ?loc (Name id,Explicit,ty) c)
 
 (**********************************************************************)
+<<<<<<< HEAD
 (* Syntax extensions                                                  *)
 
 let option_mem_assoc id = function
@@ -917,6 +920,8 @@ let intern_notation intern env ntnvars loc ntn fullargs =
   instantiate_notation_constr loc intern intern_cases_pattern_as_binder ntnvars subst (Id.Map.empty, env) c
 
 (**********************************************************************)
+=======
+>>>>>>> [wip]
 (* Discriminating between bound variables and global references       *)
 
 let string_of_ty = function
@@ -1020,6 +1025,7 @@ let intern_reference qid =
   in
   Smartlocate.global_of_extended_global r
 
+<<<<<<< HEAD
 let sort_info_of_level_info (info: level_info) : (Libnames.qualid * int) option =
   match info with
   | UAnonymous -> None
@@ -1040,6 +1046,18 @@ let intern_qualid ?(no_secvar=false) qid intern env ntnvars us args =
       (* Rule out section vars since these should have been found by intern_var *)
       raise Not_found
   | TrueGlobal ref -> (DAst.make ?loc @@ GRef (ref, us)), true, args
+=======
+
+(* Is it a global reference or a syntactic definition? *)
+let intern_qualid loc qid intern env lvar us args =
+  let make_subst ids l =
+    let fold accu (id, scl) a = Id.Map.add id (a, scl) accu in
+    List.fold_left2 fold Id.Map.empty ids l
+  in
+  match intern_extended_global_of_qualid (loc,qid) with
+  | TrueGlobal ref -> GRef (loc, ref, us), true, args
+  (* Syntactic definitions are a bit special for now... *)
+>>>>>>> [wip]
   | SynDef sp ->
       let (ids,c) = Syntax_def.search_syntactic_definition ?loc sp in
       let nids = List.length ids in
@@ -1050,6 +1068,7 @@ let intern_qualid ?(no_secvar=false) qid intern env ntnvars us args =
       let subst = (terms, Id.Map.empty, Id.Map.empty, Id.Map.empty) in
       let infos = (Id.Map.empty, env) in
       let projapp = match c with NRef _ -> true | _ -> false in
+<<<<<<< HEAD
       let c = instantiate_notation_constr loc intern intern_cases_pattern_as_binder ntnvars subst infos c in
       let loc = c.loc in
       let err () =
@@ -1058,6 +1077,10 @@ let intern_qualid ?(no_secvar=false) qid intern env ntnvars us args =
                   ++ str " its expanded head does not start with a reference")
       in
       let c = match us, DAst.get c with
+=======
+      let c = Notationintern.instantiate_notation_constr loc intern lvar subst infos c in
+      let c = match us, c with
+>>>>>>> [wip]
       | None, _ -> c
       | Some _, GRef (ref, None) -> DAst.make ?loc @@ GRef (ref, us)
       | Some _, GApp (r, arg) ->
@@ -1290,6 +1313,7 @@ let find_constructor loc add_params ref =
     | None -> []
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 let find_pattern_variable qid =
   if qualid_is_ident qid then qualid_basename qid
   else raise (InternalizationError(qid.CAst.loc,NotAConstructor qid))
@@ -1422,6 +1446,8 @@ let sort_fields ~complete loc fields completer =
         let sorted_fields = List.map snd sorted_indexed_fields in
         Some (nparams, base_constructor, sorted_fields)
 
+=======
+>>>>>>> [wip]
 (** {6 Manage multiple aliases} *)
 
 type alias = {
@@ -1451,6 +1477,7 @@ let alias_of als = match als.alias_ids with
 | [] -> Anonymous
 | {v=id} :: _ -> Name id
 
+<<<<<<< HEAD
 (** {6 Expanding notations }
 
     @returns a raw_case_pattern_expr :
@@ -1688,6 +1715,8 @@ let drop_notations_pattern looked_for genv =
 
 let rec intern_pat genv ntnvars aliases pat =
 =======
+=======
+>>>>>>> [wip]
 let rec intern_pat genv aliases pat =
 >>>>>>> [interp] Move notation pattern pass to its own file.
   let intern_cstr_with_all_args loc c with_letin idslpl1 pl2 =
@@ -1943,6 +1972,7 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
 	DAst.make ?loc @@
         GLetIn (na.CAst.v, inc1, int,
           intern (push_name_env ntnvars (impls_term_list inc1) env na) c2)
+<<<<<<< HEAD
     | CNotation ((InConstrEntrySomeLevel,"- _"), ([a],[],[],[])) when is_non_zero a ->
       let p = match a.CAst.v with CPrim (Numeral (p, _)) -> p | _ -> assert false in
        intern env (CAst.make ?loc @@ CPrim (Numeral (p,false)))
@@ -1957,6 +1987,11 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
 	intern {env with tmp_scope = None;
 		  scopes = find_delimiters_scope ?loc key :: env.scopes} e
     | CAppExpl ((isproj,ref,us), args) ->
+=======
+    | CGeneralization (loc,b,a,c) ->
+        intern_generalization intern env ntnvars loc b a c
+    | CAppExpl (loc, (isproj,ref,us), args) ->
+>>>>>>> [wip]
         let (f,_,args_scopes,_),args =
 	  let args = List.map (fun a -> (a,None)) args in
 	  intern_applied_reference intern env (Environ.named_context globalenv) 
@@ -1978,13 +2013,19 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
             | CRef (ref,us) -> 
 	       intern_applied_reference intern env
 		 (Environ.named_context globalenv) lvar us args ref
+<<<<<<< HEAD
             | CNotation (ntn,([],[],[],[])) ->
                 let c = intern_notation intern env ntnvars loc ntn ([],[],[],[]) in
+=======
+            | CNotation (loc,ntn,([],[],[])) ->
+                let c = Notationintern.intern_notation intern env ntnvars loc ntn ([],[],[]) in
+>>>>>>> [wip]
                 let x, impl, scopes, l = find_appl_head_data c in
 		  (x,impl,scopes,l), args
             | _ -> (intern env f,[],[],[]), args in
           apply_impargs c env impargs args_scopes
 	    (merge_impargs l args) loc
+<<<<<<< HEAD
 
     | CRecord fs ->
        let st = Evar_kinds.Define (not (Program.get_proofs_transparency ())) in
@@ -2010,6 +2051,9 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
 	  intern env app
 	end
     | CCases (sty, rtnpo, tms, eqns) ->
+=======
+    | CCases (loc, sty, rtnpo, tms, eqns) ->
+>>>>>>> [wip]
         let as_in_vars = List.fold_left (fun acc (_,na,inb) ->
           (Option.fold_left (fun acc { CAst.v = y } -> Name.fold_right Id.Set.add y acc) acc na))
           Id.Set.empty tms in
@@ -2128,6 +2172,7 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
     | CPatVar _ ->
         raise (InternalizationError (loc,IllegalMetavariable))
     (* end *)
+<<<<<<< HEAD
     | CSort s ->
 	DAst.make ?loc @@
 	GSort s
@@ -2135,6 +2180,19 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
 	DAst.make ?loc @@
         GCast (intern env c1, map_cast_type (intern_type env) c2)
     )
+=======
+    | CSort (loc, s) ->
+	GSort(loc,s)
+    | CCast (loc, c1, c2) ->
+        GCast (loc,intern env c1, Miscops.map_cast_type (intern_type env) c2)
+    (* Handled by notations *)
+    | CRecord (loc, _)
+    | CNotation (loc,_,_)
+    | CDelimiters (loc, _, _)
+    | CPrim (loc, _) ->
+      CErrors.anomaly ~loc ~label:"intern" Pp.(str "Notation not handled properly in the notation pass")
+
+>>>>>>> [wip]
   and intern_type env = intern (set_type_scope env)
 
   and intern_local_binder env bind : intern_env * Glob_term.extended_glob_local_binder list =

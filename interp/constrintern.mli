@@ -166,13 +166,13 @@ val interp_context_evars :
 (*   (env -> Evarutil.type_constraint -> glob_constr -> unsafe_judgment Evd.in_evar_universe_context) -> *)
 (*   ?global_level:bool -> ?impl_env:internalization_env -> *)
 (*   env -> evar_map -> local_binder_expr list -> internalization_env * ((env * Evd.evar_universe_context * rel_context * sorts list) * Impargs.manual_implicits) *)
-  
+
 (* val interp_context : ?global_level:bool -> ?impl_env:internalization_env -> *)
 (*   env -> evar_map -> local_binder_expr list ->  *)
 (*   internalization_env *  *)
 (*   ((env * Evd.evar_universe_context * rel_context * sorts list) * Impargs.manual_implicits) *)
 
-(** Locating references of constructions, possibly via a syntactic definition 
+(** Locating references of constructions, possibly via a syntactic definition
    (these functions do not modify the glob file) *)
 
 val locate_reference :  Libnames.qualid -> GlobRef.t
