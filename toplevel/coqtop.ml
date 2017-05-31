@@ -85,7 +85,7 @@ let console_toploop_run () =
   (* We initialize the console only if we run the toploop_run *)
   let tl_feed = Feedback.add_feeder Coqloop.coqloop_feed in
   if Dumpglob.dump () then begin
-    if_verbose warning "Dumpglob cannot be used in interactive mode.";
+    unless_quiet warning "Dumpglob cannot be used in interactive mode.";
     Dumpglob.noglob ()
   end;
   Coqloop.loop();
@@ -199,7 +199,7 @@ let require_prelude () =
 let require_list = ref ([] : string list)
 let add_require s = require_list := s :: !require_list
 let require () =
-  let () = if !load_init then silently require_prelude () in
+  let () = if !load_init then quietly require_prelude () in
   let map dir = Qualid (Loc.tag @@ qualid_of_string dir) in
   Vernacentries.vernac_require None (Some false) (List.rev_map map !require_list)
 
@@ -632,7 +632,7 @@ let init_toplevel arglist =
         prerr_endline "See -help for the list of supported options";
         exit 1
       end;
-      if_verbose print_header ();
+      unless_quiet print_header ();
       inputstate ();
       Mltop.init_known_plugins ();
       engage ();

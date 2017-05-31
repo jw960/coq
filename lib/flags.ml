@@ -146,11 +146,11 @@ let beautify_file = ref false
 
 (* Silent / Verbose *)
 let quiet = ref false
-let silently f x = with_option quiet f x
-let verbosely f x = without_option quiet f x
+let quietly f x = with_option quiet f x
+let not_quietly f x = without_option quiet f x
 
-let if_silent f x = if !quiet then f x
-let if_verbose f x = if not !quiet then f x
+let if_quiet f x = if !quiet then f x
+let unless_quiet f x = if not !quiet then f x
 
 let make_silent flag = quiet := flag
 let is_silent () = !quiet

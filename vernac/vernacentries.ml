@@ -352,7 +352,7 @@ let dump_universes_gen g s =
 (* "Locate" commands *)
 
 let locate_file f =
-  let file = Flags.silently Loadpath.locate_file f in
+  let file = Flags.quietly Loadpath.locate_file f in
   str file
 
 let msg_found_library = function
@@ -642,7 +642,7 @@ let vernac_declare_module export (loc, id) binders_ast mty_ast =
       id binders_ast (Enforce mty_ast) []
   in
   Dumpglob.dump_moddef ?loc mp "mod";
-  if_verbose Feedback.msg_info (str "Module " ++ pr_id id ++ str " is declared");
+  unless_quiet Feedback.msg_info (str "Module " ++ pr_id id ++ str " is declared");
   Option.iter (fun export -> vernac_import export [Ident (Loc.tag id)]) export
 
 let vernac_define_module export (loc, id) binders_ast mty_ast_o mexpr_ast_l =
@@ -663,7 +663,7 @@ let vernac_define_module export (loc, id) binders_ast mty_ast_o mexpr_ast_l =
            export id binders_ast mty_ast_o
        in
        Dumpglob.dump_moddef ?loc mp "mod";
-       if_verbose Feedback.msg_info
+       unless_quiet Feedback.msg_info
          (str "Interactive Module " ++ pr_id id ++ str " started");
        List.iter
          (fun (export,id) ->
@@ -681,7 +681,7 @@ let vernac_define_module export (loc, id) binders_ast mty_ast_o mexpr_ast_l =
 	   id binders_ast mty_ast_o mexpr_ast_l
        in
        Dumpglob.dump_moddef ?loc mp "mod";
-       if_verbose Feedback.msg_info
+       unless_quiet Feedback.msg_info
 	 (str "Module " ++ pr_id id ++ str " is defined");
        Option.iter (fun export -> vernac_import export [Ident (Loc.tag id)])
          export
@@ -689,7 +689,7 @@ let vernac_define_module export (loc, id) binders_ast mty_ast_o mexpr_ast_l =
 let vernac_end_module export (loc,id as lid) =
   let mp = Declaremods.end_module () in
   Dumpglob.dump_modref ?loc mp "mod";
-  if_verbose Feedback.msg_info (str "Module " ++ pr_id id ++ str " is defined");
+  unless_quiet Feedback.msg_info (str "Module " ++ pr_id id ++ str " is defined");
   Option.iter (fun export -> vernac_import export [Ident lid]) export
 
 let vernac_declare_module_type (loc,id) binders_ast mty_sign mty_ast_l =
@@ -710,7 +710,7 @@ let vernac_declare_module_type (loc,id) binders_ast mty_sign mty_ast_l =
            id binders_ast mty_sign
        in
        Dumpglob.dump_moddef ?loc mp "modtype";
-       if_verbose Feedback.msg_info
+       unless_quiet Feedback.msg_info
 	 (str "Interactive Module Type " ++ pr_id id ++ str " started");
        List.iter
          (fun (export,id) ->
@@ -729,13 +729,13 @@ let vernac_declare_module_type (loc,id) binders_ast mty_sign mty_ast_l =
 	    id binders_ast mty_sign mty_ast_l
         in
         Dumpglob.dump_moddef ?loc mp "modtype";
-	if_verbose Feedback.msg_info
+	unless_quiet Feedback.msg_info
 	  (str "Module Type " ++ pr_id id ++ str " is defined")
 
 let vernac_end_modtype (loc,id) =
   let mp = Declaremods.end_modtype () in
   Dumpglob.dump_modref ?loc mp "modtype";
-  if_verbose Feedback.msg_info (str "Module Type " ++ pr_id id ++ str " is defined")
+  unless_quiet Feedback.msg_info (str "Module Type " ++ pr_id id ++ str " is defined")
 
 let vernac_include l =
   Declaremods.declare_include Modintern.interp_module_ast l
@@ -803,7 +803,7 @@ let vernac_coercion locality poly local ref qids qidt =
   let source = cl_of_qualid qids in
   let ref' = smart_global ref in
   Class.try_add_new_coercion_with_target ref' ~local poly ~source ~target;
-  if_verbose Feedback.msg_info (pr_global ref' ++ str " is now a coercion")
+  unless_quiet Feedback.msg_info (pr_global ref' ++ str " is now a coercion")
 
 let vernac_identity_coercion locality poly local id qids qidt =
   let local = enforce_locality locality local in
@@ -905,7 +905,7 @@ let vernac_chdir = function
 	  so we make it an error. *)
 	  user_err Pp.(str ("Cd failed: " ^ err))
       end;
-      if_verbose Feedback.msg_info (str (Sys.getcwd()))
+      unless_quiet Feedback.msg_info (str (Sys.getcwd()))
 
 
 (********************)
@@ -2032,7 +2032,7 @@ let interp ?proof ?loc locality poly c =
   | VernacSearch (s,g,r) -> vernac_search ?loc s g r
   | VernacLocate l -> vernac_locate l
   | VernacRegister (id, r) -> vernac_register id r
-  | VernacComments l -> if_verbose Feedback.msg_info (str "Comments ok\n")
+  | VernacComments l -> unless_quiet Feedback.msg_info (str "Comments ok\n")
 
   (* Proof management *)
   | VernacGoal t -> vernac_start_proof locality poly Theorem [None,([],t)] false
@@ -2198,8 +2198,8 @@ let interp ?(verbosely=true) ?proof (loc,c) =
         try
           vernac_timeout begin fun () ->
           if verbosely
-            then Flags.verbosely (interp ?proof ?loc locality poly) c
-            else Flags.silently  (interp ?proof ?loc locality poly) c;
+            then Flags.not_quietly (interp ?proof ?loc locality poly) c
+            else Flags.quietly     (interp ?proof ?loc locality poly) c;
           if orig_program_mode || not !Flags.program_mode || isprogcmd then
             Flags.program_mode := orig_program_mode;
 	  ignore (Flags.use_polymorphic_flag ())
@@ -2217,5 +2217,5 @@ let interp ?(verbosely=true) ?proof (loc,c) =
 	    ignore (Flags.use_polymorphic_flag ());
             iraise e
   in
-    if verbosely then Flags.verbosely (aux false) c
+    if verbosely then Flags.not_quietly (aux false) c
     else aux false c

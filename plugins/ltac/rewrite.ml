@@ -1994,7 +1994,7 @@ let add_morphism_infer glob m n =
 	| _ -> assert false
       in
       let hook = Lemmas.mk_hook hook in
-	Flags.silently
+	Flags.quietly
 	  (fun () ->
 	    Lemmas.start_proof instance_id kind (Evd.from_ctx uctx) (EConstr.of_constr instance) hook;
 	    ignore (Pfedit.by (Tacinterp.interp tac))) ()

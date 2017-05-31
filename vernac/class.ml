@@ -313,7 +313,7 @@ let add_coercion_hook poly local ref =
   in
   let () = try_add_new_coercion ref ~local:stre poly in
   let msg = pr_global_env Id.Set.empty ref ++ str " is now a coercion" in
-  Flags.if_verbose Feedback.msg_info msg
+  Flags.unless_quiet Feedback.msg_info msg
 
 let add_coercion_hook poly = Lemmas.mk_hook (add_coercion_hook poly)
 

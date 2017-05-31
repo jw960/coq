@@ -193,7 +193,7 @@ let declare_delimiters scope key =
     | Some oldkey when String.equal oldkey key -> ()
     | Some oldkey ->
         (** FIXME: implement multikey scopes? *)
-	Flags.if_verbose Feedback.msg_info
+	Flags.unless_quiet Feedback.msg_info
 	  (str "Overwriting previous delimiting key " ++ str oldkey ++ str " in scope " ++ str scope);
 	scope_map := String.Map.add scope newsc !scope_map
   end;
@@ -201,7 +201,7 @@ let declare_delimiters scope key =
     let oldscope = String.Map.find key !delimiters_map in
     if String.equal oldscope scope then ()
     else begin
-      Flags.if_verbose Feedback.msg_info (str "Hiding binding of key " ++ str key ++ str " to " ++ str oldscope);
+      Flags.unless_quiet Feedback.msg_info (str "Hiding binding of key " ++ str key ++ str " to " ++ str oldscope);
       delimiters_map := String.Map.add key scope !delimiters_map
     end
   with Not_found -> delimiters_map := String.Map.add key scope !delimiters_map

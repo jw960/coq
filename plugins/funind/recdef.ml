@@ -1505,7 +1505,7 @@ let (com_eqn : int -> Id.t ->
        ))); 
      (* (try Vernacentries.interp (Vernacexpr.VernacShow Vernacexpr.ShowProof) with _ -> ()); *)
 (*      Vernacentries.interp (Vernacexpr.VernacShow Vernacexpr.ShowScript); *)
-     Flags.silently (fun () -> Lemmas.save_proof (Vernacexpr.Proved(opacity,None))) () ; 
+     Flags.quietly (fun () -> Lemmas.save_proof (Vernacexpr.Proved(opacity,None))) () ; 
 (*      Pp.msgnl (str "eqn finished"); *)
     );;
 
@@ -1583,7 +1583,7 @@ let recursive_definition is_mes function_name rec_impls type_of_f r rec_arg_num 
       and eq_ref = destConst (constr_of_global eq_ref) in
       generate_induction_principle f_ref tcc_lemma_constr
 	functional_ref eq_ref rec_arg_num (EConstr.of_constr rec_arg_type) (nb_prod evm (EConstr.of_constr res)) (EConstr.of_constr relation);
-      Flags.if_verbose
+      Flags.unless_quiet
         msgnl (h 1 (Ppconstr.pr_id function_name ++
 			 spc () ++ str"is defined" )++ fnl () ++
 		    h 1 (Ppconstr.pr_id equation_id ++

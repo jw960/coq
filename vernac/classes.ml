@@ -57,7 +57,7 @@ let _ =
 		   Option.map
 		     (Constrintern.intern_constr_pattern (Global.env()))
 		     info.hint_pattern } in
-     Flags.silently (fun () ->
+     Flags.quietly (fun () ->
 	Hints.add_hints local [typeclasses_db]
 	  (Hints.HintsResolveEntry
 	     [info, poly, false, Hints.PathHints path, inst'])) ());
@@ -327,7 +327,7 @@ let new_instance ?(abstract=false) ?(global=false) ?(refine= !refine_instance) p
  			?pl typ ctx ~kind:(Global,poly,Instance) ~hook obls);
 		id
 	    else
-	      (Flags.silently 
+	      (Flags.quietly
 	       (fun () ->
                   (* spiwack: it is hard to reorder the actions to do
                      the pretyping after the proof has opened. As a

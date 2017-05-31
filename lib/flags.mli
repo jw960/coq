@@ -91,10 +91,10 @@ val beautify_file : bool ref
 (* Coq quiet mode. Note that normal mode is called "verbose" here,
    whereas [quiet] supresses normal output such as goals in coqtop *)
 val quiet : bool ref
-val silently : ('a -> 'b) -> 'a -> 'b
-val verbosely : ('a -> 'b) -> 'a -> 'b
-val if_silent : ('a -> unit) -> 'a -> unit
-val if_verbose : ('a -> unit) -> 'a -> unit
+val quietly : ('a -> 'b) -> 'a -> 'b
+val not_quietly : ('a -> 'b) -> 'a -> 'b
+val if_quiet : ('a -> unit) -> 'a -> unit
+val unless_quiet : ('a -> unit) -> 'a -> unit
 
 (* Deprecated *)
 val make_silent : bool -> unit

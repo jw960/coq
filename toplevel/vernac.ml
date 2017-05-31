@@ -227,7 +227,7 @@ and load_vernac verbosely sid file =
       Option.iter (vernac_echo ?loc) in_echo;
 
       checknav_simple (loc, ast);
-      let nsid = Flags.silently (interp_vernac !rsid) (loc, ast) in
+      let nsid = Flags.quietly (interp_vernac !rsid) (loc, ast) in
       rsid := nsid
     done;
     !rsid
@@ -310,7 +310,7 @@ let compile verbosely f =
         match !Flags.compilation_output_name with
         | None -> long_f_dot_v ^ "o"
         | Some f -> ensure_vo long_f_dot_v f in
-      let ldir = Flags.verbosely Library.start_library long_f_dot_vo in
+      let ldir = Flags.not_quietly Library.start_library long_f_dot_vo in
       Stm.set_compilation_hints long_f_dot_vo;
       Aux_file.(start_aux_file
         ~aux_file:(aux_file_name_for long_f_dot_vo)
@@ -336,7 +336,7 @@ let compile verbosely f =
         match !Flags.compilation_output_name with
         | None -> long_f_dot_v ^ "io"
         | Some f -> ensure_vio long_f_dot_v f in
-      let ldir = Flags.verbosely Library.start_library long_f_dot_vio in
+      let ldir = Flags.not_quietly Library.start_library long_f_dot_vio in
       Dumpglob.noglob ();
       Stm.set_compilation_hints long_f_dot_vio;
       let _ = load_vernac verbosely (Stm.get_current_state ()) long_f_dot_v in

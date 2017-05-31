@@ -761,11 +761,11 @@ type progress =
 let obligations_message rem =
   if rem > 0 then
     if Int.equal rem 1 then
-      Flags.if_verbose Feedback.msg_info (int rem ++ str " obligation remaining")
+      Flags.unless_quiet Feedback.msg_info (int rem ++ str " obligation remaining")
     else
-      Flags.if_verbose Feedback.msg_info (int rem ++ str " obligations remaining")
+      Flags.unless_quiet Feedback.msg_info (int rem ++ str " obligations remaining")
   else
-    Flags.if_verbose Feedback.msg_info (str "No more obligations remaining")
+    Flags.unless_quiet Feedback.msg_info (str "No more obligations remaining")
 
 let update_obls prg obls rem =
   let prg' = { prg with prg_obligations = (obls, rem) } in
@@ -1046,7 +1046,7 @@ and try_solve_obligations n tac =
   try ignore (solve_obligations n tac) with NoObligations _ -> ()
 
 and auto_solve_obligations n ?oblset tac : progress =
-  Flags.if_verbose Feedback.msg_info (str "Solving obligations automatically...");
+  Flags.unless_quiet Feedback.msg_info (str "Solving obligations automatically...");
   try solve_prg_obligations (get_prog_err n) ?oblset tac with NoObligations _ -> Dependent
 
 open Pp
@@ -1090,16 +1090,16 @@ let add_definition n ?term t ctx ?pl ?(implicits=[]) ?(kind=Global,false,Definit
   let prg = init_prog_info sign ~opaque n pl term t ctx [] None [] obls implicits kind reduce hook in
   let obls,_ = prg.prg_obligations in
   if Int.equal (Array.length obls) 0 then (
-    Flags.if_verbose Feedback.msg_info (info ++ str ".");
+    Flags.unless_quiet Feedback.msg_info (info ++ str ".");
     let cst = declare_definition prg in
       Defined cst)
   else (
     let len = Array.length obls in
-    let _ = Flags.if_verbose Feedback.msg_info (info ++ str ", generating " ++ int len ++ str (String.plural len " obligation")) in
+    let _ = Flags.unless_quiet Feedback.msg_info (info ++ str ", generating " ++ int len ++ str (String.plural len " obligation")) in
       progmap_add n (CEphemeron.create prg);
       let res = auto_solve_obligations (Some n) tactic in
 	match res with
-	| Remain rem -> Flags.if_verbose (fun () -> show_obligations ~msg:false (Some n)) (); res
+	| Remain rem -> Flags.unless_quiet (fun () -> show_obligations ~msg:false (Some n)) (); res
 	| _ -> res)
 
 let add_mutual_definitions l ctx ?pl ?tactic ?(kind=Global,false,Definition) ?(reduce=reduce)

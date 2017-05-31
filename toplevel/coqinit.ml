@@ -46,7 +46,7 @@ let load_rcfile sid =
           Vernac.load_vernac false sid inferedrc
 	with Not_found -> sid
 	(*
-	Flags.if_verbose
+	Flags.unless_quiet
 	  mSGNL (str ("No coqrc or coqrc."^Coq_config.version^
 			 " found. Skipping rcfile loading."))
 	*)
@@ -55,7 +55,7 @@ let load_rcfile sid =
       let () = Feedback.msg_info (str"Load of rcfile failed.") in
       iraise reraise
   else
-    (Flags.if_verbose Feedback.msg_info (str"Skipping rcfile loading.");
+    (Flags.unless_quiet Feedback.msg_info (str"Skipping rcfile loading.");
      sid)
 
 (* Recursively puts dir in the LoadPath if -nois was not passed *)

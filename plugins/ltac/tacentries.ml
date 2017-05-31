@@ -473,11 +473,11 @@ let register_ltac local tacl =
   let iter (def, tac) = match def with
   | NewTac id ->
     Tacenv.register_ltac false local id tac;
-    Flags.if_verbose Feedback.msg_info (Nameops.pr_id id ++ str " is defined")
+    Flags.unless_quiet Feedback.msg_info (Nameops.pr_id id ++ str " is defined")
   | UpdateTac kn ->
     Tacenv.redefine_ltac local kn tac;
     let name = Nametab.shortest_qualid_of_tactic kn in
-    Flags.if_verbose Feedback.msg_info (Libnames.pr_qualid name ++ str " is redefined")
+    Flags.unless_quiet Feedback.msg_info (Libnames.pr_qualid name ++ str " is redefined")
   in
   List.iter iter defs
 

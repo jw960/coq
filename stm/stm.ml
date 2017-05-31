@@ -1498,7 +1498,7 @@ end = struct (* {{{ *)
 
   let check_task_aux extra name l i =
     let { Stateid.stop; document; loc; name = r_name }, drop = List.nth l i in
-    Flags.if_verbose msg_info
+    Flags.unless_quiet msg_info
       Pp.(str(Printf.sprintf "Checking task %d (%s%s) of %s" i r_name extra name));
     VCS.restore document;
     let start =

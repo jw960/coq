@@ -599,7 +599,7 @@ let is_not_small_constr = function
 let rec define_keywords_aux = function
   | GramConstrNonTerminal(e,Some _) as n1 :: GramConstrTerminal(IDENT k) :: l
       when is_not_small_constr e ->
-      Flags.if_verbose Feedback.msg_info (str "Identifier '" ++ str k ++ str "' now a keyword");
+      Flags.unless_quiet Feedback.msg_info (str "Identifier '" ++ str k ++ str "' now a keyword");
       CLexer.add_keyword k;
       n1 :: GramConstrTerminal(KEYWORD k) :: define_keywords_aux l
   | n :: l -> n :: define_keywords_aux l
@@ -608,7 +608,7 @@ let rec define_keywords_aux = function
   (* Ensure that IDENT articulation terminal symbols are keywords *)
 let define_keywords = function
   | GramConstrTerminal(IDENT k)::l ->
-      Flags.if_verbose Feedback.msg_info (str "Identifier '" ++ str k ++ str "' now a keyword");
+      Flags.unless_quiet Feedback.msg_info (str "Identifier '" ++ str k ++ str "' now a keyword");
       CLexer.add_keyword k;
       GramConstrTerminal(KEYWORD k) :: define_keywords_aux l
   | l -> define_keywords_aux l
@@ -1326,7 +1326,7 @@ let add_notation_in_scope local df c mods scope =
     notobj_notation = sd.info;
   } in
   (* Ready to change the global state *)
-  Flags.if_verbose (List.iter (fun (f,x) -> f x)) sd.msgs;
+  Flags.unless_quiet (List.iter (fun (f,x) -> f x)) sd.msgs;
   Lib.add_anonymous_leaf (inSyntaxExtension (local, sy_rules));
   Lib.add_anonymous_leaf (inNotation notation);
   sd.info
@@ -1372,7 +1372,7 @@ let add_notation_interpretation_core local df ?(impls=empty_internalization_env)
 let add_syntax_extension local ((loc,df),mods) = let open SynData in
   let psd = compute_pure_syntax_data df mods in
   let sy_rules = make_syntax_rules {psd with compat = None} in
-  Flags.if_verbose (List.iter (fun (f,x) -> f x)) psd.msgs;
+  Flags.unless_quiet (List.iter (fun (f,x) -> f x)) psd.msgs;
   Lib.add_anonymous_leaf (inSyntaxExtension(local,sy_rules))
 
 (* Notations with only interpretation *)
@@ -1383,7 +1383,7 @@ let add_notation_interpretation ((loc,df),c,sc) =
 
 let set_notation_for_interpretation impls ((_,df),c,sc) =
   (try ignore
-    (silently (fun () -> add_notation_interpretation_core false df ~impls c sc false false None) ());
+    (quietly (fun () -> add_notation_interpretation_core false df ~impls c sc false false None) ());
   with NoSyntaxRule ->
     user_err Pp.(str "Parsing rule for this notation has to be previously declared."));
   Option.iter (fun sc -> Notation.open_close_scope (false,true,sc)) sc

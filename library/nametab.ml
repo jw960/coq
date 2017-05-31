@@ -86,7 +86,7 @@ struct
      The argument X of the functor F is masked by the inner module X.
    *)
   let masking_absolute n =
-    Flags.if_verbose Feedback.msg_info (str ("Trying to mask the absolute name \"" ^ U.to_string n ^ "\"!"))
+    Flags.unless_quiet Feedback.msg_info (str ("Trying to mask the absolute name \"" ^ U.to_string n ^ "\"!"))
 
   type user_name = U.t
 
