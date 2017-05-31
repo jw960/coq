@@ -120,6 +120,8 @@ let vernac_error msg =
 (*     Stm.End_of_input -> true *)
 (*   | _ -> false *)
 
+let global_quiet = ref !Flags.quiet
+
 let rec interp_vernac sid (loc,com) =
   let interp = function
     | VernacLoad (verbosely, fname) ->
@@ -127,7 +129,17 @@ let rec interp_vernac sid (loc,com) =
         let fname = CUnix.make_suffix fname ".v" in
         let f = Loadpath.locate_file fname in
         load_vernac verbosely sid f
+
     | v ->
+
+      (* Global modifications to options that happen above stm/vernac *)
+      begin match v with
+        | VernacSetOption([key], BoolValue v) when String.equal key "Silent" ->
+          global_quiet := v
+        | VernacUnsetOption([key]) when String.equal key "Silent" ->
+          global_quiet := false
+        | _ -> ()
+      end;
 
       (* XXX: We need to run this before add as the classification is
          highly dynamic and depends on the structure of the
@@ -153,6 +165,7 @@ let rec interp_vernac sid (loc,com) =
       (* We could use a more refined criteria that depends on the
          vernac. For now we imitate the old approach and rely on the
          classification. *)
+      Flags.quiet := !global_quiet;
       let print_goals = not !Flags.batch_mode && not !Flags.quiet &&
                         is_proof_step && Proof_global.there_are_pending_proofs () in
 
@@ -166,6 +179,7 @@ let rec interp_vernac sid (loc,com) =
       let com = if !Flags.time then VernacTime (loc,com) else com in
       interp com
     with reraise ->
+      Flags.quiet := !global_quiet;
       (* XXX: In non-interactive mode edit_at seems to do very weird
          things, so we better avoid it while we investigate *)
       if not !Flags.batch_mode then ignore(Stm.edit_at sid);
