@@ -44,7 +44,6 @@ let unpackage glsig = (ref (glsig.sigma)), glsig.it
 let repackage r v = {it = v; sigma = !r; }
 
 let apply_sig_tac r tac g =
-  Control.check_for_interrupt (); (* Breakpoint *)
   let glsigma = tac (repackage r g) in
   r := glsigma.sigma;
   glsigma.it
@@ -204,10 +203,9 @@ let tclSHOWHYPS (tac : tactic) (goal: Goal.goal Evd.sigma)
 
 
 let catch_failerror (e, info) =
-  if catchable_exception e then Control.check_for_interrupt ()
+  if catchable_exception e then ()
   else match e with
-  | FailError (0,_) ->
-      Control.check_for_interrupt ()
+  | FailError (0,_) -> ()
   | FailError (lvl,s) ->
     iraise (FailError (lvl - 1, s), info)
   | e -> iraise (e, info)

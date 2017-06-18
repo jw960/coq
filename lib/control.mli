@@ -8,14 +8,6 @@
 
 (** Global control of Coq. *)
 
-val interrupt : bool ref
-(** Coq interruption: set the following boolean reference to interrupt Coq
-    (it eventually raises [Break], simulating a Ctrl-C) *)
-
-val check_for_interrupt : unit -> unit
-(** Use this function as a potential yield function. If {!interrupt} has been
-    set, il will raise [Sys.Break]. *)
-
 val timeout : int -> (unit -> 'a) -> exn -> 'a
 (** [timeout n f e] tries to compute [f], and if it fails to do so before [n]
     seconds, it raises [e] instead. *)

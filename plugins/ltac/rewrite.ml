@@ -1339,12 +1339,8 @@ module Strategies =
 
     let try_ str : 'a pure_strategy = choice str id
 
-    let check_interrupt str input =
-      Control.check_for_interrupt ();
-      str input
-
     let fix (f : 'a pure_strategy -> 'a pure_strategy) : 'a pure_strategy =
-      let rec aux input = (f { strategy = fun input -> check_interrupt aux input }).strategy input in
+      let rec aux input = (f { strategy = fun input -> aux input }).strategy input in
       { strategy = aux }
     
     let any (s : 'a pure_strategy) : 'a pure_strategy =

@@ -30,7 +30,8 @@ module CompactedDecl = Context.Compacted.Declaration
 let catch_break = ref false
 
 let init_signal_handler () =
-  let f _ = if !catch_break then raise Sys.Break else Control.interrupt := true in
+  let f _ =
+    if !catch_break then raise Sys.Break else () in
   Sys.set_signal Sys.sigint (Sys.Signal_handle f)
 
 let pr_with_pid s = Printf.eprintf "[pid %d] %s\n%!" (Unix.getpid ()) s
@@ -396,7 +397,6 @@ let print_ast id = Xml_datatype.PCData "ERROR"
 let eval_call c =
   let interruptible f x =
     catch_break := true;
-    Control.check_for_interrupt ();
     let r = f x in
     catch_break := false;
     r

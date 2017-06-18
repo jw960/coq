@@ -381,9 +381,6 @@ val give_up : unit tactic
     it succeeds like [t]. *)
 val tclPROGRESS : 'a tactic -> 'a tactic
 
-(** Checks for interrupts *)
-val tclCHECKINTERRUPT : unit tactic
-
 exception Timeout
 (** [tclTIMEOUT n t] can have only one success.
     In case of timeout if fails with [tclZERO Timeout]. *)

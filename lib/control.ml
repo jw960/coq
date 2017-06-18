@@ -6,25 +6,6 @@
 (*         *       GNU Lesser General Public License Version 2.1        *)
 (************************************************************************)
 
-(*s interruption *)
-
-let interrupt = ref false
-
-let steps = ref 0
-
-let are_we_threading = lazy (
-  match !Flags.async_proofs_mode with
-  | Flags.APon -> true
-  | _ -> false)
-
-let check_for_interrupt () =
-  if !interrupt then begin interrupt := false; raise Sys.Break end;
-  incr steps;
-  if !steps = 1000 && Lazy.force are_we_threading then begin
-    Thread.delay 0.001;
-    steps := 0;
-  end
-
 (** This function does not work on windows, sigh... *)
 let unix_timeout n f e =
   let timeout_handler _ = raise e in
@@ -50,7 +31,6 @@ let windows_timeout n f e =
     while not !killed do
       let cur = Unix.time () in
       if float_of_int n <= cur -. init then begin
-        interrupt := true;
         exited := true;
         Thread.exit ()
       end;

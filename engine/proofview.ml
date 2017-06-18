@@ -1142,9 +1142,6 @@ module NonLogical = Logic_monad.NonLogical
 
 let tclLIFT = Proof.lift
 
-let tclCHECKINTERRUPT =
-   tclLIFT (NonLogical.make Control.check_for_interrupt)
-
 (*** Compatibility layer with <= 8.2 tactics ***)
 module V82 = struct
   type tac = Evar.t Evd.sigma -> Evar.t list Evd.sigma
