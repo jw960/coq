@@ -17,11 +17,11 @@ class type message_view =
   object
     inherit GObj.widget
     method connect : message_view_signals
-    method clear : unit
+    method clear : unit -> unit
     method add : Pp.t -> unit
     method add_string : string -> unit
     method set : Pp.t -> unit
-    method refresh : bool -> unit
+    method refresh : ?rect:Gtk.rectangle -> force:bool -> unit
     method push : Ideutils.logger
       (** same as [add], but with an explicit level instead of [Notice] *)
     method buffer : GText.buffer

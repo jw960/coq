@@ -27,11 +27,11 @@ class type message_view =
   object
     inherit GObj.widget
     method connect : message_view_signals
-    method clear : unit
+    method clear : unit -> unit
     method add : Pp.t -> unit
     method add_string : string -> unit
     method set : Pp.t -> unit
-    method refresh : bool -> unit
+    method refresh : ?rect:Gtk.rectangle -> force:bool -> unit
     method push : Ideutils.logger
       (** same as [add], but with an explicit level instead of [Notice] *)
     method buffer : GText.buffer
@@ -83,12 +83,23 @@ let message_view () : message_view =
     val mutable last_width = -1
     val mutable msgs = []
 
+    val mutable last_rect : Gtk.rectangle option = None
+
     val push = new GUtil.signal ()
 
     method connect =
       new message_view_signals_impl box#as_widget push
 
-    method refresh force =
+    method refresh ?rect ~force =
+      let drect = Gtk.{ x = 0; y = 0; width = 0; height = 0 } in
+      let refresh_debug ?rect old_w new_w =
+        let open Gtk in
+        let oR = Option.default drect last_rect in
+        last_rect <- rect;
+        let nR = Option.default drect rect in
+        Format.eprintf "[mview] ow: %03d; nw: %03d; or:{x:%03d; y:%03d; w:%03d; h%03d}; nr:{x:%03d; y:%03d; w:%03d; h%03d}\n%!"
+          old_w new_w oR.x oR.y oR.width oR.height nR.x nR.y nR.width nR.height
+      in
       (* We need to block updates here due to the following race:
          insertion of messages may create a vertical scrollbar, this
          will trigger a width change, calling refresh again and
@@ -101,11 +112,13 @@ let message_view () : message_view =
         last_width <- width;
         buffer#set_text "";
         buffer#move_mark (`MARK mark) ~where:buffer#start_iter;
-        List.(iter insert_msg (rev msgs))
+        List.(iter insert_msg (rev msgs));
+        let cur_width =Ideutils.textview_width view in
+        refresh_debug ?rect width cur_width
       end
 
-    method clear =
-      msgs <- []; self#refresh true
+    method clear () =
+      msgs <- []; self#refresh ?rect:None ~force:true
 
     method push level msg =
       msgs <- (level, msg) :: msgs;
@@ -116,13 +129,13 @@ let message_view () : message_view =
 
     method add_string s = self#add (Pp.str s)
 
-    method set msg = self#clear; self#add msg
+    method set msg = self#clear (); self#add msg
 
     method buffer = text_buffer
 
   end
   in
   (* Is there a better way to connect the signal ? *)
-  let w_cb (_ : Gtk.rectangle) = mv#refresh false in
+  let w_cb (rect : Gtk.rectangle) = mv#refresh ~rect ~force:false in
   ignore (view#misc#connect#size_allocate ~callback:w_cb);
   mv

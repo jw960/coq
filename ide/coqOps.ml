@@ -355,7 +355,7 @@ object(self)
         | Good evs ->
           proof#set_goals goals;
           proof#set_evars evs;
-          proof#refresh ~force:true;
+          proof#refresh ?rect:None ~force:true;
           Coq.return ()
         )
       )
@@ -536,7 +536,7 @@ object(self)
     if Stateid.equal id tip || Stateid.equal id Stateid.dummy then begin
       self#position_tag_at_iter ?loc start stop Tags.Script.error phrase;
       buffer#place_cursor ~where:stop;
-      messages#clear;
+      messages#clear ();
       messages#push Feedback.Error msg;
       self#show_goals
     end else
@@ -600,7 +600,7 @@ object(self)
       let queue = Queue.create () in
       (* Lock everything and fill the waiting queue *)
       push_info "Coq is computing";
-      messages#clear;
+      messages#clear ();
       script#set_editable false;
       self#fill_command_queue until queue;
       (* Now unlock and process asynchronously. Since [until]
@@ -662,7 +662,7 @@ object(self)
   method join_document =
    let next = function
      | Good _ ->
-         messages#clear;
+         messages#clear ();
          messages#push Feedback.Info (Pp.str "All proof terms checked by the kernel");
          Coq.return ()
      | Fail x -> self#handle_failure x in
@@ -794,7 +794,7 @@ object(self)
   method handle_failure f = self#handle_failure_aux f
 
   method backtrack_last_phrase =
-    messages#clear;
+    messages#clear ();
     try 
       let tgt = Doc.before_tip document in
       self#backtrack_to_id tgt
@@ -802,7 +802,7 @@ object(self)
 
   method go_to_insert =
     Coq.bind (Coq.return ()) (fun () ->
-    messages#clear;
+    messages#clear ();
     let point = self#get_insert in
     if point#compare self#get_start_of_input >= 0
     then self#process_until_iter point
@@ -810,7 +810,7 @@ object(self)
 
   method go_to_mark m =
     Coq.bind (Coq.return ()) (fun () ->
-    messages#clear;
+    messages#clear ();
     let point = buffer#get_iter_at_mark m in
     if point#compare self#get_start_of_input >= 0
     then Coq.seq (self#process_until_iter point)
@@ -835,7 +835,7 @@ object(self)
           ~stop:(`MARK (buffer#create_mark stop))
           [] in
       Doc.push document sentence;
-      messages#clear;
+      messages#clear ();
       self#show_goals
     in
     let display_error (loc, s) =
@@ -880,7 +880,7 @@ object(self)
       buffer#move_mark ~where:buffer#end_iter (`NAME "stop_of_input");
       Sentence.tag_all buffer;
       (* clear the views *)
-      messages#clear;
+      messages#clear ();
       proof#clear ();
       clear_info ();
       processed <- 0;

@@ -14,7 +14,7 @@ class type proof_view =
   object
     inherit GObj.widget
     method buffer : GText.buffer
-    method refresh : force:bool -> unit
+    method refresh : ?rect:Gtk.rectangle -> force:bool -> unit
     method clear : unit -> unit
     method set_goals : Interface.goals option -> unit
     method set_evars : Interface.evar list option -> unit
@@ -214,6 +214,8 @@ let proof_view () =
     val mutable evars = None
     val mutable last_width = -1
 
+    val mutable last_rect : Gtk.rectangle option = None
+
     method buffer = text_buffer
 
     method clear () = buffer#set_text ""
@@ -222,24 +224,35 @@ let proof_view () =
 
     method set_evars evs = evars <- evs
 
-    method refresh ~force =
+    method refresh ?rect ~force =
+      let drect = Gtk.{ x = 0; y = 0; width = 0; height = 0 } in
+      let refresh_debug ?rect old_w new_w =
+        let open Gtk in
+        let oR = Option.default drect last_rect in
+        last_rect <- rect;
+        let nR = Option.default drect rect in
+        Format.eprintf "[pview] ow: %03d; nw: %03d; or:{x:%03d; y:%03d; w:%03d; h%03d}; nr:{x:%03d; y:%03d; w:%03d; h%03d}\n%!"
+          old_w new_w oR.x oR.y oR.width oR.height nR.x nR.y nR.width nR.height
+      in
       (* We need to block updates here due to the following race:
          insertion of messages may create a vertical scrollbar, this
          will trigger a width change, calling refresh again and
          going into an infinite loop. *)
-      let width = Ideutils.textview_width view  in
+      let width = Ideutils.textview_width view in
       (* Could still this method race if the scrollbar changes the
          textview_width ?? *)
       let needed = force || last_width <> width in
       if needed then begin
         last_width <- width;
         let dummy _ () = () in
-        display (mode_tactic dummy) view goals None evars
+        display (mode_tactic dummy) view goals None evars;
+        let cur_width =Ideutils.textview_width view in
+        refresh_debug ?rect width cur_width
       end
   end
   in
   (* Is there a better way to connect the signal ? *)
   (* Can this be done in the object constructor? *)
-  let w_cb _ = pf#refresh ~force:false in
+  let w_cb rect = pf#refresh ~rect ~force:false in
   ignore (view#misc#connect#size_allocate ~callback:w_cb);
   pf

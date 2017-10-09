@@ -679,7 +679,7 @@ let searchabout sn =
     buf#insert "\n";
   in
   let display_results r =
-    sn.messages#clear;
+    sn.messages#clear ();
     List.iter insert (match r with Interface.Good l -> l | _ -> []);
     Coq.return ()
   in
@@ -692,7 +692,7 @@ let searchabout sn =
 let searchabout () = on_current_term searchabout
 
 let doquery query sn =
-  sn.messages#clear;
+  sn.messages#clear ();
   Coq.try_grab sn.coqtop (sn.coqops#raw_coq_query query) ignore
 
 let otherquery command sn =
@@ -802,7 +802,7 @@ let coqtop_arguments sn =
       | args ->
         let args = String.concat " " args in
         let msg = Printf.sprintf "Invalid arguments: %s" args in
-        let () = sn.messages#clear in
+        let () = sn.messages#clear () in
         sn.messages#push Feedback.Error (Pp.str msg)
     else dialog#destroy ()
   in
@@ -1184,7 +1184,7 @@ let build_ui () =
         browse_keyword sn.messages#add_string (get_current_word sn)));
     item "Help for μPG mode" ~label:"Help for μPG mode"
       ~callback:(fun _ -> on_current_term (fun sn ->
-         sn.messages#clear;
+         sn.messages#clear ();
          sn.messages#add_string (NanoPG.get_documentation ())));
     item "About Coq" ~label:"_About" ~stock:`ABOUT
       ~callback:MiscMenu.about
