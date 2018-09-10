@@ -300,13 +300,13 @@ let default = {
   browser = None;
   withdoc = false;
   byteonly = false;
-  flambda_flags = [];
+  flambda_flags = ["-O3"; "-unbox-closures"];
   debug = true;
   profile = false;
   bin_annot = false;
   annot = false;
   bytecodecompiler = true;
-  nativecompiler = not (os_type_win32 || os_type_cygwin);
+  nativecompiler = false;
   coqwebsite = "http://coq.inria.fr/";
   force_caml_version = false;
   force_findlib_version = false;
@@ -429,7 +429,7 @@ let args_options = Arg.align [
     " Dumps ml binary annotation files while compiling Coq (e.g. for Merlin)";
   "-bytecode-compiler", arg_bool (fun p bytecodecompiler -> { p with bytecodecompiler }),
     "(yes|no) Enable Coq's bytecode reduction machine (VM)";
-  "-native-compiler", arg_bool (fun p nativecompiler -> { p with nativecompiler }),
+  "-native-compiler", arg_bool (fun p nativecompiler -> p ),
     "(yes|no) Compilation to native code for conversion and normalization";
   "-coqwebsite", arg_string (fun p coqwebsite -> { p with coqwebsite }),
     " URL of the coq website";
