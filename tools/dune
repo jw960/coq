@@ -41,3 +41,9 @@
  (public_name coq_dune)
  (modules coq_dune)
  (libraries str))
+
+(executable
+ (name fake_ide)
+ (public_name fake_ide)
+ (modules fake_ide)
+ (libraries coqide.protocol coqide.core))

@@ -1,0 +1,9 @@
+(rule
+ (targets all_stdlib.v)
+ (deps
+   (source_tree ../../../theories)
+   (source_tree ../../../plugins))
+ (action
+   (write-file all_stdlib.v "Require Coq.Init.Prelude.")))
+   ; (with-outputs-to all_stdlib.v
+   ;  (run find ../../../theories ../../../plugins -type f -name *.v))))

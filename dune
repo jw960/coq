@@ -9,3 +9,8 @@
  (name vodeps)
  (deps tools/coq_dune.exe .vfiles.d))
   ; (action (run coq_dune .vfiles.d))))
+
+; Use summary.log as the target
+(alias
+ (name runtest)
+ (deps test-suite/summary.log))

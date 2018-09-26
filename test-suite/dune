@@ -1,0 +1,68 @@
+(rule
+ (targets summary.log)
+ (deps
+   misc/universes/all_stdlib.v
+   ../Makefile.common
+   ../config/Makefile
+   ../tools/CoqMakefile.in
+   ../theories/Init/Prelude.vo
+   ../theories/Arith/Arith.vo
+   ../theories/Arith/Compare.vo
+   ../theories/PArith/PArith.vo
+   ../theories/QArith/QArith.vo
+   ../theories/QArith/Qcanon.vo
+   ../theories/ZArith/ZArith.vo
+   ../theories/ZArith/Zwf.vo
+   ../theories/Sets/Ensembles.vo
+   ../theories/Numbers/Natural/Peano/NPeano.vo
+   ../theories/Numbers/Cyclic/Int31/Cyclic31.vo
+   ../theories/FSets/FMaps.vo
+   ../theories/FSets/FSets.vo
+   ../theories/MSets/MSets.vo
+   ../theories/Compat/Coq86.vo
+   ../theories/Compat/Coq87.vo
+   ../theories/Compat/Coq88.vo
+   ../theories/Relations/Relations.vo
+   ../theories/Unicode/Utf8.vo
+   ../theories/Program/Program.vo
+   ../theories/Classes/EquivDec.vo
+   ../theories/Classes/DecidableClass.vo
+   ../theories/Classes/SetoidClass.vo
+   ../theories/Classes/RelationClasses.vo
+   ../theories/Logic/Classical.vo
+   ../theories/Logic/Hurkens.vo
+   ../theories/Logic/ClassicalFacts.vo
+   ../theories/Reals/Reals.vo
+   ../theories/Lists/Streams.vo
+   ../plugins/micromega/Lia.vo
+   ../plugins/micromega/Lqa.vo
+   ../plugins/micromega/Psatz.vo
+   ../plugins/micromega/MExtraction.vo
+   ../plugins/nsatz/Nsatz.vo
+   ../plugins/omega/Omega.vo
+   ../plugins/ssr/ssrbool.vo
+   ../plugins/derive/Derive.vo
+   ../plugins/funind/Recdef.vo
+   ../plugins/extraction/Extraction.vo
+   ../plugins/extraction/ExtrOcamlNatInt.vo
+   (source_tree .))
+ (action
+  (progn
+   (ignore-outputs (run coqtop -v))
+   (ignore-outputs (run coqtop.opt -v))
+   (ignore-outputs (run coqidetop.opt -v))
+   (ignore-outputs (run coqqueryworker.opt -v))
+   (ignore-outputs (run coqtacticworker.opt -v))
+   (ignore-outputs (run coqproofworker.opt -v))
+   (ignore-outputs (run coqc -v))
+   (ignore-outputs (run coqdoc -v))
+   (ignore-outputs (run coqchk -v))
+   (ignore-outputs (bash "%{bin:coq_makefile} -h || true"))
+   (ignore-outputs (bash "%{bin:fake_ide} || true"))
+   ; COQLIB is needed for the coq_makefile tests as they don't respect
+   ; the standard test-suite library mechanism. Envars is to blame.
+   ;
+   ; We are also missing the deps on the installed meta files... would
+   ; the unit tests be built with dune that'd work automagically, but
+   ; we'll need to do some plumbing.
+   (run make -j 8 VERBOSE=1 BIN= PRINT_LOGS=1))))

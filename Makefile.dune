@@ -28,6 +28,9 @@ states: voboot
 world: voboot
 	dune build $(DUNEOPT) @install
 
+test-suite: voboot
+	dune $(DUNEOPT) runtest
+
 watch: voboot
 	dune build $(DUNEOPT) @install -w
 
