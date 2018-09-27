@@ -734,25 +734,26 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
     inh_conv_coerce_to_tycon ?loc env evdref resj tycon
 
   | GLambda(name,bk,c1,c2) ->
-    let tycon' = evd_comb1
-      (fun evd tycon ->
-	match tycon with
-	| None -> evd, tycon
-	| Some ty ->
-          let evd, ty' = Coercion.inh_coerce_to_prod ?loc !!env evd ty in
-	    evd, Some ty')
-      evdref tycon
+    let sigma = !evdref in
+    let sigma, tycon' =
+      match tycon with
+      | None -> sigma, tycon
+      | Some ty ->
+        let sigma, ty' = Coercion.inh_coerce_to_prod ?loc !!env sigma ty in
+        sigma, Some ty'
     in
-    let (name',dom,rng) = evd_comb1 (split_tycon ?loc !!env) evdref tycon' in
+    let sigma, (name',dom,rng) = split_tycon ?loc !!env sigma tycon' in
     let dom_valcon = valcon_of_tycon dom in
-    let sigma, j = pretype_type dom_valcon env !evdref c1 in
-    evdref := sigma;
+    let sigma, j = pretype_type dom_valcon env sigma c1 in
     let var = LocalAssum (name, j.utj_val) in
-    let var',env' = push_rel !evdref var env in
+    let var',env' = push_rel sigma var env in
+    evdref := sigma;
     let j' = pretype rng env' evdref c2 in
+    let sigma = !evdref in
     let name = get_name var' in
     let resj = judge_of_abstraction !!env (orelse_name name name') j j' in
-      inh_conv_coerce_to_tycon ?loc env evdref resj tycon
+    evdref := sigma;
+    inh_conv_coerce_to_tycon ?loc env evdref resj tycon
 
   | GProd(name,bk,c1,c2) ->
     let sigma, j = pretype_type empty_valcon env !evdref c1 in
