@@ -542,22 +542,23 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
       { uj_val = c; uj_type = ty }
 
   | GRec (fixkind,names,bl,lar,vdef) ->
-    let rec type_bl env ctxt = function
-      | [] -> ctxt
+    let sigma = !evdref in
+    let rec type_bl env sigma ctxt = function
+      | [] -> sigma, ctxt
       | (na,bk,None,ty)::bl ->
-        let sigma, ty' = pretype_type empty_valcon env !evdref ty in
-        evdref := sigma;
+        let sigma, ty' = pretype_type empty_valcon env sigma ty in
 	let dcl = LocalAssum (na, ty'.utj_val) in
-        let dcl', env = push_rel !evdref dcl env in
-        type_bl env (Context.Rel.add dcl' ctxt) bl
+        let dcl', env = push_rel sigma dcl env in
+        type_bl env sigma (Context.Rel.add dcl' ctxt) bl
       | (na,bk,Some bd,ty)::bl ->
-        let sigma, ty' = pretype_type empty_valcon env !evdref ty in
+        let sigma, ty' = pretype_type empty_valcon env sigma ty in
         evdref := sigma;
         let bd' = pretype (mk_tycon ty'.utj_val) env evdref bd in
+        let sigma = !evdref in
         let dcl = LocalDef (na, bd'.uj_val, ty'.utj_val) in
-        let dcl', env = push_rel !evdref dcl env in
-        type_bl env (Context.Rel.add dcl' ctxt) bl in
-    let ctxtv = Array.map (type_bl env Context.Rel.empty) bl in
+        let dcl', env = push_rel sigma dcl env in
+        type_bl env sigma (Context.Rel.add dcl' ctxt) bl in
+    let ctxtv = Array.fold_left_map (type_bl env Context.Rel.empty) bl in
     let sigma, larj =
       Array.fold_left2_map
         (fun sigma e ar ->
