@@ -648,22 +648,23 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
 
   | GApp (f,args) ->
     let fj = pretype empty_tycon env evdref f in
+    let sigma = !evdref in
     let floc = loc_of_glob_constr f in
     let length = List.length args in
     let candargs =
 	(* Bidirectional typechecking hint: 
 	   parameters of a constructor are completely determined
 	   by a typing constraint *)
-      if Flags.is_program_mode () && length > 0 && isConstruct !evdref fj.uj_val then
+      if Flags.is_program_mode () && length > 0 && isConstruct sigma fj.uj_val then
 	match tycon with
 	| None -> []
 	| Some ty ->
-	  let ((ind, i), u) = destConstruct !evdref fj.uj_val in
+          let ((ind, i), u) = destConstruct sigma fj.uj_val in
 	  let npars = inductive_nparams ind in
 	    if Int.equal npars 0 then []
 	    else
 	      try
-                let IndType (indf, args) = find_rectype !!env !evdref ty in
+                let IndType (indf, args) = find_rectype !!env sigma ty in
 	  	let ((ind',u'),pars) = dest_ind_family indf in
 	  	  if eq_ind ind ind' then List.map EConstr.of_constr pars
 	  	  else (* Let the usual code throw an error *) []
@@ -671,7 +672,7 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
       else []
     in
     let app_f = 
-      match EConstr.kind !evdref fj.uj_val with
+      match EConstr.kind sigma fj.uj_val with
       | Const (p, u) when Recordops.is_primitive_projection p ->
         let p = Option.get @@ Recordops.find_primitive_projection p in
         let p = Projection.make p false in
@@ -681,53 +682,56 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
           else fun f v -> applist (f, [v])
       | _ -> fun _ f v -> applist (f, [v])
     in
-    let rec apply_rec env n resj candargs = function
-      | [] -> resj
+    let rec apply_rec env sigma n resj candargs = function
+      | [] -> sigma, resj
       | c::rest ->
         let argloc = loc_of_glob_constr c in
-        let resj = evd_comb1 (Coercion.inh_app_fun resolve_tc !!env) evdref resj in
-        let resty = whd_all !!env !evdref resj.uj_type in
-        match EConstr.kind !evdref resty with
+        let sigma, resj = Coercion.inh_app_fun resolve_tc !!env sigma resj in
+        let resty = whd_all !!env sigma resj.uj_type in
+        match EConstr.kind sigma resty with
         | Prod (na,c1,c2) ->
           let tycon = Some c1 in
+          evdref := sigma;
           let hj = pretype tycon env evdref c in
-          let candargs, ujval =
+          let sigma = !evdref in
+          let sigma, candargs, ujval =
             match candargs with
-            | [] -> [], j_val hj
+            | [] -> sigma, [], j_val hj
             | arg :: args ->
-              begin match conv !!env !evdref (j_val hj) arg with
-                | Some sigma -> evdref := sigma;
-                  args, nf_evar !evdref (j_val hj)
+              begin match conv !!env sigma (j_val hj) arg with
+                | Some sigma ->
+                  sigma, args, nf_evar sigma (j_val hj)
                 | None ->
-                  [], j_val hj
+                  sigma, [], j_val hj
               end
           in
-            let sigma, ujval = adjust_evar_source !evdref na ujval in
-            evdref := sigma;
-	    let value, typ = app_f n (j_val resj) ujval, subst1 ujval c2 in
-	    let j = { uj_val = value; uj_type = typ } in
-	      apply_rec env (n+1) j candargs rest
-	  | _ ->
-            let hj = pretype empty_tycon env evdref c in
-	      error_cant_apply_not_functional
-                ?loc:(Loc.merge_opt floc argloc) !!env !evdref
-                resj [|hj|]
+          let sigma, ujval = adjust_evar_source sigma na ujval in
+          let value, typ = app_f n (j_val resj) ujval, subst1 ujval c2 in
+          let j = { uj_val = value; uj_type = typ } in
+          apply_rec env sigma (n+1) j candargs rest
+        | _ ->
+          evdref := sigma;
+          let hj = pretype empty_tycon env evdref c in
+          let sigma = !evdref in
+          error_cant_apply_not_functional
+            ?loc:(Loc.merge_opt floc argloc) !!env sigma resj [|hj|]
     in
-    let resj = apply_rec env 1 fj candargs args in
-    let resj =
-      match EConstr.kind !evdref resj.uj_val with
+    let sigma, resj = apply_rec env sigma 1 fj candargs args in
+    let sigma, resj =
+      match EConstr.kind sigma resj.uj_val with
       | App (f,args) ->
-          if is_template_polymorphic !!env !evdref f then
+          if is_template_polymorphic !!env sigma f then
 	    (* Special case for inductive type applications that must be 
 	       refreshed right away. *)
-	    let c = mkApp (f, args) in
-            let c = evd_comb1 (Evarsolve.refresh_universes (Some true) !!env) evdref c in
-            let t = Retyping.get_type_of !!env !evdref c in
-	      make_judge c (* use this for keeping evars: resj.uj_val *) t
-	  else resj
-      | _ -> resj 
+            let c = mkApp (f, args) in
+            let sigma, c = Evarsolve.refresh_universes (Some true) !!env sigma c in
+            let t = Retyping.get_type_of !!env sigma c in
+            sigma, make_judge c (* use this for keeping evars: resj.uj_val *) t
+          else sigma, resj
+      | _ -> sigma, resj
     in
-      inh_conv_coerce_to_tycon ?loc env evdref resj tycon
+    evdref := sigma;
+    inh_conv_coerce_to_tycon ?loc env evdref resj tycon
 
   | GLambda(name,bk,c1,c2) ->
     let tycon' = evd_comb1
