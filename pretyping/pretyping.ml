@@ -980,47 +980,56 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
     j
 
   | GCast (c,k) ->
-    let cj =
+    let sigma = !evdref in
+    let sigma, cj =
       match k with
       | CastCoerce ->
         let cj = pretype empty_tycon env evdref c in
-          evd_comb1 (Coercion.inh_coerce_to_base ?loc !!env) evdref cj
+        let sigma = !evdref in
+        Coercion.inh_coerce_to_base ?loc !!env sigma cj
       | CastConv t | CastVM t | CastNative t ->
 	let k = (match k with CastVM _ -> VMcast | CastNative _ -> NATIVEcast | _ -> DEFAULTcast) in
-        let sigma, tj = pretype_type empty_valcon env !evdref t in
-        evdref := sigma;
-        let tval = evd_comb1 (Evarsolve.refresh_universes
-                             ~onlyalg:true ~status:Evd.univ_flexible (Some false) !!env)
-                          evdref tj.utj_val in
-	let tval = nf_evar !evdref tval in
-	let cj, tval = match k with
+        let sigma, tj = pretype_type empty_valcon env sigma t in
+        let sigma, tval = Evarsolve.refresh_universes
+                             ~onlyalg:true ~status:Evd.univ_flexible (Some false) !!env
+                          sigma tj.utj_val in
+        let tval = nf_evar sigma tval in
+        let sigma, cj, tval = match k with
 	  | VMcast ->
+            evdref := sigma;
             let cj = pretype empty_tycon env evdref c in
-	    let cty = nf_evar !evdref cj.uj_type and tval = nf_evar !evdref tval in
-	      if not (occur_existential !evdref cty || occur_existential !evdref tval) then
-                match Reductionops.vm_infer_conv !!env !evdref cty tval with
-                | Some evd -> (evdref := evd; cj, tval)
+            let sigma = !evdref in
+            let cty = nf_evar sigma cj.uj_type and tval = nf_evar sigma tval in
+              if not (occur_existential sigma cty || occur_existential sigma tval) then
+                match Reductionops.vm_infer_conv !!env sigma cty tval with
+                | Some sigma -> sigma, cj, tval
                 | None ->
-                  error_actual_type ?loc !!env !evdref cj tval
+                  error_actual_type ?loc !!env sigma cj tval
                       (ConversionFailed (!!env,cty,tval))
 	      else user_err ?loc  (str "Cannot check cast with vm: " ++
 		str "unresolved arguments remain.")
 	  | NATIVEcast ->
+            evdref := sigma;
             let cj = pretype empty_tycon env evdref c in
-	    let cty = nf_evar !evdref cj.uj_type and tval = nf_evar !evdref tval in
+            let sigma = !evdref in
+            let cty = nf_evar sigma cj.uj_type and tval = nf_evar sigma tval in
             begin
-              match Nativenorm.native_infer_conv !!env !evdref cty tval with
-              | Some evd -> (evdref := evd; cj, tval)
+              match Nativenorm.native_infer_conv !!env sigma cty tval with
+              | Some sigma -> sigma, cj, tval
               | None ->
-                error_actual_type ?loc !!env !evdref cj tval
+                error_actual_type ?loc !!env sigma cj tval
                   (ConversionFailed (!!env,cty,tval))
             end
-	  | _ -> 
-            pretype (mk_tycon tval) env evdref c, tval
+          | _ ->
+           evdref := sigma;
+           let res = pretype (mk_tycon tval) env evdref c in
+           !evdref, res, tval
 	in
 	let v = mkCast (cj.uj_val, k, tval) in
-	  { uj_val = v; uj_type = tval }
-    in inh_conv_coerce_to_tycon ?loc env evdref cj tycon
+        sigma, { uj_val = v; uj_type = tval }
+    in
+    evdref := sigma;
+    inh_conv_coerce_to_tycon ?loc env evdref cj tycon
 
 and pretype_instance k0 resolve_tc env (sigma : evar_map) loc hyps evk update : evar_map * _ =
   let f decl (subst,update,sigma) =
