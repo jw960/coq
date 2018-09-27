@@ -778,25 +778,28 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
     inh_conv_coerce_to_tycon ?loc env evdref resj tycon
 
   | GLetIn(name,c1,t,c2) ->
-    let tycon1 =
+    let sigma = !evdref in
+    let sigma, tycon1 =
       match t with
       | Some t ->
-        let sigma, t_j = pretype_type empty_valcon env !evdref t in
-        evdref := sigma;
-        mk_tycon t_j.utj_val
+        let sigma, t_j = pretype_type empty_valcon env sigma t in
+        sigma, mk_tycon t_j.utj_val
       | None ->
-         empty_tycon in
+        sigma, empty_tycon in
+    evdref := sigma;
     let j = pretype tycon1 env evdref c1 in
-    let t = evd_comb1 (Evarsolve.refresh_universes
-      ~onlyalg:true ~status:Evd.univ_flexible (Some false) !!env)
-      evdref j.uj_type in
+    let sigma = !evdref in
+    let sigma, t = Evarsolve.refresh_universes
+      ~onlyalg:true ~status:Evd.univ_flexible (Some false) !!env sigma j.uj_type in
     let var = LocalDef (name, j.uj_val, t) in
     let tycon = lift_tycon 1 tycon in
-    let var, env = push_rel !evdref var env in
+    let var, env = push_rel sigma var env in
+    evdref := sigma;
     let j' = pretype tycon env evdref c2 in
+    let _sigma = !evdref in
     let name = get_name var in
-      { uj_val = mkLetIn (name, j.uj_val, t, j'.uj_val) ;
-	uj_type = subst1 j.uj_val j'.uj_type }
+    { uj_val = mkLetIn (name, j.uj_val, t, j'.uj_val) ;
+      uj_type = subst1 j.uj_val j'.uj_type }
 
   | GLetTuple (nal,(na,po),c,d) ->
     let cj = pretype empty_tycon env evdref c in
