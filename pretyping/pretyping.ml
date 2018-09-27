@@ -500,7 +500,8 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
         with Not_found ->
           user_err ?loc  (str "Unknown existential variable.") in
       let hyps = evar_filtered_context (Evd.find !evdref evk) in
-      let args = pretype_instance k0 resolve_tc env evdref loc hyps evk inst in
+      let sigma, args = pretype_instance k0 resolve_tc env !evdref loc hyps evk inst in
+      evdref := sigma;
       let c = mkEvar (evk, args) in
       let j = (Retyping.get_judgment_of !!env !evdref c) in
 	inh_conv_coerce_to_tycon ?loc env evdref j tycon
@@ -989,61 +990,63 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
 	  { uj_val = v; uj_type = tval }
     in inh_conv_coerce_to_tycon ?loc env evdref cj tycon
 
-and pretype_instance k0 resolve_tc env evdref loc hyps evk update =
-  let f decl (subst,update) =
+and pretype_instance k0 resolve_tc env (sigma : evar_map) loc hyps evk update : evar_map * _ =
+  let f decl (subst,update,sigma) =
     let id = NamedDecl.get_id decl in
     let b = Option.map (replace_vars subst) (NamedDecl.get_value decl) in
     let t = replace_vars subst (NamedDecl.get_type decl) in
-    let check_body id c =
+    let check_body sigma id c =
       match b, c with
       | Some b, Some c ->
-         if not (is_conv !!env !evdref b c) then
+         if not (is_conv !!env sigma b c) then
            user_err ?loc  (str "Cannot interpret " ++
-             pr_existential_key !evdref evk ++
+             pr_existential_key sigma evk ++
              strbrk " in current context: binding for " ++ Id.print id ++
              strbrk " is not convertible to its expected definition (cannot unify " ++
-             quote (Termops.Internal.print_constr_env !!env !evdref b) ++
+             quote (Termops.Internal.print_constr_env !!env sigma b) ++
              strbrk " and " ++
-             quote (Termops.Internal.print_constr_env !!env !evdref c) ++
+             quote (Termops.Internal.print_constr_env !!env sigma c) ++
              str ").")
       | Some b, None ->
            user_err ?loc  (str "Cannot interpret " ++
-             pr_existential_key !evdref evk ++
+             pr_existential_key sigma evk ++
              strbrk " in current context: " ++ Id.print id ++
              strbrk " should be bound to a local definition.")
       | None, _ -> () in
-    let check_type id t' =
-      if not (is_conv !!env !evdref t t') then
+    let check_type sigma id t' =
+      if not (is_conv !!env sigma t t') then
         user_err ?loc  (str "Cannot interpret " ++
-          pr_existential_key !evdref evk ++
+          pr_existential_key sigma evk ++
           strbrk " in current context: binding for " ++ Id.print id ++
           strbrk " is not well-typed.") in
-    let c, update =
+    let sigma, c, update =
       try
         let c = List.assoc id update in
+        let evdref = ref sigma in
         let c = pretype k0 resolve_tc (mk_tycon t) env evdref c in
-        check_body id (Some c.uj_val);
-        c.uj_val, List.remove_assoc id update
+        let sigma = !evdref in
+        check_body sigma id (Some c.uj_val);
+        sigma, c.uj_val, List.remove_assoc id update
       with Not_found ->
       try
         let (n,b',t') = lookup_rel_id id (rel_context !!env) in
-        check_type id (lift n t');
-        check_body id (Option.map (lift n) b');
-        mkRel n, update
+        check_type sigma id (lift n t');
+        check_body sigma id (Option.map (lift n) b');
+        sigma, mkRel n, update
       with Not_found ->
       try
         let decl = lookup_named id !!env in
-        check_type id (NamedDecl.get_type decl);
-        check_body id (NamedDecl.get_value decl);
-        mkVar id, update
+        check_type sigma id (NamedDecl.get_type decl);
+        check_body sigma id (NamedDecl.get_value decl);
+        sigma, mkVar id, update
       with Not_found ->
         user_err ?loc  (str "Cannot interpret " ++
-          pr_existential_key !evdref evk ++
+          pr_existential_key sigma evk ++
           str " in current context: no binding for " ++ Id.print id ++ str ".") in
-    ((id,c)::subst, update) in
-  let subst,inst = List.fold_right f hyps ([],update) in
+    ((id,c)::subst, update, sigma) in
+  let subst, inst, sigma = List.fold_right f hyps ([],update,sigma) in
   check_instance loc subst inst;
-  Array.map_of_list snd subst
+  sigma, Array.map_of_list snd subst
 
 (* [pretype_type valcon env evdref c] coerces [c] into a type *)
 and pretype_type k0 resolve_tc valcon (env : GlobEnv.t) (sigma : evar_map) c : evar_map * _ = match DAst.get c with
