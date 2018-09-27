@@ -472,7 +472,11 @@ let new_type_evar env sigma loc =
 
 let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref t =
   let inh_conv_coerce_to_tycon ?loc = inh_conv_coerce_to_tycon ?loc resolve_tc in
-  let pretype_type = pretype_type k0 resolve_tc in
+  let pretype_type v e evdref t =
+    let sigma = !evdref in
+    let sigma, res = pretype_type k0 resolve_tc v e sigma t in
+    evdref := sigma; res
+  in
   let pretype = pretype k0 resolve_tc in
   let open Context.Rel.Declaration in
   let loc = t.CAst.loc in
@@ -1042,48 +1046,46 @@ and pretype_instance k0 resolve_tc env evdref loc hyps evk update =
   Array.map_of_list snd subst
 
 (* [pretype_type valcon env evdref c] coerces [c] into a type *)
-and pretype_type k0 resolve_tc valcon (env : GlobEnv.t) evdref c = match DAst.get c with
+and pretype_type k0 resolve_tc valcon (env : GlobEnv.t) (sigma : evar_map) c : evar_map * _ = match DAst.get c with
   | GHole (knd, naming, None) ->
       let loc = loc_of_glob_constr c in
       (match valcon with
        | Some v ->
-           let s =
-	     let sigma =  !evdref in
+           let sigma, s =
              let t = Retyping.get_type_of !!env sigma v in
                match EConstr.kind sigma (whd_all !!env sigma t) with
-               | Sort s -> ESorts.kind sigma s
+               | Sort s -> sigma, ESorts.kind sigma s
                | Evar ev when is_Type sigma (existential_type sigma ev) ->
-                   evd_comb1 (define_evar_as_sort !!env) evdref ev
+                 define_evar_as_sort !!env sigma ev
                | _ -> anomaly (Pp.str "Found a type constraint which is not a type.")
            in
            (* Correction of bug #5315 : we need to define an evar for *all* holes *)
-           let evkt =
-             let sigma, nev = new_evar env !evdref ~src:(loc, knd) ~naming (mkSort s) in
-             evdref := sigma;
-             nev in
-           let ev,_ = destEvar !evdref evkt in
-           evdref := Evd.define ev (nf_evar !evdref v) !evdref;
+           let sigma, evkt =
+             new_evar env sigma ~src:(loc, knd) ~naming (mkSort s) in
+           let ev,_ = destEvar sigma evkt in
+           let sigma = Evd.define ev (nf_evar sigma v) sigma in
            (* End of correction of bug #5315 *)
-           { utj_val = v;
-	     utj_type = s }
+           sigma, { utj_val = v;
+                    utj_type = s }
        | None ->
-	   let s = evd_comb0 (new_sort_variable univ_flexible_alg) evdref in
-           let sigma, utj_val = new_evar env !evdref ~src:(loc, knd) ~naming (mkSort s) in
-           evdref := sigma;
-             { utj_val;
-	       utj_type = s})
+           let sigma, s = new_sort_variable univ_flexible_alg sigma in
+           let sigma, utj_val = new_evar env sigma ~src:(loc, knd) ~naming (mkSort s) in
+           sigma, { utj_val;
+                    utj_type = s})
   | _ ->
+      let evdref = ref sigma in
       let j = pretype k0 resolve_tc empty_tycon env evdref c in
+      let sigma = !evdref in
       let loc = loc_of_glob_constr c in
-      let tj = evd_comb1 (Coercion.inh_coerce_to_sort ?loc !!env) evdref j in
+      let sigma, tj = Coercion.inh_coerce_to_sort ?loc !!env sigma j in
 	match valcon with
-	| None -> tj
+        | None -> sigma, tj
 	| Some v ->
-          begin match cumul !!env !evdref v tj.utj_val with
-            | Some sigma -> evdref := sigma; tj
+          begin match cumul !!env sigma v tj.utj_val with
+            | Some sigma -> sigma, tj
             | None ->
 	      error_unexpected_type
-                ?loc:(loc_of_glob_constr c) !!env !evdref tj.utj_val v
+                ?loc:(loc_of_glob_constr c) !!env sigma tj.utj_val v
           end
 
 let ise_pretype_gen flags env sigma lvar kind c =
@@ -1098,7 +1100,8 @@ let ise_pretype_gen flags env sigma lvar kind c =
         let j = pretype k0 flags.use_typeclasses (mk_tycon exptyp) env evdref c in
         j.uj_val, j.uj_type
     | IsType ->
-        let tj = pretype_type k0 flags.use_typeclasses empty_valcon env evdref c in
+        let sigma, tj = pretype_type k0 flags.use_typeclasses empty_valcon env !evdref c in
+        evdref := sigma;
         tj.utj_val, mkSort tj.utj_type
   in
   process_inference_flags flags !!env sigma (!evdref,c',c'_ty)
