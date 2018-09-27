@@ -152,7 +152,7 @@ let interp_ltac_variable ?loc typing_fun env sigma id =
     let (ids,c) = Id.Map.find id env.lvar.ltac_constrs in
     let subst = List.map (invert_ltac_bound_name env id) ids in
     let c = substl subst c in
-      { uj_val = c; uj_type = protected_get_type_of env.renamed_env sigma c }
+    sigma, { uj_val = c; uj_type = protected_get_type_of env.renamed_env sigma c }
   with Not_found ->
   try
     let {closure;term} = Id.Map.find id env.lvar.ltac_uconstrs in

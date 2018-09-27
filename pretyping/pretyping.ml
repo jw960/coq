@@ -376,18 +376,23 @@ let orelse_name name name' = match name with
   | Anonymous -> name'
   | _ -> name
 
-let pretype_id pretype k0 loc env evdref id =
+let pretype_id pretype k0 loc env sigma id =
   (* Look for the binder of [id] *)
+  let pretype env sigma t =
+    let evdref = ref sigma in
+    let res = pretype env evdref t in
+    !evdref, res
+  in
   try
     let (n,_,typ) = lookup_rel_id id (rel_context !!env) in
-      { uj_val  = mkRel n; uj_type = lift n typ }
+    sigma, { uj_val  = mkRel n; uj_type = lift n typ }
   with Not_found ->
   try
-    GlobEnv.interp_ltac_variable ?loc (fun env -> pretype env evdref) env !evdref id
+    GlobEnv.interp_ltac_variable ?loc (fun env -> pretype env sigma) env sigma id
   with Not_found ->
   (* Check if [id] is a section or goal variable *)
   try
-    { uj_val  = mkVar id; uj_type = NamedDecl.get_type (lookup_named id !!env) }
+    sigma, { uj_val  = mkVar id; uj_type = NamedDecl.get_type (lookup_named id !!env) }
   with Not_found ->
     (* [id] not found, standard error message *)
     error_var_not_found ?loc id
@@ -435,21 +440,20 @@ let pretype_global ?loc rigid env evd gr us =
   let (sigma, c) = Evd.fresh_global ?loc ~rigid ?names:instance !!env evd gr in
   (sigma, c)
 
-let pretype_ref ?loc evdref env ref us =
+let pretype_ref ?loc evd env ref us =
   match ref with
   | VarRef id ->
       (* Section variable *)
-      (try make_judge (mkVar id) (NamedDecl.get_type (lookup_named id !!env))
+      (try evd, make_judge (mkVar id) (NamedDecl.get_type (lookup_named id !!env))
        with Not_found ->
          (* This may happen if env is a goal env and section variables have
             been cleared - section variables should be different from goal
             variables *)
          Pretype_errors.error_var_not_found ?loc id)
   | ref ->
-    let evd, c = pretype_global ?loc univ_flexible env !evdref ref us in
-    let () = evdref := evd in
+    let evd, c = pretype_global ?loc univ_flexible env evd ref us in
     let ty = unsafe_type_of !!env evd c in
-      make_judge c ty
+    evd, make_judge c ty
 
 let judge_of_Type ?loc evd s =
   let evd, s = interp_universe ?loc evd s in
@@ -482,14 +486,14 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
   let loc = t.CAst.loc in
   match DAst.get t with
   | GRef (ref,u) ->
-      inh_conv_coerce_to_tycon ?loc env evdref
-	(pretype_ref ?loc evdref env ref u)
-	tycon
+    let sigma, t_ref = pretype_ref ?loc !evdref env ref u in
+    evdref := sigma;
+    inh_conv_coerce_to_tycon ?loc env evdref t_ref tycon
 
   | GVar id ->
-    inh_conv_coerce_to_tycon ?loc env evdref
-      (pretype_id (fun e r t -> pretype tycon e r t) k0 loc env evdref id)
-      tycon
+    let sigma, t_id = pretype_id (fun e r t -> pretype tycon e r t) k0 loc env !evdref id in
+    evdref := sigma;
+    inh_conv_coerce_to_tycon ?loc env evdref t_id tycon
 
   | GEvar (id, inst) ->
       (* Ne faudrait-il pas s'assurer que hyps est bien un
