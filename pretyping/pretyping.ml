@@ -757,18 +757,15 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
 
   | GProd(name,bk,c1,c2) ->
     let sigma, j = pretype_type empty_valcon env !evdref c1 in
-    evdref := sigma;
-    let name, j' = match name with
+    let sigma, name, j' = match name with
       | Anonymous ->
-        let sigma, j = pretype_type empty_valcon env !evdref c2 in
-        evdref := sigma;
-        name, { j with utj_val = lift 1 j.utj_val }
+        let sigma, j = pretype_type empty_valcon env sigma c2 in
+        sigma, name, { j with utj_val = lift 1 j.utj_val }
       | Name _ ->
         let var = LocalAssum (name, j.utj_val) in
-        let var, env' = push_rel !evdref var env in
-        let sigma, c2_tj = pretype_type empty_valcon env' !evdref c2 in
-        evdref := sigma;
-        get_name var, c2_tj
+        let var, env' = push_rel sigma var env in
+        let sigma, c2_tj = pretype_type empty_valcon env' sigma c2 in
+        sigma, get_name var, c2_tj
     in
     let resj =
       try
@@ -777,7 +774,8 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
         let (e, info) = CErrors.push e in
         let info = Option.cata (Loc.add_loc info) info loc in
         iraise (e, info) in
-      inh_conv_coerce_to_tycon ?loc env evdref resj tycon
+    evdref := sigma;
+    inh_conv_coerce_to_tycon ?loc env evdref resj tycon
 
   | GLetIn(name,c1,t,c2) ->
     let tycon1 =
