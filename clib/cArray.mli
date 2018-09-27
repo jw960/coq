@@ -114,6 +114,9 @@ sig
   val fold_left2_map : ('a -> 'b -> 'c -> 'a * 'd) -> 'a -> 'b array -> 'c array -> 'a * 'd array
   (** Same with two arrays, folding on the left; see also [Smart.fold_left2_map] *)
 
+  val fold_left2_map_i : (int -> 'a -> 'b -> 'c -> 'a * 'd) -> 'a -> 'b array -> 'c array -> 'a * 'd array
+  (** Same than [fold_left2_map] but also pass the index *)
+
   val fold_right2_map : ('a -> 'b -> 'c -> 'd * 'c) -> 'a array -> 'b array -> 'c -> 'd array * 'c
   (** Same with two arrays, folding on the left *)
 
