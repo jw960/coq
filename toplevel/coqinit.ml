@@ -70,17 +70,18 @@ let build_userlib_path ~unix_path =
       }
   }
 
-let ml_path_if c p =
+let ml_path_if_exists p =
   let open Mltop in
-  let f x = { recursive = false; path_spec = MlPath x } in
-  if c then List.map f p else []
+  if Sys.file_exists p then
+    let f x = { recursive = false; path_spec = MlPath x } in
+    [f p] else []
 
 (* LoadPath for developers *)
 let toplevel_init_load_path () =
   let coqlib = Envars.coqlib () in
   (* NOTE: These directories are searched from last to first *)
   (* first, developer specific directory to open *)
-  ml_path_if Coq_config.local [coqlib/"dev"]
+  ml_path_if_exists (coqlib/"dev")
 
 (* LoadPath for Coq user libraries *)
 let libs_init_load_path ~load_init =

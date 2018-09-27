@@ -16,12 +16,7 @@
 # by dependencies between rules, so do *not* try overly clever things like
 # 'make world install' in one unique command
 
-ifeq ($(LOCAL),true)
-install:
-	@echo "Nothing to install in a local build!"
-else
 install: install-coq install-coqide install-doc-$(WITHDOC) install-meta
-endif
 
 # NOTA: for install-coqide, see Makefile.ide
 

@@ -130,10 +130,6 @@ INSTALLATION PROCEDURE IN DETAILS (NORMAL USERS).
 	compiling Coq on two different architectures for which the
 	result of "arch" is the same, e.g. Sun OS and Solaris)
 
--local
-        Compile Coq to run in its source directory. The installation (step 6)
-        is not necessary in that case.
-
 -browser <command>
 	Use <command> to open an URL in a browser. %s must appear in <command>,
 	and will be replaced by the URL.
@@ -195,25 +191,6 @@ INSTALLATION PROCEDURE IN DETAILS (NORMAL USERS).
 7- You can now clean all the sources. (You can even erase them.)
 
 	make clean
-
-
-INSTALLATION PROCEDURE FOR ADVANCED USERS.
-==========================================
-
-   If you wish to write plugins you *must* keep the Coq sources, without
-   cleaning them. Therefore, to avoid a duplication of binaries and library,
-   it is not necessary to do the installation step (6- above).  You just have
-   to tell it at configuration step (4- above) with the option -local :
-
-	./configure -local <other options>
-
-   Then compile the sources as described in step 5 above. The resulting
-   binaries will reside in the subdirectory bin/.
-
-   Unless you pass the -nodebug option to ./configure, the -g option of the
-   OCaml compiler will be used during compilation to allow debugging.
-   See the debugging file in dev/doc and the chapter 15 of the Coq Reference
-   Manual for details about how to use the OCaml debugger with Coq.
 
 
 THE AVAILABLE COMMANDS.
