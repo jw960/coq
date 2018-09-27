@@ -803,11 +803,12 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
 
   | GLetTuple (nal,(na,po),c,d) ->
     let cj = pretype empty_tycon env evdref c in
+    let sigma = !evdref in
     let (IndType (indf,realargs)) =
-      try find_rectype !!env !evdref cj.uj_type
+      try find_rectype !!env sigma cj.uj_type
       with Not_found ->
 	let cloc = loc_of_glob_constr c in
-          error_case_not_inductive ?loc:cloc !!env !evdref cj
+          error_case_not_inductive ?loc:cloc !!env sigma cj
     in
     let ind = fst (fst (dest_ind_family indf)) in
     let cstrs = get_constructors !!env indf in
@@ -837,9 +838,9 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
 	  | _ -> assert false
 	in aux 1 1 (List.rev nal) cs.cs_args, true in
     let fsign = if Flags.version_strictly_greater Flags.V8_6
-                then Context.Rel.map (whd_betaiota !evdref) fsign
+                then Context.Rel.map (whd_betaiota sigma) fsign
                 else fsign (* beta-iota-normalization regression in 8.5 and 8.6 *) in
-    let fsign,env_f = push_rel_context !evdref fsign env in
+    let fsign,env_f = push_rel_context sigma fsign env in
     let obj ind p v f =
       if not record then
 	let f = it_mkLambda_or_LetIn f fsign in
@@ -855,45 +856,51 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
       let indt = build_dependent_inductive !!env indf in
       let psign = LocalAssum (na, indt) :: arsgn in (* For locating names in [po] *)
       let psign = List.map (fun d -> map_rel_decl EConstr.of_constr d) psign in
-      let predenv = Cases.make_return_predicate_ltac_lvar env !evdref na c cj.uj_val in
+      let predenv = Cases.make_return_predicate_ltac_lvar env sigma na c cj.uj_val in
       let nar = List.length arsgn in
-      let psign',env_p = push_rel_context ~force_names:true !evdref psign predenv in
+      let psign',env_p = push_rel_context ~force_names:true sigma psign predenv in
 	  (match po with
 	  | Some p ->
-            let sigma, pj = pretype_type empty_valcon env_p !evdref p in
-            evdref := sigma;
-	    let ccl = nf_evar !evdref pj.utj_val in
+            let sigma, pj = pretype_type empty_valcon env_p sigma p in
+            let ccl = nf_evar sigma pj.utj_val in
 	    let p = it_mkLambda_or_LetIn ccl psign' in
 	    let inst =
 	      (Array.map_to_list EConstr.of_constr cs.cs_concl_realargs)
 	      @[EConstr.of_constr (build_dependent_constructor cs)] in
 	    let lp = lift cs.cs_nargs p in
-            let fty = hnf_lam_applist !!env !evdref lp inst in
+            let fty = hnf_lam_applist !!env sigma lp inst in
+            evdref := sigma;
             let fj = pretype (mk_tycon fty) env_f evdref d in
+            let sigma = !evdref in
 	    let v =
 	      let ind,_ = dest_ind_family indf in
-                Typing.check_allowed_sort !!env !evdref ind cj.uj_val p;
+                Typing.check_allowed_sort !!env sigma ind cj.uj_val p;
 		obj ind p cj.uj_val fj.uj_val
 	    in
+            evdref := sigma;
 	      { uj_val = v; uj_type = (substl (realargs@[cj.uj_val]) ccl) }
 
 	  | None ->
 	    let tycon = lift_tycon cs.cs_nargs tycon in
+            evdref := sigma;
             let fj = pretype tycon env_f evdref d in
-	    let ccl = nf_evar !evdref fj.uj_type in
+            let sigma = !evdref in
+            let ccl = nf_evar sigma fj.uj_type in
 	    let ccl =
-	      if noccur_between !evdref 1 cs.cs_nargs ccl then
+              if noccur_between sigma 1 cs.cs_nargs ccl then
 		lift (- cs.cs_nargs) ccl
 	      else
-                error_cant_find_case_type ?loc !!env !evdref
+                error_cant_find_case_type ?loc !!env sigma
 		  cj.uj_val in
 		 (* let ccl = refresh_universes ccl in *)
 	    let p = it_mkLambda_or_LetIn (lift (nar+1) ccl) psign' in
 	    let v =
 	      let ind,_ = dest_ind_family indf in
-                Typing.check_allowed_sort !!env !evdref ind cj.uj_val p;
+                Typing.check_allowed_sort !!env sigma ind cj.uj_val p;
 		obj ind p cj.uj_val fj.uj_val
-	    in { uj_val = v; uj_type = ccl })
+            in
+            evdref := sigma;
+            { uj_val = v; uj_type = ccl })
 
   | GIf (c,(na,po),b1,b2) ->
     let cj = pretype empty_tycon env evdref c in
