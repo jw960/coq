@@ -437,8 +437,7 @@ let pretype_global ?loc rigid env evd gr us =
        let len = Univ.AUContext.size ctx in
        interp_instance ?loc evd ~len l
   in
-  let (sigma, c) = Evd.fresh_global ?loc ~rigid ?names:instance !!env evd gr in
-  (sigma, c)
+  Evd.fresh_global ?loc ~rigid ?names:instance !!env evd gr
 
 let pretype_ref ?loc evd env ref us =
   match ref with
@@ -904,11 +903,12 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
 
   | GIf (c,(na,po),b1,b2) ->
     let cj = pretype empty_tycon env evdref c in
+    let sigma = !evdref in
     let (IndType (indf,realargs)) =
-      try find_rectype !!env !evdref cj.uj_type
+      try find_rectype !!env sigma cj.uj_type
       with Not_found ->
 	let cloc = loc_of_glob_constr c in
-          error_case_not_inductive ?loc:cloc !!env !evdref cj in
+          error_case_not_inductive ?loc:cloc !!env sigma cj in
     let cstrs = get_constructors !!env indf in
       if not (Int.equal (Array.length cstrs) 2) then
         user_err ?loc 
@@ -923,49 +923,51 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
       let indt = build_dependent_inductive !!env indf in
       let psign = LocalAssum (na, indt) :: arsgn in (* For locating names in [po] *)
       let psign = List.map (fun d -> map_rel_decl EConstr.of_constr d) psign in
-      let predenv = Cases.make_return_predicate_ltac_lvar env !evdref na c cj.uj_val in
-      let psign,env_p = push_rel_context !evdref psign predenv in
-      let pred,p = match po with
+      let predenv = Cases.make_return_predicate_ltac_lvar env sigma na c cj.uj_val in
+      let psign,env_p = push_rel_context sigma psign predenv in
+      let sigma, pred,p = match po with
 	| Some p ->
-          let sigma, pj = pretype_type empty_valcon env_p !evdref p in
-          evdref := sigma;
-	  let ccl = nf_evar !evdref pj.utj_val in
+          let sigma, pj = pretype_type empty_valcon env_p sigma p in
+          let ccl = nf_evar sigma pj.utj_val in
           let pred = it_mkLambda_or_LetIn ccl psign in
-	  let typ = lift (- nar) (beta_applist !evdref (pred,[cj.uj_val])) in
-	    pred, typ
+          let typ = lift (- nar) (beta_applist sigma (pred,[cj.uj_val])) in
+          sigma, pred, typ
 	| None ->
-	  let p = match tycon with
-	    | Some ty -> ty
-            | None -> evd_comb1 (new_type_evar env) evdref loc
+          let sigma, p = match tycon with
+            | Some ty -> sigma, ty
+            | None -> new_type_evar env sigma loc
 	  in
-            it_mkLambda_or_LetIn (lift (nar+1) p) psign, p in
-      let pred = nf_evar !evdref pred in
-      let p = nf_evar !evdref p in
-      let f cs b =
+          sigma, it_mkLambda_or_LetIn (lift (nar+1) p) psign, p in
+      let pred = nf_evar sigma pred in
+      let p = nf_evar sigma p in
+      let f sigma cs b =
 	let n = Context.Rel.length cs.cs_args in
 	let pi = lift n pred in (* liftn n 2 pred ? *)
-	let pi = beta_applist !evdref (pi, [EConstr.of_constr (build_dependent_constructor cs)]) in
+        let pi = beta_applist sigma (pi, [EConstr.of_constr (build_dependent_constructor cs)]) in
         let cs_args = List.map (fun d -> map_rel_decl EConstr.of_constr d) cs.cs_args in
         let cs_args =
           if Flags.version_strictly_greater Flags.V8_6
-          then Context.Rel.map (whd_betaiota !evdref) cs_args
+          then Context.Rel.map (whd_betaiota sigma) cs_args
           else cs_args (* beta-iota-normalization regression in 8.5 and 8.6 *) in
 	let csgn =
           List.map (set_name Anonymous) cs_args
         in
-        let _,env_c = push_rel_context !evdref csgn env in
+        let _,env_c = push_rel_context sigma csgn env in
+        evdref := sigma;
         let bj = pretype (mk_tycon pi) env_c evdref b in
-	  it_mkLambda_or_LetIn bj.uj_val cs_args in
-      let b1 = f cstrs.(0) b1 in
-      let b2 = f cstrs.(1) b2 in
+        let sigma = !evdref in
+        sigma, it_mkLambda_or_LetIn bj.uj_val cs_args in
+      let sigma, b1 = f sigma cstrs.(0) b1 in
+      let sigma, b2 = f sigma cstrs.(1) b2 in
       let v =
 	let ind,_ = dest_ind_family indf in
         let ci = make_case_info !!env (fst ind) IfStyle in
-	let pred = nf_evar !evdref pred in
-          Typing.check_allowed_sort !!env !evdref ind cj.uj_val pred;
+        let pred = nf_evar sigma pred in
+          Typing.check_allowed_sort !!env sigma ind cj.uj_val pred;
 	  mkCase (ci, pred, cj.uj_val, [|b1;b2|])
       in
       let cj = { uj_val = v; uj_type = p } in
+      evdref := sigma;
       inh_conv_coerce_to_tycon ?loc env evdref cj tycon
 
   | GCases (sty,po,tml,eqns) ->
