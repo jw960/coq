@@ -463,8 +463,8 @@ let pretype_sort ?loc evdref = function
   | GSet -> judge_of_set
   | GType s -> evd_comb1 (judge_of_Type ?loc) evdref s
 
-let new_type_evar env evdref loc =
-  e_new_type_evar env evdref ~src:(Loc.tag ?loc Evar_kinds.InternalHole)
+let new_type_evar env sigma loc =
+  new_type_evar env sigma ~src:(Loc.tag ?loc Evar_kinds.InternalHole)
 
 (* [pretype tycon env evdref lvar lmeta cstr] attempts to type [cstr] *)
 (* in environment [env], with existential variables [evdref] and *)
@@ -505,9 +505,11 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
     let ty =
       match tycon with
       | Some ty -> ty
-      | None -> new_type_evar env evdref loc in
+      | None -> evd_comb1 (new_type_evar env) evdref loc in
     let k = Evar_kinds.MatchingVar kind in
-      { uj_val = e_new_evar env evdref ~src:(loc,k) ty; uj_type = ty }
+    let sigma, uj_val = new_evar env !evdref ~src:(loc,k) ty in
+    evdref := sigma;
+    { uj_val; uj_type = ty }
 
   | GHole (k, naming, None) ->
       let open Namegen in
@@ -518,16 +520,18 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
       let ty =
         match tycon with
         | Some ty -> ty
-        | None -> new_type_evar env evdref loc in
-        { uj_val = e_new_evar env evdref ~src:(loc,k) ~naming ty; uj_type = ty }
+        | None -> evd_comb1 (new_type_evar env) evdref loc in
+      let sigma, uj_val = new_evar env !evdref ~src:(loc,k) ~naming ty in
+      evdref := sigma;
+      { uj_val; uj_type = ty }
 
   | GHole (k, _naming, Some arg) ->
       let ty =
         match tycon with
         | Some ty -> ty
-        | None -> new_type_evar env evdref loc in
+        | None -> evd_comb1 (new_type_evar env) evdref loc in
       let (c, sigma) = GlobEnv.interp_glob_genarg env !evdref ty arg in
-      let () = evdref := sigma in
+      evdref := sigma;
       { uj_val = c; uj_type = ty }
 
   | GRec (fixkind,names,bl,lar,vdef) ->
@@ -896,7 +900,7 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
 	| None ->
 	  let p = match tycon with
 	    | Some ty -> ty
-            | None -> new_type_evar env evdref loc
+            | None -> evd_comb1 (new_type_evar env) evdref loc
 	  in
             it_mkLambda_or_LetIn (lift (nar+1) p) psign, p in
       let pred = nf_evar !evdref pred in
@@ -1053,7 +1057,10 @@ and pretype_type k0 resolve_tc valcon (env : GlobEnv.t) evdref c = match DAst.ge
                | _ -> anomaly (Pp.str "Found a type constraint which is not a type.")
            in
            (* Correction of bug #5315 : we need to define an evar for *all* holes *)
-           let evkt = e_new_evar env evdref ~src:(loc, knd) ~naming (mkSort s) in
+           let evkt =
+             let sigma, nev = new_evar env !evdref ~src:(loc, knd) ~naming (mkSort s) in
+             evdref := sigma;
+             nev in
            let ev,_ = destEvar !evdref evkt in
            evdref := Evd.define ev (nf_evar !evdref v) !evdref;
            (* End of correction of bug #5315 *)
@@ -1061,7 +1068,9 @@ and pretype_type k0 resolve_tc valcon (env : GlobEnv.t) evdref c = match DAst.ge
 	     utj_type = s }
        | None ->
 	   let s = evd_comb0 (new_sort_variable univ_flexible_alg) evdref in
-	     { utj_val = e_new_evar env evdref ~src:(loc, knd) ~naming (mkSort s);
+           let sigma, utj_val = new_evar env !evdref ~src:(loc, knd) ~naming (mkSort s) in
+           evdref := sigma;
+             { utj_val;
 	       utj_type = s})
   | _ ->
       let j = pretype k0 resolve_tc empty_tycon env evdref c in
