@@ -457,15 +457,14 @@ let pretype_ref ?loc evd env ref us =
 
 let judge_of_Type ?loc evd s =
   let evd, s = interp_universe ?loc evd s in
-  let judge = 
-    { uj_val = mkSort (Type s); uj_type = mkSort (Type (Univ.super s)) }
-  in
-    evd, judge
+  let judge =
+    { uj_val = mkSort (Type s); uj_type = mkSort (Type (Univ.super s)) } in
+  evd, judge
 
-let pretype_sort ?loc evdref = function
-  | GProp -> judge_of_prop
-  | GSet -> judge_of_set
-  | GType s -> evd_comb1 (judge_of_Type ?loc) evdref s
+let pretype_sort ?loc sigma = function
+  | GProp -> sigma, judge_of_prop
+  | GSet -> sigma, judge_of_set
+  | GType s -> judge_of_Type ?loc sigma s
 
 let new_type_evar env sigma loc =
   new_type_evar env sigma ~src:(Loc.tag ?loc Evar_kinds.InternalHole)
@@ -633,8 +632,9 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
 	inh_conv_coerce_to_tycon ?loc env evdref fixj tycon
 
   | GSort s ->
-    let j = pretype_sort ?loc evdref s in
-      inh_conv_coerce_to_tycon ?loc env evdref j tycon
+    let sigma, j = pretype_sort ?loc !evdref s in
+    evdref := sigma;
+    inh_conv_coerce_to_tycon ?loc env evdref j tycon
 
   | GProj (p, c) ->
     (* TODO: once GProj is used as an input syntax, use bidirectional typing here *)
