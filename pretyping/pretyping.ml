@@ -497,48 +497,51 @@ let rec pretype k0 resolve_tc (tycon : type_constraint) (env : GlobEnv.t) evdref
   | GEvar (id, inst) ->
       (* Ne faudrait-il pas s'assurer que hyps est bien un
 	 sous-contexte du contexte courant, et qu'il n'y a pas de Rel "caché" *)
+      let sigma = !evdref in
       let id = interp_ltac_id env id in
       let evk =
-        try Evd.evar_key id !evdref
+        try Evd.evar_key id sigma
         with Not_found ->
           user_err ?loc  (str "Unknown existential variable.") in
-      let hyps = evar_filtered_context (Evd.find !evdref evk) in
-      let sigma, args = pretype_instance k0 resolve_tc env !evdref loc hyps evk inst in
-      evdref := sigma;
+      let hyps = evar_filtered_context (Evd.find sigma evk) in
+      let sigma, args = pretype_instance k0 resolve_tc env sigma loc hyps evk inst in
       let c = mkEvar (evk, args) in
-      let j = (Retyping.get_judgment_of !!env !evdref c) in
-	inh_conv_coerce_to_tycon ?loc env evdref j tycon
+      let j = Retyping.get_judgment_of !!env sigma c in
+      evdref := sigma;
+      inh_conv_coerce_to_tycon ?loc env evdref j tycon
 
   | GPatVar kind ->
-    let ty =
+    let sigma, ty =
       match tycon with
-      | Some ty -> ty
-      | None -> evd_comb1 (new_type_evar env) evdref loc in
+      | Some ty -> !evdref, ty
+      | None -> new_type_evar env !evdref loc in
     let k = Evar_kinds.MatchingVar kind in
-    let sigma, uj_val = new_evar env !evdref ~src:(loc,k) ty in
+    let sigma, uj_val = new_evar env sigma ~src:(loc,k) ty in
     evdref := sigma;
     { uj_val; uj_type = ty }
 
   | GHole (k, naming, None) ->
+      let sigma = !evdref in
       let open Namegen in
       let naming = match naming with
         | IntroIdentifier id -> IntroIdentifier (interp_ltac_id env id)
         | IntroAnonymous -> IntroAnonymous
         | IntroFresh id -> IntroFresh (interp_ltac_id env id) in
-      let ty =
+      let sigma, ty =
         match tycon with
-        | Some ty -> ty
-        | None -> evd_comb1 (new_type_evar env) evdref loc in
-      let sigma, uj_val = new_evar env !evdref ~src:(loc,k) ~naming ty in
+        | Some ty -> sigma, ty
+        | None -> new_type_evar env sigma loc in
+      let sigma, uj_val = new_evar env sigma ~src:(loc,k) ~naming ty in
       evdref := sigma;
       { uj_val; uj_type = ty }
 
   | GHole (k, _naming, Some arg) ->
-      let ty =
+      let sigma = !evdref in
+      let sigma, ty =
         match tycon with
-        | Some ty -> ty
-        | None -> evd_comb1 (new_type_evar env) evdref loc in
-      let (c, sigma) = GlobEnv.interp_glob_genarg env !evdref ty arg in
+        | Some ty -> sigma, ty
+        | None -> new_type_evar env sigma loc in
+      let c, sigma = GlobEnv.interp_glob_genarg env sigma ty arg in
       evdref := sigma;
       { uj_val = c; uj_type = ty }
 
