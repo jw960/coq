@@ -250,7 +250,7 @@ $(addsuffix .log,$(wildcard bugs/closed/*.v)): %.v.log: %.v
 # Unit tests
 #######################################################################
 
-OCAMLOPT := OCAMLPATH=$(LIB):$(OCAMLPATH) $(OCAMLFIND) opt $(CAMLFLAGS)
+OCAMLOPT := $(OCAMLFIND) opt $(CAMLFLAGS)
 
 # ML files from unit-test framework, not containing tests
 UNIT_SRCFILES:=$(shell find ./unit-tests/src -name *.ml)
