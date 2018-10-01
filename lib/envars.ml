@@ -10,7 +10,7 @@
 
 open Util
 
-let debug = true
+let debug = false
 
 let env_debug x =
   let open Format in
