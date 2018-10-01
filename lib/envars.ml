@@ -10,6 +10,16 @@
 
 open Util
 
+let debug = true
+
+let env_debug x =
+  let open Format in
+  if debug then begin
+    eprintf "***: ";
+    kfprintf (fun fmt -> fprintf fmt "@\n%!") err_formatter x
+  end else
+    Format.ifprintf err_formatter x
+
 (** {1 Helper functions} *)
 
 let getenv_else s dft = try Sys.getenv s with Not_found -> dft ()
@@ -99,10 +109,11 @@ let guess_coqlib fail =
   let prelude = "theories/Init/Prelude.vo" in
   check_file_else ~dir:Coq_config.coqlibsuffix ~file:prelude
     (fun () ->
-      if not Coq_config.local && Sys.file_exists (Coq_config.coqlib / prelude)
-      then Coq_config.coqlib
-      else
-        fail "cannot guess a path for Coq libraries; please use -coqlib option")
+       env_debug "trying with coq_config: %s" Coq_config.coqlib;
+       if not Coq_config.local && Sys.file_exists (Coq_config.coqlib / prelude)
+       then Coq_config.coqlib
+       else
+         fail "cannot guess a path for Coq libraries; please use -coqlib option")
   )
 
 let coqlib : string option ref = ref None
@@ -111,10 +122,19 @@ let set_user_coqlib path = coqlib := Some path
 (** coqlib is now computed once during coqtop initialization *)
 
 let set_coqlib ~fail =
+  env_debug "setting coqlib";
   match !coqlib with
-  | Some _ -> ()
+  | Some coqlib ->
+    env_debug "coqlib already set: %s" coqlib;
+    ()
   | None ->
-    let lib = if !Flags.boot then coqroot else guess_coqlib fail in
+    let lib =
+      if !Flags.boot then
+        (env_debug "using coqroot: %s" coqroot; coqroot)
+      else
+        let lib = guess_coqlib fail in
+        (env_debug "guess coqlib: %s" lib; lib)
+    in
     coqlib := Some lib
 
 let coqlib () = Option.default "" !coqlib
