@@ -1,7 +1,7 @@
-(rule (copy %{project_root}/kernel/names.ml names.ml))
-(rule (copy %{project_root}/kernel/names.mli names.mli))
-(rule (copy %{project_root}/kernel/esubst.ml esubst.ml))
-(rule (copy %{project_root}/kernel/esubst.mli esubst.mli))
+(rule (copy %{project_root}/core/kernel/names.ml names.ml))
+(rule (copy %{project_root}/core/kernel/names.mli names.mli))
+(rule (copy %{project_root}/core/kernel/esubst.ml esubst.ml))
+(rule (copy %{project_root}/core/kernel/esubst.mli esubst.mli))
 
 ; Careful with bug https://github.com/ocaml/odoc/issues/148
 ;
