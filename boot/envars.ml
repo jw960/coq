@@ -8,17 +8,9 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-open Util
-
 (** {1 Helper functions} *)
 
 let getenv_else s dft = try Sys.getenv s with Not_found -> dft ()
-
-let safe_getenv warning n =
-  getenv_else n (fun () ->
-    warning ("Environment variable "^n^" not found: using '$"^n^"' .");
-    ("$"^n)
-  )
 
 let ( / ) a b =
   if Filename.is_relative b then a ^ "/" ^ b else b
@@ -36,38 +28,11 @@ let path_to_list p =
   let sep = if String.equal Sys.os_type "Win32" then ';' else ':' in
     String.split_on_char sep p
 
-let expand_path_macros ~warn s =
-  let rec expand_atom s i =
-    let l = String.length s in
-    if i<l && (Util.is_digit s.[i] || Util.is_letter s.[i] || s.[i] == '_')
-    then expand_atom s (i+1)
-    else i in
-  let rec expand_macros s i =
-    let l = String.length s in
-    if Int.equal i l then s else
-      match s.[i] with
-        | '$' ->
-          let n = expand_atom s (i+1) in
-          let v = safe_getenv warn (String.sub s (i+1) (n-i-1)) in
-          let s = (String.sub s 0 i)^v^(String.sub s n (l-n)) in
-          expand_macros s (i + String.length v)
-        | '~' when Int.equal i 0 ->
-          let n = expand_atom s (i+1) in
-          let v =
-            if Int.equal n (i + 1) then home ~warn
-            else (Unix.getpwnam (String.sub s (i+1) (n-i-1))).Unix.pw_dir
-          in
-          let s = v^(String.sub s n (l-n)) in
-          expand_macros s (String.length v)
-        | c -> expand_macros s (i+1)
-  in expand_macros s 0
-
 (** {1 Paths} *)
 
 (** {2 Coq paths} *)
 
-let coqbin =
-  CUnix.canonical_path_name (Filename.dirname Sys.executable_name)
+let coqbin = Filename.dirname Sys.argv.(0)
 
 (** The following only makes sense when executables are running from
     source tree (e.g. during build or in local mode). *)
@@ -117,7 +82,7 @@ let set_coqlib ~fail =
     let lib = guess_coqlib fail in
     coqlib := Some lib
 
-let coqlib () = Option.default "" !coqlib
+let coqlib () = match !coqlib with | None -> "" | Some lib -> lib
 
 let docdir () =
   (* This assumes implicitly that the suffix is non-trivial *)
@@ -182,4 +147,3 @@ let print_config ?(prefix_var_name="") f coq_src_subdirs =
   fprintf f "%sHASNATDYNLINK=%s\n" prefix_var_name
     (if Coq_config.has_natdynlink then "true" else "false");
   fprintf f "%sCOQ_SRC_SUBDIRS=%s\n" prefix_var_name (String.concat " " coq_src_subdirs)
-

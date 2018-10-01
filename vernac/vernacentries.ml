@@ -1117,8 +1117,46 @@ let vernac_set_used_variables ~pstate e : Proof_global.t =
 (*****************************)
 (* Auxiliary file management *)
 
+let getenv_else s dft = try Sys.getenv s with Not_found -> dft ()
+
+let safe_getenv warning n =
+  getenv_else n (fun () ->
+    warning ("Environment variable "^n^" not found: using '$"^n^"' .");
+    ("$"^n)
+  )
+
+(** [expand_path_macros warn s] substitutes environment variables
+    in a string by their values. This function also takes care of
+    substituting path of the form '~X' by an absolute path.
+    Use [warn] as a message displayer. *)
+let expand_path_macros ~warn s =
+  let rec expand_atom s i =
+    let l = String.length s in
+    if i<l && (Util.is_digit s.[i] || Util.is_letter s.[i] || s.[i] == '_')
+    then expand_atom s (i+1)
+    else i in
+  let rec expand_macros s i =
+    let l = String.length s in
+    if Int.equal i l then s else
+      match s.[i] with
+        | '$' ->
+          let n = expand_atom s (i+1) in
+          let v = safe_getenv warn (String.sub s (i+1) (n-i-1)) in
+          let s = (String.sub s 0 i)^v^(String.sub s n (l-n)) in
+          expand_macros s (i + String.length v)
+        | '~' when Int.equal i 0 ->
+          let n = expand_atom s (i+1) in
+          let v =
+            if Int.equal n (i + 1) then Envars.home ~warn
+            else (Unix.getpwnam (String.sub s (i+1) (n-i-1))).Unix.pw_dir
+          in
+          let s = v^(String.sub s n (l-n)) in
+          expand_macros s (String.length v)
+        | c -> expand_macros s (i+1)
+  in expand_macros s 0
+
 let expand filename =
-  Envars.expand_path_macros ~warn:(fun x -> Feedback.msg_warning (str x)) filename
+  expand_path_macros ~warn:(fun x -> Feedback.msg_warning (str x)) filename
 
 let vernac_add_loadpath ~implicit pdir coq_path =
   let open Loadpath in

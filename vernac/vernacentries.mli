@@ -24,3 +24,4 @@ val interp_redexp_hook : (Environ.env -> Evd.evar_map -> Genredexpr.raw_red_expr
 
 (** Miscellaneous stuff *)
 val command_focus : unit Proof.focus_kind
+val expand : CUnix.physical_path -> CUnix.physical_path

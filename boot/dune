@@ -1,0 +1,5 @@
+(library
+ (name boot)
+ (public_name coq.boot)
+ (wrapped false)
+ (libraries str unix coq.config))

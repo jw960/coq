@@ -27,7 +27,7 @@
  (public_name coqdep)
  (package coq)
  (modules coqdep_lexer coqdep_common coqdep)
- (libraries coq.lib))
+ (libraries coq.boot))
 
 ; Bare-bones mllib/mlpack parser
 (executable

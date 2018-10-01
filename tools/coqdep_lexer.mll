@@ -38,10 +38,11 @@
   let syntax_error lexbuf =
     raise (Syntax_error (Lexing.lexeme_start lexbuf, Lexing.lexeme_end lexbuf))
 
-  let check_valid lexbuf s =
-    match Unicode.ident_refutation s with
+  let check_valid lexbuf s = s
+(*    match Unicode.ident_refutation s with
     | None -> s
     | Some _ -> syntax_error lexbuf
+*)
 
   let get_ident lexbuf =
     let s = Lexing.lexeme lexbuf in check_valid lexbuf s

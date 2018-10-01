@@ -45,8 +45,8 @@ let exclude_directory f = skipped_dirnames := f :: !skipped_dirnames
 
 let ok_dirname f =
   not (f = "") && f.[0] != '.' &&
-  not (List.mem f !skipped_dirnames) &&
-  match Unicode.ident_refutation f with None -> true | _ -> false
+  not (List.mem f !skipped_dirnames)
+  (* match Unicode.ident_refutation f with None -> true | _ -> false *)
 
 (* Check directory can be opened *)
 

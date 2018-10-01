@@ -177,8 +177,7 @@ and vernac_load ~verbosely fname =
 
   (* Note that no proof should be open here, so the state here is just token for now *)
   let st = Vernacstate.freeze_interp_state ~marshallable:false in
-  let fname =
-    Envars.expand_path_macros ~warn:(fun x -> Feedback.msg_warning (Pp.str x)) fname in
+  let fname = Vernacentries.expand fname in
   let fname = CUnix.make_suffix fname ".v" in
   let input =
     let longfname = Loadpath.locate_file fname in

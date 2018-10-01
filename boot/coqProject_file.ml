@@ -8,9 +8,19 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(* This needs to go trou feedback as it is invoked from IDEs, but
-   ideally we would like to make this independent so it can be
-   bootstrapped. *)
+(* Depends on:
+
+   - CUnix: dubious path manipulations.
+   - Option / CList: easy to remove.
+
+   we ought to remove these dependencies.
+
+ *)
+
+let oget x = match x with | None -> raise Not_found | Some x -> x
+let rec map_filter f l = match l with
+  | [] -> []
+  | x :: xs -> match f x with | None -> map_filter f xs | Some x -> x :: map_filter f xs
 
 type arg_source = CmdLine | ProjectFile
 
@@ -148,9 +158,10 @@ let process_cmd_line ~warning_fn orig_dir proj args =
     if orig_dir = "." then "" else orig_dir in
   let error s = (Format.eprintf "Error: @[%s@].@\n%!" s; exit 1) in
   let mk_path d =
-    let p = CUnix.correct_path d orig_dir in
-    { path = CUnix.remove_path_dot (post_canonize p);
-      canonical_path = CUnix.canonical_path_name p } in
+    let p = orig_dir in
+    (* let p = CUnix.correct_path d orig_dir in *)
+    { path = (post_canonize p);
+      canonical_path = p } in
   let rec aux proj = function
   | [] -> proj
   | "-impredicative-set" :: _ ->
@@ -187,8 +198,8 @@ let process_cmd_line ~warning_fn orig_dir proj args =
 
   | "-f" :: file :: r ->
     if !parsing_project_file then
-      raise (Parsing_error ("Invalid option -f in project file " ^ Option.get proj.project_file));
-    let file = CUnix.remove_path_dot (CUnix.correct_path file orig_dir) in
+      raise (Parsing_error ("Invalid option -f in project file " ^ oget proj.project_file));
+    (* let file = CUnix.remove_path_dot (CUnix.correct_path file orig_dir) in *)
     let () = match proj.project_file with
       | None -> ()
       | Some _ -> warning_fn "Multiple project files are deprecated."
@@ -200,7 +211,7 @@ let process_cmd_line ~warning_fn orig_dir proj args =
 
   | "-o" :: file :: r ->
     if !parsing_project_file then
-     raise (Parsing_error ("Invalid option -o in project file " ^ Option.get proj.project_file));
+     raise (Parsing_error ("Invalid option -o in project file " ^ oget proj.project_file));
     if String.contains file '/' then
       error "Output file must be in the current directory";
     if proj.makefile <> None then
@@ -211,7 +222,7 @@ let process_cmd_line ~warning_fn orig_dir proj args =
   | "-arg" :: a :: r ->
     aux { proj with extra_args = proj.extra_args @ [sourced a] } r
   | f :: r ->
-      let f = CUnix.correct_path f orig_dir in
+      (* let f = CUnix.correct_path f orig_dir in *)
       let proj =
         if exists_dir f then { proj with subdirs = proj.subdirs @ [sourced f] }
         else match Filename.extension f with
@@ -255,7 +266,7 @@ let all_files { v_files; ml_files; mli_files; mlg_files;
 let map_sourced_list f l = List.map (fun x -> f x.thing) l
 ;;
 
-let map_cmdline f l = CList.map_filter (function
+let map_cmdline f l = map_filter (function
     | {thing=x; source=CmdLine} -> Some (f x)
     | {source=ProjectFile} -> None) l
 
@@ -271,7 +282,7 @@ let coqtop_args_from_project
   List.flatten args
 ;;
 
-let filter_cmdline l = CList.map_filter
+let filter_cmdline l = map_filter
     (function {thing; source=CmdLine} -> Some thing | {source=ProjectFile} -> None)
     l
 ;;

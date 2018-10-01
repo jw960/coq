@@ -13,12 +13,6 @@
     may come from different sources (shell environment variables,
     command line options, options set at the time Coq was build). *)
 
-(** [expand_path_macros warn s] substitutes environment variables
-    in a string by their values. This function also takes care of
-    substituting path of the form '~X' by an absolute path.
-    Use [warn] as a message displayer. *)
-val expand_path_macros : warn:(string -> unit) -> string -> string
-
 (** [home warn] returns the root of the user directory, depending
     on the OS. This information is usually stored in the $HOME
     environment variable on POSIX shells. If no such variable

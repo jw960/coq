@@ -72,7 +72,7 @@ let rec parse = function
   | "-R" :: r :: ln :: ll -> add_r_include r ln; parse ll
   | "-Q" :: r :: ln :: ll -> add_q_include r ln; parse ll
   | "-R" :: ([] | [_]) -> usage ()
-  | "-exclude-dir" :: r :: ll -> System.exclude_directory r; parse ll
+  (* | "-exclude-dir" :: r :: ll -> System.exclude_directory r; parse ll *)
   | "-exclude-dir" :: [] -> usage ()
   | "-coqlib" :: r :: ll -> Envars.set_user_coqlib r; parse ll
   | "-coqlib" :: [] -> usage ()
