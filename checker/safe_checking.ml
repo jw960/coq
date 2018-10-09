@@ -11,7 +11,7 @@
 open Pp
 open CErrors
 open Util
-open Cic
+open Declarations
 open Names
 open Environ
 
@@ -25,6 +25,18 @@ let pr_dirpath dp = str (DirPath.to_string dp)
 let genv = ref empty_env
 let get_env () = !genv
 
+let digests = ref MPmap.empty (* TODO should be a map on DirPath.t *)
+
+type library_info = DirPath.t * Safe_typing.vodigest
+
+type compiled_library = {
+  comp_name : DirPath.t;
+  comp_mod : module_body;
+  comp_deps : library_info array;
+  comp_enga : engagement;
+  comp_natsymbs : Nativecode.symbols
+}
+
 let set_engagement c =
   genv := set_engagement c !genv
 
@@ -34,7 +46,8 @@ let full_add_module dp mb univs digest =
   let env = push_context_set ~strict:true mb.mod_constraints env in
   let env = push_context_set ~strict:true univs env in
   let env = Modops.add_module mb env in
-  genv := add_digest env dp digest
+  genv := env;
+  digests := MPmap.add (MPfile dp) digest !digests
 
 (* Check that the engagement expected by a library extends the initial one *)
 let check_engagement env expected_impredicative_set =
@@ -60,7 +73,7 @@ let report_clash f caller dir =
 let check_imports f caller env needed =
   let check (dp,stamp) =
     try
-      let actual_stamp = lookup_digest env dp in
+      let actual_stamp = MPmap.find (MPfile dp) !digests in
       if stamp <> actual_stamp then report_clash f caller dp
     with Not_found ->
       user_err Pp.(str ("Reference to unknown module " ^ (DirPath.to_string dp)))

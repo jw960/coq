@@ -14,10 +14,13 @@ open Util
 open System
 open Names
 open Check
+open Environ
 
 let () = at_exit flush_all
 
+(*
 let pp_arrayi pp fmt a = Array.iteri (fun i x -> pp fmt (i,x)) a
+*)
 
 let fatal_error info anomaly =
   flush_all (); Format.eprintf "@[Fatal Error: @[%a@]@]@\n%!" Pp.pp_with info; flush_all ();
@@ -137,9 +140,9 @@ let init_load_path () =
 
 let set_debug () = Flags.debug := true
 
-let impredicative_set = ref Cic.PredicativeSet
-let set_impredicative_set () = impredicative_set := Cic.ImpredicativeSet
-let engage () = Safe_typing.set_engagement (!impredicative_set)
+let impredicative_set = ref Declarations.PredicativeSet
+let set_impredicative_set () = impredicative_set := Declarations.ImpredicativeSet
+let engage () = Global.set_engagement (!impredicative_set)
 
 
 let admit_list = ref ([] : object_file list)
@@ -244,16 +247,13 @@ let explain_exn = function
       hov 0 (anomaly_string () ++ str "uncaught exception Invalid_argument " ++ guill s ++ report ())
   | Sys.Break ->
     hov 0 (fnl () ++ str "User interrupt.")
-  | Univ.AlreadyDeclared ->
-    hov 0 (str "Error: Multiply declared universe.")
-  | Univ.UniverseInconsistency (o,u,v) ->
-      let msg =
-	if !Flags.debug (*!Constrextern.print_universes*) then
-	  spc() ++ str "(cannot enforce" ++ spc() ++ Univ.pr_uni u ++ spc() ++
-          str (match o with Univ.Lt -> "<" | Univ.Le -> "<=" | Univ.Eq -> "=")
-	  ++ spc() ++ Univ.pr_uni v ++ str")"
-	else
-	  mt() in
+  | Univ.UniverseInconsistency i ->
+    let msg =
+      if !Flags.debug then
+        str "." ++ spc() ++
+          Univ.explain_universe_inconsistency UnivNames.pr_with_global_universes i
+      else
+        mt() in
       hov 0 (str "Error: Universe inconsistency" ++ msg ++ str ".")
   | TypeError(ctx,te) ->
       hov 0 (str "Type error: " ++
@@ -270,14 +270,14 @@ let explain_exn = function
       | IllFormedBranch _ -> str"IllFormedBranch"
       | Generalization _ -> str"Generalization"
       | ActualType _ -> str"ActualType"
-      | CantApplyBadType ((n,a,b),(hd,hdty),args) ->
+      | CantApplyBadType ((n,a,b),{uj_val = hd; uj_type = hdty},args) ->
         (* This mix of printf / pp was here before... *)
+        (* FIXME
         let fmt = Format.std_formatter in
         let open Format in
-        let open Print in
         fprintf fmt "====== ill-typed term ====@\n";
-        fprintf fmt "@[<hov 2>application head=@ %a@]@\n" print_pure_constr hd;
-        fprintf fmt "@[<hov 2>head type=@ %a@]@\n" print_pure_constr hdty;
+        fprintf fmt "@[<hov 2>application head=@ %a@]@\n" Termops.Internal.debug_print_constr hd;
+        fprintf fmt "@[<hov 2>head type=@ %a@]@\n" Termops.Internal.debug_print_constr hdty;
         let pp_arg fmt (i,(t,ty)) = fprintf fmt "@[<hv>@[<1>arg %d=@ @[%a@]@]@,@[<1>type=@ @[%a@]@]@]@\n@," (i+1)
             print_pure_constr t print_pure_constr ty
         in
@@ -290,11 +290,13 @@ let explain_exn = function
         fprintf fmt "%a@\n%!" Pp.pp_with
           (Univ.pr_universes
              (ctx.Environ.env_stratification.Environ.env_universes));
+           *)
         str "CantApplyBadType at argument " ++ int n
       | CantApplyNonFunctional _ -> str"CantApplyNonFunctional"
       | IllFormedRecBody _ -> str"IllFormedRecBody"
       | IllTypedRecBody _ -> str"IllTypedRecBody"
-      | UnsatisfiedConstraints _ -> str"UnsatisfiedConstraints"))
+      | UnsatisfiedConstraints _ -> str"UnsatisfiedConstraints"
+      | UndeclaredUniverse _ -> str"UndeclaredUniverse"))
 
   | Indtypes.InductiveError e ->
       hov 0 (str "Error related to inductive types")

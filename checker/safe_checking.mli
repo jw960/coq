@@ -9,13 +9,17 @@
 (************************************************************************)
 
 (*i*)
-open Cic
+open Declarations
 open Environ
+open Safe_typing
 (*i*)
 
-(** Invariant: the first [module_type_body] is now supposed to be
-    known by [env] *)
+val get_env : unit -> env
 
-val check_subtypes : env -> module_type_body -> module_type_body -> unit
+type compiled_library
 
-
+val set_engagement : engagement -> unit
+val import         :
+  CUnix.physical_path -> compiled_library -> Univ.ContextSet.t -> vodigest -> unit
+val unsafe_import  :
+  CUnix.physical_path -> compiled_library -> Univ.ContextSet.t -> vodigest -> unit
