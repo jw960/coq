@@ -15,6 +15,12 @@ OCaml and dependencies
   The Coq developers would like to thank Daniel de Rauglaudre for many
   years of continued support.
 
+Build system
+
+- The default build system for Coq has been switched to
+  [Dune](https://github.com/ocaml/dune), please see `INSTALL.dune.md`
+  for further information.
+
 Coqide
 
 - CoqIDE now depends on gtk+3 and lablgtk3, rather than gtk+2 and lablgtk2.

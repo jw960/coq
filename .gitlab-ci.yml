@@ -54,8 +54,23 @@ after_script:
 # - use artifacts between jobs                       #
 ######################################################
 
-# TODO figure out how to build doc for installed Coq
+# Template for building Coq + stdlib, typical use: overload the switch
 .build-template:
+  stage: build
+  dependencies: []
+  script:
+    - set -e
+    - make world
+    - set +e
+  variables:
+    OPAM_SWITCH: base
+  artifacts:
+    name: "$CI_JOB_NAME"
+    paths:
+      - _build/
+    expire_in: 1 week
+
+.build-make-template:
   stage: build
   artifacts:
     name: "$CI_JOB_NAME"
@@ -71,52 +86,36 @@ after_script:
     - set -e
 
     - echo 'start:coq.clean'
-    - make clean # ensure that `make clean` works on a fresh clone
+    - make -f Makefile.make clean # ensure that `make clean` works on a fresh clone
     - echo 'end:coq.clean'
 
     - echo 'start:coq.config'
-    - ./configure -warn-error yes -prefix "$(pwd)/_install_ci" ${COQ_EXTRA_CONF}"$COQ_EXTRA_CONF_QUOTE"
+    - ./configure -warn-error yes -prefix "$(pwd)/_install_ci"
     - echo 'end:coq.config'
 
     - echo 'start:coq.build'
-    - $timeout make -j "$NJOBS" byte
-    - $timeout make -j "$NJOBS" world $EXTRA_TARGET
-    - make test-suite/misc/universes/all_stdlib.v
+    - $timeout make -f Makefile.make -j "$NJOBS" byte
+    - $timeout make -f Makefile.make -j "$NJOBS" world $EXTRA_TARGET
+    - make -f Makefile.make test-suite/misc/universes/all_stdlib.v
     - echo 'end:coq:build'
 
     - echo 'start:coq.install'
-    - make install install-byte $EXTRA_INSTALL
-    - make install-byte
+    - make -f Makefile.make install install-byte $EXTRA_INSTALL
+    - make -f Makefile.make install-byte
     - cp bin/fake_ide _install_ci/bin/
     - echo 'end:coq.install'
 
     - set +e
 
 # Template for building Coq + stdlib, typical use: overload the switch
-.dune-template:
-  stage: build
-  dependencies: []
-  script:
-    - set -e
-    - make -f Makefile.dune world
-    - set +e
-  variables:
-    OPAM_SWITCH: edge
-    OPAM_VARIANT: "+flambda"
-  artifacts:
-    name: "$CI_JOB_NAME"
-    paths:
-      - _build/
-    expire_in: 1 week
-
 .dune-ci-template:
   stage: test
   dependencies:
-    - build:edge+flambda:dune:dev
+    - build:base
   script:
     - set -e
     - echo 'start:coq.test'
-    - make -f Makefile.dune "$DUNE_TARGET"
+    - make "$DUNE_TARGET"
     - echo 'end:coq.test'
     - set +e
   variables:
@@ -131,39 +130,18 @@ after_script:
 # purpose, we add a spurious dependency `not-a-real-job` that must be
 # overridden otherwise the CI will fail.
 
-.doc-template:
-  stage: test
-  dependencies:
-    - not-a-real-job
-  script:
-    - SPHINXENV='COQBIN="'"$PWD"'/_install_ci/bin/"'
-    - make -j "$NJOBS" SPHINXENV="$SPHINXENV" SPHINX_DEPS= refman
-    - make install-doc-sphinx
-  artifacts:
-    name: "$CI_JOB_NAME"
-    paths:
-      - _install_ci/share/doc/coq/
-
 # set dependencies when using
 .test-suite-template:
   stage: test
   dependencies:
     - not-a-real-job
   script:
-    - cd test-suite
-    - make clean
-    # careful with the ending /
-    - BIN=$(readlink -f ../_install_ci/bin)/
-    - LIB=$(readlink -f ../_install_ci/lib/coq)/
-    - export OCAMLPATH=$(readlink -f ../_install_ci/lib/):"$OCAMLPATH"
-    - $timeout make -j "$NJOBS" BIN="$BIN" COQLIB="$LIB" COQFLAGS="${COQFLAGS}" all
+    - make test-suite
   artifacts:
     name: "$CI_JOB_NAME.logs"
     when: on_failure
     paths:
-      - test-suite/logs
-  variables:
-    timeout: ""
+      - _build/default/test-suite/logs
 
 # set dependencies when using
 .validate-template:
@@ -171,7 +149,7 @@ after_script:
   dependencies:
     - not-a-real-job
   script:
-    - cd _install_ci
+    - cd _build/install/default
     - find lib/coq/ -name '*.vo' -print0 > vofiles
     - for regexp in 's/.vo//' 's:lib/coq/plugins:Coq:' 's:lib/coq/theories:Coq:' 's:/:.:g'; do sed -z -i "$regexp" vofiles; done
     - xargs -0 --arg-file=vofiles bin/coqchk -silent -o -m -coqlib lib/coq/
@@ -224,37 +202,32 @@ after_script:
     - git config --global user.name "coqbot"
     - git config --global user.email "coqbot@users.noreply.github.com"
 
-build:base:
-  extends: .build-template
+build:make:base:
+  extends: .build-make-template
   variables:
     COQ_EXTRA_CONF: "-native-compiler yes -coqide opt"
-    # coqdoc for stdlib, until we know how to build it from installed Coq
-    EXTRA_TARGET: "stdlib"
-    EXTRA_INSTALL: "install-doc-stdlib-html install-doc-printable"
+
+build:base:
+  extends: .build-template
 
 # no coqide for 32bit: libgtk installation problems
 build:base+32bit:
   extends: .build-template
+  script:
+    - make coq coqide-server
   variables:
     OPAM_VARIANT: "+32bit"
-    COQ_EXTRA_CONF: "-native-compiler yes"
 
 build:edge+flambda:
   extends: .build-template
   variables:
     OPAM_SWITCH: edge
     OPAM_VARIANT: "+flambda"
-    COQ_EXTRA_CONF: "-native-compiler yes -coqide opt -flambda-opts "
-    COQ_EXTRA_CONF_QUOTE: "-O3 -unbox-closures"
-
-build:edge+flambda:dune:dev:
-  extends: .dune-template
 
 build:base+async:
   extends: .build-template
   stage: test
   variables:
-    COQ_EXTRA_CONF: "-native-compiler yes -coqide opt"
     COQUSERFLAGS: "-async-proofs on"
     timeout: "timeout 100m"
   allow_failure: true # See https://github.com/coq/coq/issues/9658
@@ -334,6 +307,7 @@ pkg:opam:
     # because there is no --extra-trusted-public-key option.
     - nix-build -E "import (fetchTarball $CI_PROJECT_URL/-/archive/$CI_COMMIT_SHA.tar.gz) {}" -K --extra-substituters "$EXTRA_SUBSTITUTERS" --trusted-public-keys "$NIXOS_PUBLIC_KEY $EXTRA_PUBLIC_KEYS" | if [ ! -z "$CACHIX_SIGNING_KEY" ]; then cachix push coq; fi
   artifacts:
+    expire_in: 1 week
     name: "$CI_JOB_NAME.logs"
     when: on_failure
     paths:
@@ -374,19 +348,17 @@ pkg:nix:
     - /^v.*\..*$/
 
 doc:refman:
-  extends: .doc-template
+  stage: test
   dependencies:
     - build:base
-
-doc:refman:dune:
-  extends: .dune-ci-template
-  variables:
-    DUNE_TARGET: refman-html
+  script:
+    - make refman-html
   artifacts:
     paths:
       - _build/default/doc/sphinx_build/html
+    expire_in: 1 week
 
-doc:stdlib:dune:
+doc:stdlib:
   extends: .dune-ci-template
   variables:
     DUNE_TARGET: stdlib-html
@@ -404,8 +376,8 @@ doc:refman:deploy:
       - $DOCUMENTATION_DEPLOY_KEY
   dependencies:
     - doc:ml-api:odoc
-    - doc:refman:dune
-    - doc:stdlib:dune
+    - doc:refman
+    - doc:stdlib
   script:
     - echo "$DOCUMENTATION_DEPLOY_KEY" | tr -d '\r' | ssh-add - > /dev/null
     - git clone git@github.com:coq/doc.git _deploy
@@ -422,12 +394,15 @@ doc:refman:deploy:
     - git push # TODO: rebase and retry on failure
 
 doc:ml-api:odoc:
-  extends: .dune-ci-template
-  variables:
-    DUNE_TARGET: apidoc
+  stage: test
+  dependencies:
+    - build:base
+  script:
+    - make apidoc
   artifacts:
     paths:
       - _build/default/_doc/
+    expire_in: 1 week
 
 test-suite:base:
   extends: .test-suite-template
@@ -449,47 +424,7 @@ test-suite:edge+flambda:
     OPAM_SWITCH: edge
     OPAM_VARIANT: "+flambda"
 
-test-suite:egde:dune:dev:
-  stage: test
-  dependencies:
-    - build:edge+flambda:dune:dev
-  script: make -f Makefile.dune test-suite
-  variables:
-    OPAM_SWITCH: edge
-    OPAM_VARIANT: "+flambda"
-  artifacts:
-    name: "$CI_JOB_NAME.logs"
-    when: on_failure
-    paths:
-      - _build/default/test-suite/logs
-
-test-suite:edge+trunk+make:
-  stage: test
-  dependencies: []
-  script:
-    - opam switch create 4.09.0 --empty
-    - eval $(opam env)
-    - opam repo add ocaml-beta https://github.com/ocaml/ocaml-beta-repository.git
-    - opam update
-    - opam install ocaml-variants=4.09.0+trunk
-    - opam pin add -n ocamlfind --dev
-    - opam install num
-    - eval $(opam env)
-    # We avoid problems with warnings:
-    - ./configure -profile devel -warn-error no
-    - make -j "$NJOBS" world
-    - make -j "$NJOBS" test-suite UNIT_TESTS=
-  variables:
-    OPAM_SWITCH: base
-  artifacts:
-    name: "$CI_JOB_NAME.logs"
-    when: always
-    paths:
-      - test-suite/logs
-    expire_in: 1 week
-  allow_failure: true
-
-test-suite:edge+trunk+dune:
+test-suite:trunk:
   stage: test
   dependencies: []
   script:
@@ -510,7 +445,7 @@ test-suite:edge+trunk+dune:
     OPAM_SWITCH: base
   artifacts:
     name: "$CI_JOB_NAME.logs"
-    when: always
+    when: on_failure
     paths:
       - _build/log
       - _build/default/test-suite/logs
@@ -652,12 +587,13 @@ plugin:ci-mtac2:
 plugin:ci-paramcoq:
   extends: .ci-template
 
-plugin:plugin-tutorial:
-  stage: test
-  dependencies: []
-  script:
-    - ./configure -local -warn-error yes
-    - make -j "$NJOBS" plugin-tutorial
+# Plugin tutorial is built by default by `dune build` unless we add it
+# to its own package.
+# plugin:plugin-tutorial:
+#   stage: test
+#   dependencies: []
+#   script:
+#     - true
 
 plugin:ci-quickchick:
   extends: .ci-template-flambda

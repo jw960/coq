@@ -192,3 +192,31 @@ useful to Coq, some examples are:
 - Cross-compilation.
 - Automatic Generation of OPAM files.
 - Multi-directory libraries.
+
+## Internals
+
+The build setup is mostly vanilla for the OCaml part, however the `.v`
+to `.vo` compilation relies on `coq_dune` a `coqdep` wrapper that will
+generate the necessary `dune` files.
+
+As a developer, you should not have to deal with Dune configuration
+files on a regular basis unless adding a new library or plugin.
+
+The vanilla setup declares all the Coq libraries and binaries [we must
+respect proper containment/module implementation rules as to allow
+packing], and we build custom preprocessors (based on `camlp5` and
+`coqpp`) that will process the `ml4`/`mlg` files.
+
+This suffices to build `coqtop` and `coqide`, all that remains to
+handle is `.vo` compilation.
+
+To teach Dune about the `.vo`, we use a small utility `coq_dune`,
+that will generate a `dune` file for each directory in `plugins` and
+`theories`. The code is pretty straightforward and declares build
+and install rules for each `.v` straight out of `coqdep`. Thus, our
+build strategy looks like this:
+
+1. Use `dune` to build `coqdep` and `coq_dune`.
+2. Use `coq_dune` to generate `dune` files for each directory with `.v` files.
+3. ?
+4. Profit! [Seriously, at this point Dune has the rules to build the stdlib]

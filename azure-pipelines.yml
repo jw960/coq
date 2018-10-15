@@ -56,7 +56,7 @@ jobs:
       opam switch set $COMPILER
       eval $(opam env)
       opam update
-      opam install -j "$NJOBS" num ocamlfind${FINDLIB_VER} ounit
+      opam install -j "$NJOBS" num ocamlfind${FINDLIB_VER} ounit dune
       opam list
     displayName: 'Install dependencies'
     env:
@@ -64,15 +64,14 @@ jobs:
       FINDLIB_VER: ".1.8.0"
       OPAMYES: "true"
 
+  # We don't install gtk for now
   - script: |
       set -e
-
       eval $(opam env)
-      ./configure -local -warn-error yes -native-compiler no
-      make -j "$NJOBS"
+      make coq coqide-server
     displayName: 'Build Coq'
 
   - script: |
       eval $(opam env)
-      make -j "$NJOBS" test-suite
+      make test-suite
     displayName: 'Run Coq Test Suite'
