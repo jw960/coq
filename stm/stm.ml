@@ -2581,6 +2581,22 @@ let doc_type_module_name (std : stm_doc_type) =
   | Interactive mn -> Names.DirPath.to_string mn
 *)
 
+(* Document edit notifiers *)
+type document_edit_notifiers =
+  { add_hook  : Vernacexpr.vernac_control CAst.t -> Stateid.t -> unit
+  (** User adds a sentence to the document (after parsing) *)
+  ; edit_hook : Stateid.t -> unit
+  (** User edits a sentence in the document *)
+  ; exec_hook : Stateid.t -> unit
+  (** User requests checking of a sentence in the document. *)
+  }
+
+(** Set the document edit notifiers. *)
+let document_edit_notify, document_edit_hook =
+  Hook.make ~default:{ add_hook  = (fun _ _ -> ())
+                     ; edit_hook = (fun _ -> ())
+                     ; exec_hook = (fun _ -> ()) } ()
+
 let init_core () =
   if !cur_opt.async_proofs_mode = APon then Control.enable_thread_delay := true;
   State.register_root_state ()
@@ -2648,6 +2664,7 @@ let new_doc { doc_type ; iload_path; require_libs; stm_options } =
   doc, VCS.cur_tip ()
 
 let observe ~doc id =
+  Hook.(get document_edit_notify).exec_hook id;
   let vcs = VCS.backup () in
   try
     Reach.known_state ~doc ~cache:(VCS.is_interactive ()) id;
@@ -3050,7 +3067,8 @@ let compute_indentation ?loc sid = Option.cata (fun loc ->
     eff_indent, len
   ) (0, 0) loc
 
-let add ~doc ~ontop ?newtip verb { CAst.loc; v=ast } =
+let add ~doc ~ontop ?newtip verb ({ CAst.loc; v=ast } as last) =
+  Hook.(get document_edit_notify).add_hook last ontop;
   let cur_tip = VCS.cur_tip () in
   if not (Stateid.equal ontop cur_tip) then
     user_err ?loc ~hdr:"Stm.add"
@@ -3094,6 +3112,7 @@ let query ~doc ~at ~route s =
   s
 
 let edit_at ~doc id =
+  Hook.(get document_edit_notify).edit_hook id;
   if Stateid.equal id Stateid.dummy then anomaly(str"edit_at dummy.") else
   let vcs = VCS.backup () in
   let on_cur_branch id =
