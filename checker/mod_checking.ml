@@ -9,6 +9,20 @@ open Environ
 
 (** {6 Checking constants } *)
 
+let instantiate cb c =
+  let open Declarations in
+  match cb.const_universes with
+  | Monomorphic_const _ -> c, Univ.AUContext.empty
+  | Polymorphic_const ctx -> c, ctx
+
+let body_of_constant_body env cb =
+  let open Declarations in
+  let otab = Environ.opaque_tables env in
+  match cb.const_body with
+  | Undef _ -> None
+  | Def c -> Some (instantiate cb (Mod_subst.force_constr c))
+  | OpaqueDef o -> Some (instantiate cb (Opaqueproof.force_proof otab o))
+
 let check_constant_declaration env kn cb =
   Flags.if_verbose Feedback.msg_notice (str "  checking cst:" ++ Constant.print kn);
   (** Locally set the oracle for further typechecking *)
@@ -25,7 +39,7 @@ let check_constant_declaration env kn cb =
   let ty = cb.const_type in
   let _ = infer_type env' ty in
   let () =
-    match Global.body_of_constant_body cb with
+    match body_of_constant_body env cb with
     | Some bd ->
       let j = infer env' (fst bd) in
       conv_leq env' j.uj_type ty

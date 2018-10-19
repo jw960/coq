@@ -142,8 +142,9 @@ let set_debug () = Flags.debug := true
 
 let impredicative_set = ref Declarations.PredicativeSet
 let set_impredicative_set () = impredicative_set := Declarations.ImpredicativeSet
-let engage () = Global.set_engagement (!impredicative_set)
-
+(* XXX *)
+let engage () = ()
+(* let engage () = Global.set_engagement (!impredicative_set) *)
 
 let admit_list = ref ([] : object_file list)
 let add_admit s =
@@ -222,6 +223,14 @@ let where = function
 | Some s ->
   if !Flags.debug then  (str"in " ++ str s ++ str":" ++ spc ()) else (mt ())
 
+let pp_of_level l : Pp.t =
+  match Univ.Level.name l with
+  | Some (d, n)  ->
+    let name = Id.of_string_soft (string_of_int n) in
+    DirPath.print d ++ str "." ++ Id.print name
+  | None ->
+    Id.print @@ Id.of_string_soft (Univ.Level.to_string l)
+
 let explain_exn = function
   | Stream.Failure ->
       hov 0 (anomaly_string () ++ str "uncaught Stream.Failure.")
@@ -251,7 +260,7 @@ let explain_exn = function
     let msg =
       if !Flags.debug then
         str "." ++ spc() ++
-          Univ.explain_universe_inconsistency UnivNames.pr_with_global_universes i
+          Univ.explain_universe_inconsistency pp_of_level i
       else
         mt() in
       hov 0 (str "Error: Universe inconsistency" ++ msg ++ str ".")

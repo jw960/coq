@@ -1,3 +1,4 @@
+; We copy _all_ files from kernel as of today
 (copy_files
   %{project_root}/kernel/{names,esubst,declarations,environ,constr,term,univ,evar,sorts,uGraph,context}.ml{,i})
 
@@ -16,14 +17,7 @@
 (copy_files
   %{project_root}/kernel/{subtyping,term_typing,safe_typing,entries,cooking}.ml{,i})
 
-(copy_files
-  %{project_root}/library/{decl_kinds,declaremods,summary,libnames,nametab,loadpath,globnames,global,libobject,lib,library}.ml{,i})
-
-(copy_files
-  %{project_root}/engine/{univNames}.ml{,i})
-
-; VM stuff
-
+; VM
 (copy_files
   %{project_root}/kernel/byterun/{*.c,*.h})
 

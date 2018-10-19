@@ -50,11 +50,13 @@ let pr_path sp =
 
 type compilation_unit_name = DirPath.t
 
+type seg_proofs = Constr.constr Future.computation array
+
 type library_t = {
   library_name : compilation_unit_name;
   library_filename : CUnix.physical_path;
   library_compiled : Safe_checking.compiled_library;
-  library_opaques : Library.seg_proofs;
+  library_opaques : seg_proofs;
   library_deps : (compilation_unit_name * Safe_typing.vodigest) array;
   library_digest : Safe_typing.vodigest;
   library_extra_univs : Univ.ContextSet.t }
@@ -292,9 +294,14 @@ type summary_disk = {
   md_deps : (compilation_unit_name * Safe_typing.vodigest) array;
 }
 
+module Dyn = Dyn.Make ()
+type obj = Dyn.t (* persistent dynamic objects *)
+type lib_objects = (Id.t * obj) list
+type library_objects = lib_objects * lib_objects
+
 type library_disk = {
   md_compiled : Safe_checking.compiled_library;
-  md_objects : Declaremods.library_objects;
+  md_objects : library_objects;
 }
 
 let mk_library sd md f table digest cst = {
@@ -333,7 +340,7 @@ let intern_from_file (dir, f) =
       let (opaque_csts:'a option), _, udg = marshal_in_segment f ch in
       let (discharging:'a option), _, _ = marshal_in_segment f ch in
       let (tasks:'a option), _, _ = marshal_in_segment f ch in
-      let (table:Library.seg_proofs), pos, checksum =
+      let (table:seg_proofs), pos, checksum =
         marshal_in_segment f ch in
       (* Verification of the final checksum *)
       let () = close_in ch in
