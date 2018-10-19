@@ -887,17 +887,13 @@ let obligation_terminator name num guard hook auto pf =
         else ctx
     in
     let prg = { prg with prg_ctx } in
-    try
-      ignore (update_obls prg obls (pred rem));
-      if pred rem > 0 then
-        begin
-          let deps = dependencies obls num in
-          if not (Int.Set.is_empty deps) then
-            ignore (auto (Some name) None deps)
-        end
-    with e when CErrors.noncritical e ->
-      let e = CErrors.push e in
-      pperror (CErrors.iprint (ExplainErr.process_vernac_interp_error e))
+    let _ = update_obls prg obls (pred rem) in
+    if pred rem > 0 then
+      begin
+        let deps = dependencies obls num in
+        if not (Int.Set.is_empty deps) then
+          ignore (auto (Some name) None deps)
+      end
 
 let obligation_hook prg obl num auto ctx' _ gr =
   let obls, rem = prg.prg_obligations in
@@ -927,12 +923,7 @@ in
   let obls = Array.copy obls in
   let _ = obls.(num) <- obl in
   let prg = { prg with prg_ctx = ctx' } in
-  let () =
-    try ignore (update_obls prg obls (pred rem))
-    with e when CErrors.noncritical e ->
-      let e = CErrors.push e in
-      pperror (CErrors.iprint (ExplainErr.process_vernac_interp_error e))
-  in
+  let _ = update_obls prg obls (pred rem) in
   if pred rem > 0 then begin
     let deps = dependencies obls num in
     if not (Int.Set.is_empty deps) then
