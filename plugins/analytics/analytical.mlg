@@ -1,0 +1,13 @@
+DECLARE PLUGIN "analytical"
+
+{
+
+let run_test_command () : unit =
+  Feedback.msg_notice (Pp.str "yo\n")
+
+}
+
+(* Test command *)
+VERNAC COMMAND EXTEND Test CLASSIFIED AS QUERY
+| [ "Test" ] -> { run_test_command () }
+END

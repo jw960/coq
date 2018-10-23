@@ -1,0 +1,5 @@
+(library
+ (name analytics)
+ (public_name coq.plugins.analytics)
+ (synopsis "Coq's change analytics plugin")
+ (libraries coq.stm))
