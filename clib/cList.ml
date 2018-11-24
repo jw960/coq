@@ -909,7 +909,7 @@ let subtractq l1 l2 = subtract (==) l1 l2
 (** {6 Uniqueness and duplication} *)
 
 (* FIXME: we should avoid relying on the generic hash function,
-   just as we'd better avoid Pervasives.compare *)
+   just as we'd better avoid Stdlib.compare *)
 
 let distinct l =
   let visited = Hashtbl.create 23 in

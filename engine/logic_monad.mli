@@ -50,9 +50,9 @@ module NonLogical : sig
   type 'a ref
 
   val ref : 'a -> 'a ref t
-  (** [Pervasives.(:=)] *)
+  (** [Stdlib.(:=)] *)
   val (:=) : 'a ref -> 'a -> unit t
-  (** [Pervasives.(!)] *)
+  (** [Stdlib.(!)] *)
   val (!) : 'a ref -> 'a t
 
   val read_line : string t
@@ -64,7 +64,7 @@ module NonLogical : sig
   val print_notice : Pp.t -> unit t
   val print_info : Pp.t -> unit t
 
-  (** [Pervasives.raise]. Except that exceptions are wrapped with
+  (** [Stdlib.raise]. Except that exceptions are wrapped with
       {!Exception}. *)
   val raise : ?info:Exninfo.info -> exn -> 'a t
   (** [try ... with ...] but restricted to {!Exception}. *)

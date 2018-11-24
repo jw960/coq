@@ -11,11 +11,7 @@
 module StringOrd =
 struct
   type t = string
-  let compare s1 s2 =
-    (* we use first size, then usual comparison *)
-    let d = String.length s1 - String.length s2 in
-    if d <> 0 then d
-    else Pervasives.compare s1 s2
+  let compare = String.compare
 end
 
 module Proposals = Set.Make(StringOrd)

@@ -65,7 +65,7 @@ module LibraryOrdered =
   struct
     type t = DirPath.t
     let compare d1 d2 =
-      Pervasives.compare
+      List.compare Id.compare
         (List.rev (DirPath.repr d1)) (List.rev (DirPath.repr d2))
   end
 

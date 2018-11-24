@@ -734,7 +734,7 @@ let bool ?(editable=true) ?help ?(f=(fun _ -> ())) label v =
 (** Create a list param. *)
 let list ?(editable=true) ?help
     ?(f=(fun (_:'a list) -> ()))
-    ?(eq=Pervasives.(=))
+    ?(eq=(=))
     ?(edit:('a -> 'a) option)
     ?(add=(fun () -> ([] : 'a list)))
     ?titles ?(color=(fun (_:'a) -> (None : string option)))
@@ -761,7 +761,7 @@ let list ?(editable=true) ?help
 (** Create a strings param. *)
 let strings ?(editable=true) ?help
     ?(f=(fun _ -> ()))
-    ?(eq=Pervasives.(=))
+    ?(eq=(=))
     ?(add=(fun () -> [])) label v =
   list ~editable ?help ~f ~eq ~edit: (edit_string label) ~add label (fun s -> [s]) v
 

@@ -60,7 +60,7 @@ val get_loc : Exninfo.info -> t option
 (** Retrieving the optional location of an exception *)
 
 val raise : ?loc:t -> exn -> 'a
-(** [raise loc e] is the same as [Pervasives.raise (add_loc e loc)]. *)
+(** [raise loc e] is the same as [Stdlib.raise (add_loc e loc)]. *)
 
 (** {5 Objects with location information } *)
 

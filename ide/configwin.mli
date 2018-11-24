@@ -76,7 +76,7 @@ val bool : ?editable: bool -> ?help: string ->
    @param add the function returning a list of strings when the user wants to add strings
    (default returns an empty list).
    @param eq the comparison function, used not to have doubles in list. Default
-   is [Pervasives.(=)]. If you want to allow doubles in the list, give a function
+   is [Stdlib.(=)]. If you want to allow doubles in the list, give a function
    always returning false.
 *)
 val strings : ?editable: bool -> ?help: string ->
@@ -94,7 +94,7 @@ val strings : ?editable: bool -> ?help: string ->
    @param help an optional help message.
    @param f the function called to apply the value (default function does nothing).
    @param eq the comparison function, used not to have doubles in list. Default
-   is [Pervasives.(=)]. If you want to allow doubles in the list, give a function
+   is [Stdlib.(=)]. If you want to allow doubles in the list, give a function
    always returning false.
    @param edit an optional function to use to edit an element of the list.
      The function returns an element, no matter if element was changed or not.

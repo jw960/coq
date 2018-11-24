@@ -48,7 +48,7 @@ module type S = sig
      [lcs ~equal seq1 seq2] computes the LCS (longest common sequence) of
      [seq1] and [seq2].
      Elements of [seq1] and [seq2] are compared with [equal].
-     [equal] defaults to [Pervasives.(=)].
+     [equal] defaults to [Stdlib.(=)].
 
      Elements of lcs are [`Common (pos1, pos2, e)]
      where [e] is an element, [pos1] is a position in [seq1],
