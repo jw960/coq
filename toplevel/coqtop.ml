@@ -223,6 +223,7 @@ let init_toplevel ~help ~init custom_init arglist =
   Flags.if_verbose print_header ();
   Mltop.init_known_plugins ();
 
+<<<<<<< HEAD
   Global.set_engagement opts.impredicative_set;
   Global.set_indices_matter opts.indices_matter;
   Global.set_VM opts.enable_VM;
@@ -231,6 +232,9 @@ let init_toplevel ~help ~init custom_init arglist =
   if opts.cumulative_sprop then Global.make_sprop_cumulative ();
 
   set_options opts.set_options;
+=======
+  Global.set_kernel_trust opts.kernel_opts;
+>>>>>>> [wip] better kernel opts.
 
   (* Allow the user to load an arbitrary state here *)
   inputstate opts;

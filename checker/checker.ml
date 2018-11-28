@@ -143,11 +143,19 @@ let indices_matter = ref false
 
 let make_senv () =
   let senv = Safe_typing.empty_environment in
-  let senv = Safe_typing.set_engagement !impredicative_set senv in
-  let senv = Safe_typing.set_indices_matter !indices_matter senv in
-  let senv = Safe_typing.set_VM false senv in
-  let senv = Safe_typing.set_allow_sprop true senv in (* be smarter later *)
-  Safe_typing.set_native_compiler false senv
+  let typing_flags =
+    { (Declareops.safe_flags Conv_oracle.empty) with
+      Declarations.indices_matter = !indices_matter;
+      enable_VM = false;
+      enable_native_compiler = false
+    } in
+  let trust =
+    { Safe_typing.Trust.engagement = !impredicative_set
+    ; typing_flags
+    ; allow_sprop = true
+    ; sprop_cumulative = false
+    } in
+  Safe_typing.set_kernel_trust trust senv
 
 let admit_list = ref ([] : object_file list)
 let add_admit s =

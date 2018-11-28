@@ -27,15 +27,6 @@ val named_context : unit -> Constr.named_context
 
 (** {6 Enriching the global environment } *)
 
-(** Changing the (im)predicativity of the system *)
-val set_engagement : Declarations.engagement -> unit
-val set_indices_matter : bool -> unit
-val set_typing_flags : Declarations.typing_flags -> unit
-val typing_flags : unit -> Declarations.typing_flags
-val make_sprop_cumulative : unit -> unit
-val set_allow_sprop : bool -> unit
-val sprop_allowed : unit -> bool
-
 (** Variables, Local definitions, constants, inductive types *)
 
 val push_named_assum : (Id.t * Constr.types * bool) Univ.in_universe_context_set -> unit
@@ -152,16 +143,16 @@ val register_inductive : inductive -> CPrimitives.prim_ind -> unit
 
 val set_strategy : Constant.t Names.tableKey -> Conv_oracle.level -> unit
 
-(** {6 Conversion settings } *)
+(** {6 Kernel trust settings } *)
+val set_kernel_trust : Safe_typing.Trust.t -> unit
 
-val set_share_reduction : bool -> unit
-
-val set_VM : bool -> unit
-val set_native_compiler : bool -> unit
+val typing_flags : unit -> Declarations.typing_flags
+val sprop_allowed : unit -> bool
 
 (* Modifies the global state, registering new universes *)
 
 val current_modpath : unit -> ModPath.t
+
 
 val current_dirpath : unit -> DirPath.t
 

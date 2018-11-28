@@ -135,14 +135,18 @@ val add_constraints :
 (* val next_universe : int safe_transformer *)
 
 (** Setting the type theory flavor *)
-val set_engagement : Declarations.engagement -> safe_transformer0
-val set_indices_matter : bool -> safe_transformer0
-val set_typing_flags : Declarations.typing_flags -> safe_transformer0
-val set_share_reduction : bool -> safe_transformer0
-val set_VM : bool -> safe_transformer0
-val set_native_compiler : bool -> safe_transformer0
-val make_sprop_cumulative : safe_transformer0
-val set_allow_sprop : bool -> safe_transformer0
+module Trust : sig
+
+  type t =
+    { engagement       : Declarations.engagement
+    ; typing_flags     : Declarations.typing_flags
+    ; sprop_cumulative : bool
+    ; allow_sprop      : bool
+    }
+
+end
+
+val set_kernel_trust : Trust.t -> safe_transformer0
 
 val check_engagement : Environ.env -> Declarations.set_predicativity -> unit
 

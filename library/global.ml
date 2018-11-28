@@ -86,12 +86,9 @@ let push_named_def d = globalize0 (Safe_typing.push_named_def d)
 let add_constraints c = globalize0 (Safe_typing.add_constraints c)
 let push_context_set b c = globalize0 (Safe_typing.push_context_set b c)
 
-let set_engagement c = globalize0 (Safe_typing.set_engagement c)
-let set_indices_matter b = globalize0 (Safe_typing.set_indices_matter b)
-let set_typing_flags c = globalize0 (Safe_typing.set_typing_flags c)
+let set_kernel_trust t = globalize0 (Safe_typing.set_kernel_trust t)
+
 let typing_flags () = Environ.typing_flags (env ())
-let make_sprop_cumulative () = globalize0 Safe_typing.make_sprop_cumulative
-let set_allow_sprop b = globalize0 (Safe_typing.set_allow_sprop b)
 let sprop_allowed () = Environ.sprop_allowed (env())
 let export_private_constants ~in_section cd = globalize (Safe_typing.export_private_constants ~in_section cd)
 let add_constant ~in_section id d = globalize (Safe_typing.add_constant ~in_section (i2l id) d)
@@ -182,11 +179,4 @@ let with_global f =
 let register_inline c = globalize0 (Safe_typing.register_inline c)
 let register_inductive c r = globalize0 (Safe_typing.register_inductive c r)
 
-let set_strategy k l =
-  globalize0 (Safe_typing.set_strategy k l)
-
-let set_share_reduction b =
-  globalize0 (Safe_typing.set_share_reduction b)
-
-let set_VM b = globalize0 (Safe_typing.set_VM b)
-let set_native_compiler b = globalize0 (Safe_typing.set_native_compiler b)
+let set_strategy k l = globalize0 (Safe_typing.set_strategy k l)

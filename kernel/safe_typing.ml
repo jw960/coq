@@ -180,40 +180,32 @@ type safe_transformer0 = safe_environment -> safe_environment
 type 'a safe_transformer = safe_environment -> 'a * safe_environment
 
 
-(** {6 Engagement } *)
+(** {6 Trust options } *)
+
+(** Setting the type theory flavor *)
+module Trust = struct
+
+  type t =
+    { engagement       : Declarations.engagement
+    ; typing_flags     : Declarations.typing_flags
+    ; sprop_cumulative : bool
+    ; allow_sprop      : bool
+    }
+
+end
+
+let set_kernel_trust (t : Trust.t) senv =
+  let open! Trust in
+  let env = senv.env in
+  let env = Environ.set_engagement t.engagement env in
+  let env = Environ.set_typing_flags t.typing_flags env in
+  let env = if t.sprop_cumulative then Environ.make_sprop_cumulative env else env in
+  let env = Environ.set_allow_sprop t.allow_sprop env in
+  if env == senv.env then senv else { senv with env }
 
 let set_engagement_opt env = function
-  | Some c -> Environ.set_engagement c env
   | None -> env
-
-let set_engagement c senv =
-  { senv with
-    env = Environ.set_engagement c senv.env;
-    engagement = Some c }
-
-let set_typing_flags c senv =
-  let env = Environ.set_typing_flags c senv.env in
-  if env == senv.env then senv
-  else { senv with env }
-
-let set_indices_matter indices_matter senv =
-  set_typing_flags { (Environ.typing_flags senv.env) with indices_matter } senv
-
-let set_share_reduction b senv =
-  let flags = Environ.typing_flags senv.env in
-  set_typing_flags { flags with share_reduction = b } senv
-
-let set_VM b senv =
-  let flags = Environ.typing_flags senv.env in
-  set_typing_flags { flags with enable_VM = b } senv
-
-let set_native_compiler b senv =
-  let flags = Environ.typing_flags senv.env in
-  set_typing_flags { flags with enable_native_compiler = b } senv
-
-let make_sprop_cumulative senv = { senv with env = Environ.make_sprop_cumulative senv.env }
-
-let set_allow_sprop b senv = { senv with env = Environ.set_allow_sprop b senv.env }
+  | Some engagement -> Environ.set_engagement engagement env
 
 (** Check that the engagement [c] expected by a library matches
     the current (initial) one *)
