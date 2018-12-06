@@ -288,12 +288,6 @@ let ensure_freshness env =
   process_rel_context
     (fun d e -> EConstr.push_rel (Context.Rel.Declaration.set_name Anonymous d) e) env
 
-(* Raise Not_found if not in interpretation sign *)
-let try_interp_ltac_var coerce ist env {loc;v=id} =
-  let v = Id.Map.find id ist.lfun in
-  try coerce v with CannotCoerceTo s ->
-    Taccoerce.error_ltac_variable ?loc id env v s
-
 let interp_ltac_var coerce ist env locid =
   try try_interp_ltac_var coerce ist env locid
   with Not_found -> anomaly (str "Detected '" ++ Id.print locid.v ++ str "' as ltac var at interning time.")
@@ -314,25 +308,6 @@ let interp_intro_pattern_var loc ist env sigma id =
 let interp_intro_pattern_naming_var loc ist env sigma id =
   try try_interp_ltac_var (coerce_to_intro_pattern_naming sigma) ist (Some (env,sigma)) (make ?loc id)
   with Not_found -> IntroIdentifier id
-
-let interp_int ist ({loc;v=id} as locid) =
-  try try_interp_ltac_var coerce_to_int ist None locid
-  with Not_found ->
-    user_err ?loc ~hdr:"interp_int"
-     (str "Unbound variable "  ++ Id.print id ++ str".")
-
-let interp_int_or_var ist = function
-  | ArgVar locid -> interp_int ist locid
-  | ArgArg n -> n
-
-let interp_int_or_var_as_list ist = function
-  | ArgVar ({v=id} as locid) ->
-      (try coerce_to_int_or_var_list (Id.Map.find id ist.lfun)
-       with Not_found | CannotCoerceTo _ -> [ArgArg (interp_int ist locid)])
-  | ArgArg n as x -> [x]
-
-let interp_int_or_var_list ist l =
-  List.flatten (List.map (interp_int_or_var_as_list ist) l)
 
 (* Interprets a bound variable (especially an existing hypothesis) *)
 let interp_hyp ist env sigma ({loc;v=id} as locid) =
@@ -381,27 +356,6 @@ let interp_evaluable ist env sigma = function
     with Not_found ->
       try try_interp_evaluable env (loc, id)
       with Not_found -> Nametab.error_global_not_found (qualid_of_ident ?loc id)
-
-(* Interprets an hypothesis name *)
-let interp_occurrences ist occs =
-  Locusops.occurrences_map (interp_int_or_var_list ist) occs
-
-let interp_hyp_location ist env sigma ((occs,id),hl) =
-  ((interp_occurrences ist occs,interp_hyp ist env sigma id),hl)
-
-let interp_hyp_location_list_as_list ist env sigma ((occs,id),hl as x) =
-  match occs,hl with
-  | AllOccurrences,InHyp ->
-      List.map (fun id -> ((AllOccurrences,id),InHyp))
-        (interp_hyp_list_as_list ist env sigma id)
-  | _,_ -> [interp_hyp_location ist env sigma x]
-
-let interp_hyp_location_list ist env sigma l =
-  List.flatten (List.map (interp_hyp_location_list_as_list ist env sigma) l)
-
-let interp_clause ist env sigma { onhyps=ol; concl_occs=occs } : clause =
-  { onhyps=Option.map (interp_hyp_location_list ist env sigma) ol;
-    concl_occs=interp_occurrences ist occs }
 
 (* Interpretation of constructions *)
 
@@ -611,71 +565,9 @@ let interp_constr_list ist env sigma c =
 let interp_open_constr_list =
   interp_constr_in_compound_list (fun x -> x) (fun x -> x) interp_open_constr
 
-(* Interprets a reduction expression *)
-let interp_unfold ist env sigma (occs,qid) =
-  (interp_occurrences ist occs,interp_evaluable ist env sigma qid)
-
-let interp_flag ist env sigma red =
-  { red with rConst = List.map (interp_evaluable ist env sigma) red.rConst }
-
-let interp_constr_with_occurrences ist env sigma (occs,c) =
-  let (sigma,c_interp) = interp_constr ist env sigma c in
-  sigma , (interp_occurrences ist occs, c_interp)
-
-let interp_closed_typed_pattern_with_occurrences ist env sigma (occs, a) =
-  let p = match a with
-  | Inl (ArgVar {loc;v=id}) ->
-      (* This is the encoding of an ltac var supposed to be bound
-         prioritary to an evaluable reference and otherwise to a constr
-         (it is an encoding to satisfy the "union" type given to Simpl) *)
-    let coerce_eval_ref_or_constr x =
-      try Inl (coerce_to_evaluable_ref env sigma x)
-      with CannotCoerceTo _ ->
-        let c = coerce_to_closed_constr env x in
-        Inr (pattern_of_constr env sigma (EConstr.to_constr sigma c)) in
-    (try try_interp_ltac_var coerce_eval_ref_or_constr ist (Some (env,sigma)) (make ?loc id)
-     with Not_found ->
-       Nametab.error_global_not_found (qualid_of_ident ?loc id))
-  | Inl (ArgArg _ as b) -> Inl (interp_evaluable ist env sigma b)
-  | Inr c -> Inr (interp_typed_pattern ist env sigma c) in
-  interp_occurrences ist occs, p
-
-let interp_constr_with_occurrences_and_name_as_list =
-  interp_constr_in_compound_list
-    (fun c -> ((AllOccurrences,c),Anonymous))
-    (function ((occs,c),Anonymous) when occs == AllOccurrences -> c
-      | _ -> raise Not_found)
-    (fun ist env sigma (occ_c,na) ->
-      let (sigma,c_interp) = interp_constr_with_occurrences ist env sigma occ_c in
-      sigma, (c_interp,
-       interp_name ist env sigma na))
-
-let interp_red_expr ist env sigma = function
-  | Unfold l -> sigma , Unfold (List.map (interp_unfold ist env sigma) l)
-  | Fold l ->
-    let (sigma,l_interp) = interp_constr_list ist env sigma l in
-    sigma , Fold l_interp
-  | Cbv f -> sigma , Cbv (interp_flag ist env sigma f)
-  | Cbn f -> sigma , Cbn (interp_flag ist env sigma f)
-  | Lazy f -> sigma , Lazy (interp_flag ist env sigma f)
-  | Pattern l ->
-      let (sigma,l_interp) =
-        Evd.MonadR.List.map_right
-          (fun c sigma -> interp_constr_with_occurrences ist env sigma c) l sigma
-      in
-      sigma , Pattern l_interp
-  | Simpl (f,o) ->
-     sigma , Simpl (interp_flag ist env sigma f,
-		    Option.map (interp_closed_typed_pattern_with_occurrences ist env sigma) o)
-  | CbvVm o ->
-    sigma , CbvVm (Option.map (interp_closed_typed_pattern_with_occurrences ist env sigma) o)
-  | CbvNative o ->
-    sigma , CbvNative (Option.map (interp_closed_typed_pattern_with_occurrences ist env sigma) o)
-  | (Red _ |  Hnf | ExtraRedExpr _ as r) -> sigma , r
-
 let interp_may_eval f ist env sigma = function
   | ConstrEval (r,c) ->
-      let (sigma,redexp) = interp_red_expr ist env sigma r in
+      let (sigma,redexp) = Genredexpr.interp_red_expr ist env sigma r in
       let (sigma,c_interp) = f ist env sigma c in
       let (redfun, _) = Redexpr.reduction_of_red_expr env redexp in
       redfun env sigma c_interp
@@ -1891,7 +1783,7 @@ let interp_tac_gen lfun avoid_ids debug t =
   let ist = { lfun = lfun; extra = extra } in
   let ltacvars = Id.Map.domain lfun in
   interp_tactic ist
-    (intern_pure_tactic { (Genintern.empty_glob_sign env) with ltacvars } t)
+    Genintern.(intern_pure_tactic { (empty_glob_sign env) with ltacvars } t)
   end
 
 let interp t = interp_tac_gen Id.Map.empty Id.Set.empty (get_debug()) t
@@ -2021,7 +1913,7 @@ let interp_ltac_constr ist c k = Ftactic.run (interp_ltac_constr ist c) k
 let interp_redexp env sigma r =
   let ist = default_ist () in
   let gist = Genintern.empty_glob_sign env in
-  interp_red_expr ist env sigma (intern_red_expr gist r)
+  interp_red_expr ist env sigma (intern_red_expr ~strict:!strict_check gist r)
 
 (***************************************************************************)
 (* Backwarding recursive needs of tactic glob/interp/eval functions *)

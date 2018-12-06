@@ -16,6 +16,7 @@ let _vmcast = Constr.VMcast
 open Names
 open Pp
 open Pcoq
+open Pvernac.Vernac_
 open Ltac_plugin
 open Stdarg
 open Tacarg

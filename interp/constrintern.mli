@@ -194,6 +194,9 @@ val intern_core : typing_constraint ->
   Genintern.intern_variable_status -> constr_expr ->
   glob_constr
 
+val intern_constr_gen : strict:bool -> bool -> bool -> Genintern.glob_sign
+  -> constr_expr -> glob_constr * Constrexpr.constr_pattern_expr option
+
 (** Globalization options *)
 val parsing_explicit : bool ref
 

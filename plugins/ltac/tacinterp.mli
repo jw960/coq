@@ -132,9 +132,5 @@ val hide_interp : bool -> raw_tactic_expr -> unit Proofview.tactic option -> uni
 val interp_ltac_var : (value -> 'a) -> interp_sign ->
   (Environ.env * Evd.evar_map) option -> lident -> 'a
 
-val interp_int : interp_sign -> lident -> int
-
-val interp_int_or_var : interp_sign -> int Locus.or_var -> int
-
 val default_ist : unit -> Geninterp.interp_sign
 (** Empty ist with debug set on the current value. *)

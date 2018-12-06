@@ -169,7 +169,7 @@ type 'a ssragens = (ssrdocc * 'a) list list * ssrclear
 type ssrapplyarg = ssrterm list * (ssrterm ssragens * ssripats)
 
 (* OOP : these are general shortcuts *)
-type gist = Tacintern.glob_sign
+type gist = Genintern.glob_sign
 type ist = Tacinterp.interp_sign
 type goal = Goal.goal
 type 'a sigma = 'a Evd.sigma

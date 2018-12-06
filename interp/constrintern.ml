@@ -2366,6 +2366,19 @@ let intern_core kind env sigma ?(pattern_mode=false) ?(ltacvars=empty_ltac_sign)
   internalize env {ids; unb = false; tmp_scope; scopes = []; impls}
     pattern_mode (ltacvars, vl) c
 
+let intern_constr_gen ~strict pattern_mode isarity {Genintern.ltacvars=lfun; genv=env; extra; intern_sign} c =
+  let warn = if strict then fun x -> x else for_grammar in
+  let scope = if isarity then Pretyping.IsType else Pretyping.WithoutTypeConstraint in
+  let ltacvars = {
+    ltac_vars = lfun;
+    ltac_bound = Id.Set.empty;
+    ltac_extra = extra;
+  } in
+  let c' =
+    warn (intern_core scope ~pattern_mode ~ltacvars env Evd.(from_env env) intern_sign) c
+  in
+  (c',if strict then None else Some c)
+
 let interp_notation_constr env ?(impls=empty_internalization_env) nenv a =
   let ids = extract_ids env in
   (* [vl] is intended to remember the scope of the free variables of [a] *)

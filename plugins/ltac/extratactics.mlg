@@ -17,7 +17,7 @@ open Stdarg
 open Tacarg
 open Extraargs
 open Pcoq.Prim
-open Pltac
+open Pvernac.Vernac_
 open Mod_subst
 open Names
 open Tacexpr

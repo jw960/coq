@@ -23,8 +23,18 @@ module Vernac_ =
     let syntax = gec_vernac "syntax_command"
     let vernac_control = gec_vernac "Vernac.vernac_control"
     let rec_definition = gec_vernac "Vernac.rec_definition"
-    let red_expr = new_entry utactic "red_expr"
     let hint_info = gec_vernac "hint_info"
+    (* Reduction grammar *)
+    let int_or_var = gec_vernac "int_or_var"
+    let occs = gec_vernac "occs"
+    let occs_nums = gec_vernac "occs_nums"
+    let pattern_occ = gec_vernac "pattern_occ"
+    let unfold_occ = gec_vernac "unfold_occ"
+    let ref_or_pattern_occ = gec_vernac "ref_or_pattern_occ"
+    let delta_flag = gec_vernac "delta_flag"
+    let strategy_flag = gec_vernac "strategy_flag"
+    let red_expr = gec_vernac "red_expr"
+
     (* Main vernac entry *)
     let main_entry = Entry.create "vernac"
     let noedit_mode = gec_vernac "noedit_command"
@@ -52,4 +62,6 @@ let set_command_entry e = Vernac_.command_entry_ref := e
 let get_command_entry () = !Vernac_.command_entry_ref
 
 let () =
-  register_grammar Genredexpr.wit_red_expr (Vernac_.red_expr);
+  register_grammar Genredexpr.wit_red_expr Vernac_.red_expr;
+  register_grammar Stdarg.wit_int_or_var Vernac_.int_or_var;
+  ()

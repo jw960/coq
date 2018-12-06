@@ -27,9 +27,7 @@ open Locus
 open Decl_kinds
 
 open Pcoq
-
-
-let all_with delta = Redops.make_red_flag [FBeta;FMatch;FFix;FCofix;FZeta;delta]
+open Pvernac.Vernac_
 
 let tactic_kw = [ "->"; "<-" ; "by" ]
 let _ = List.iter CLexer.add_keyword tactic_kw
@@ -182,10 +180,6 @@ let mkCLambdaN_simple bl c = match bl with
 
 let loc_of_ne_list l = Loc.merge_opt (List.hd l).CAst.loc (List.last l).CAst.loc
 
-let map_int_or_var f = function
-  | ArgArg x -> ArgArg (f x)
-  | ArgVar _ as y -> y
-
 let all_concl_occs_clause = { onhyps=Some[]; concl_occs=AllOccurrences }
 
 let merge_occurrences loc cl = function
@@ -217,23 +211,13 @@ let warn_deprecated_eqn_syntax =
 
 (* Auxiliary grammar rules *)
 
-open Pvernac.Vernac_
-
 }
 
 GRAMMAR EXTEND Gram
   GLOBAL: simple_tactic constr_with_bindings quantified_hypothesis
-  bindings red_expr int_or_var open_constr uconstr
+  bindings open_constr uconstr
   simple_intropattern in_clause clause_dft_concl hypident destruction_arg;
 
-  int_or_var:
-    [ [ n = integer  -> { ArgArg n }
-      | id = identref -> { ArgVar id } ] ]
-  ;
-  nat_or_var:
-    [ [ n = natural  -> { ArgArg n }
-      | id = identref -> { ArgVar id } ] ]
-  ;
   (* An identifier or a quotation meta-variable *)
   id_or_meta:
     [ [ id = identref -> { id } ] ]
@@ -264,27 +248,6 @@ GRAMMAR EXTEND Gram
       | c1 = constr; "with"; c2 = constr -> { (Some (AllOccurrences,c1),c2) }
       | c1 = constr; "at"; occs = occs_nums; "with"; c2 = constr ->
           { (Some (occs,c1), c2) } ] ]
-  ;
-  occs_nums:
-    [ [ nl = LIST1 nat_or_var -> { OnlyOccurrences nl }
-      | "-"; n = nat_or_var; nl = LIST0 int_or_var ->
-	  (* have used int_or_var instead of nat_or_var for compatibility *)
-	   { AllOccurrencesBut (List.map (map_int_or_var abs) (n::nl)) } ] ]
-  ;
-  occs:
-    [ [ "at"; occs = occs_nums -> { occs } | -> { AllOccurrences } ] ]
-  ;
-  pattern_occ:
-    [ [ c = constr; nl = occs -> { (nl,c) } ] ]
-  ;
-  ref_or_pattern_occ:
-    (* If a string, it is interpreted as a ref
-       (anyway a Coq string does not reduce) *)
-    [ [ c = smart_global; nl = occs -> { nl,Inl c }
-      | c = constr; nl = occs -> { nl,Inr c } ] ]
-  ;
-  unfold_occ:
-    [ [ c = smart_global; nl = occs -> { (nl,c) } ] ]
   ;
   intropatterns:
     [ [ l = LIST0 nonsimple_intropattern -> { l } ] ]
@@ -352,42 +315,6 @@ GRAMMAR EXTEND Gram
   ;
   with_bindings:
     [ [ "with"; bl = bindings -> { bl } | -> { NoBindings } ] ]
-  ;
-  red_flags:
-    [ [ IDENT "beta" -> { [FBeta] }
-      | IDENT "iota" -> { [FMatch;FFix;FCofix] }
-      | IDENT "match" -> { [FMatch] }
-      | IDENT "fix" -> { [FFix] }
-      | IDENT "cofix" -> { [FCofix] }
-      | IDENT "zeta" -> { [FZeta] }
-      | IDENT "delta"; d = delta_flag -> { [d] }
-    ] ]
-  ;
-  delta_flag:
-    [ [ "-"; "["; idl = LIST1 smart_global; "]" -> { FDeltaBut idl }
-      | "["; idl = LIST1 smart_global; "]" -> { FConst idl }
-      | -> { FDeltaBut [] }
-    ] ]
-  ;
-  strategy_flag:
-    [ [ s = LIST1 red_flags -> { Redops.make_red_flag (List.flatten s) }
-      | d = delta_flag -> { all_with d }
-    ] ]
-  ;
-  red_expr:
-    [ [ IDENT "red" -> { Red false }
-      | IDENT "hnf" -> { Hnf }
-      | IDENT "simpl"; d = delta_flag; po = OPT ref_or_pattern_occ -> { Simpl (all_with d,po) }
-      | IDENT "cbv"; s = strategy_flag -> { Cbv s }
-      | IDENT "cbn"; s = strategy_flag -> { Cbn s }
-      | IDENT "lazy"; s = strategy_flag -> { Lazy s }
-      | IDENT "compute"; delta = delta_flag -> { Cbv (all_with delta) }
-      | IDENT "vm_compute"; po = OPT ref_or_pattern_occ -> { CbvVm po }
-      | IDENT "native_compute"; po = OPT ref_or_pattern_occ -> { CbvNative po }
-      | IDENT "unfold"; ul = LIST1 unfold_occ SEP "," -> { Unfold ul }
-      | IDENT "fold"; cl = LIST1 constr -> { Fold cl }
-      | IDENT "pattern"; pl = LIST1 pattern_occ SEP"," -> { Pattern pl }
-      | s = IDENT -> { ExtraRedExpr s } ] ]
   ;
   hypident:
     [ [ id = id_or_meta ->
@@ -676,7 +603,7 @@ GRAMMAR EXTEND Gram
       | IDENT "hnf"; cl = clause_dft_concl ->
           { TacAtom (CAst.make ~loc @@ TacReduce (Hnf, cl)) }
       | IDENT "simpl"; d = delta_flag; po = OPT ref_or_pattern_occ; cl = clause_dft_concl ->
-          { TacAtom (CAst.make ~loc @@ TacReduce (Simpl (all_with d, po), cl)) }
+          { TacAtom (CAst.make ~loc @@ TacReduce (Simpl (G_vernac.all_with d, po), cl)) }
       | IDENT "cbv"; s = strategy_flag; cl = clause_dft_concl ->
           { TacAtom (CAst.make ~loc @@ TacReduce (Cbv s, cl)) }
       | IDENT "cbn"; s = strategy_flag; cl = clause_dft_concl ->
@@ -684,7 +611,7 @@ GRAMMAR EXTEND Gram
       | IDENT "lazy"; s = strategy_flag; cl = clause_dft_concl ->
           { TacAtom (CAst.make ~loc @@ TacReduce (Lazy s, cl)) }
       | IDENT "compute"; delta = delta_flag; cl = clause_dft_concl ->
-          { TacAtom (CAst.make ~loc @@ TacReduce (Cbv (all_with delta), cl)) }
+          { TacAtom (CAst.make ~loc @@ TacReduce (Cbv (G_vernac.all_with delta), cl)) }
       | IDENT "vm_compute"; po = OPT ref_or_pattern_occ; cl = clause_dft_concl ->
           { TacAtom (CAst.make ~loc @@ TacReduce (CbvVm po, cl)) }
       | IDENT "native_compute"; po = OPT ref_or_pattern_occ; cl = clause_dft_concl ->

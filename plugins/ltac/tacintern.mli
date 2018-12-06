@@ -18,14 +18,8 @@ open Tactypes
 (** Globalization of tactic expressions :
     Conversion from [raw_tactic_expr] to [glob_tactic_expr] *)
 
-type glob_sign = Genintern.glob_sign = {
-  ltacvars : Id.Set.t;
-  genv : Environ.env;
-  extra : Genintern.Store.t;
-  intern_sign : Genintern.intern_variable_status;
-}
-
 val make_empty_glob_sign : unit -> glob_sign
+
  (** build an empty [glob_sign] using [Global.env()] as
      environment *)
 
@@ -60,7 +54,6 @@ val print_ltac : Libnames.qualid -> Pp.t
 
 (** Reduction expressions *)
 
-val intern_red_expr : glob_sign -> raw_red_expr -> glob_red_expr
 val dump_glob_red_expr : raw_red_expr -> unit
 
 (* Hooks *)

@@ -30,7 +30,6 @@ let uconstr =
 let quantified_hypothesis =
   make_gen_entry utactic "quantified_hypothesis"
 let destruction_arg = make_gen_entry utactic "destruction_arg"
-let int_or_var = make_gen_entry utactic "int_or_var"
 let simple_intropattern =
   make_gen_entry utactic "simple_intropattern"
 let in_clause = make_gen_entry utactic "in_clause"
@@ -51,7 +50,6 @@ let tactic_eoi = eoi_entry tactic
 let () =
   let open Stdarg in
   let open Tacarg in
-  register_grammar wit_int_or_var (int_or_var);
   register_grammar wit_intro_pattern (simple_intropattern);
   register_grammar wit_quant_hyp (quantified_hypothesis);
   register_grammar wit_uconstr (uconstr);

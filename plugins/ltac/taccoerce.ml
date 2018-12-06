@@ -41,26 +41,6 @@ let (wit_constr_under_binders : (Empty.t, Empty.t, Ltac_pretype.constr_under_bin
                Genprint.TopPrinterNeedsContext (fun env sigma -> Printer.pr_constr_under_binders_env env sigma c)) in
   wit
 
-(** All the types considered here are base types *)
-let val_tag wit = match val_tag wit with
-| Val.Base t -> t
-| _ -> assert false
-
-let has_type : type a. Val.t -> a typed_abstract_argument_type -> bool = fun v wit ->
-  let Val.Dyn (t, _) = v in
-  match Val.eq t (val_tag wit) with
-  | None -> false
-  | Some Refl -> true
-
-let prj : type a. a Val.typ -> Val.t -> a option = fun t v ->
-  let Val.Dyn (t', x) = v in
-  match Val.eq t t' with
-  | None -> None
-  | Some Refl -> Some x
-
-let in_gen wit v = Val.Dyn (val_tag wit, v)
-let out_gen wit v = match prj (val_tag wit) v with None -> assert false | Some x -> x
-
 module Value =
 struct
 

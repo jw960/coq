@@ -30,6 +30,9 @@ type glob_sign = {
 }
 
 val empty_glob_sign : Environ.env -> glob_sign
+val find_ident : Id.t -> glob_sign -> bool
+val find_var : Id.t -> glob_sign -> bool
+val find_hyp : Id.t -> glob_sign -> bool
 
 (** In globalize tactics, we need to keep the initial [constr_expr] to recompute
    in the environment by the effective calls to Intro, Inversion, etc

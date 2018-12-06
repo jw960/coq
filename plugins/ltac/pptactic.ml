@@ -121,44 +121,6 @@ let string_of_genarg_arg (ArgumentType arg) =
   | None -> false
   | Some _ -> true
 
-  let unbox : type a. Val.t -> a Val.typ -> a= fun (Val.Dyn (tag, x)) t ->
-  match Val.eq tag t with
-  | None -> assert false
-  | Some Refl -> x
-
-  let rec pr_value lev v : Pp.t =
-    if has_type v Val.typ_list then
-      pr_sequence (fun x -> pr_value lev x) (unbox v Val.typ_list)
-    else if has_type v Val.typ_opt then
-      pr_opt_no_spc (fun x -> pr_value lev x) (unbox v Val.typ_opt)
-    else if has_type v Val.typ_pair then
-      let (v1, v2) = unbox v Val.typ_pair in
-      str "(" ++ pr_value lev v1 ++ str ", " ++ pr_value lev v2 ++ str ")"
-    else
-      let Val.Dyn (tag, x) = v in
-      let name = Val.repr tag in
-      let default = str "<" ++ str name ++ str ">" in
-      match ArgT.name name with
-      | None -> default
-      | Some (ArgT.Any arg) ->
-        let wit = ExtraArg arg in
-        match val_tag (Topwit wit) with
-        | Val.Base t ->
-          begin match Val.eq t tag with
-          | None -> default
-          | Some Refl ->
-             let open Genprint in
-             match generic_top_print (in_gen (Topwit wit) x) with
-             | TopPrinterBasic pr -> pr ()
-             | TopPrinterNeedsContext pr ->
-               let env = Global.env() in
-               pr env (Evd.from_env env)
-             | TopPrinterNeedsContextAndLevel { default_ensure_surrounded; printer } ->
-               let env = Global.env() in
-               printer env (Evd.from_env env) default_ensure_surrounded
-          end
-        | _ -> default
-
   let pr_with_occurrences pr c = Ppred.pr_with_occurrences pr keyword c
   let pr_red_expr pr c = Ppred.pr_red_expr pr keyword c
 

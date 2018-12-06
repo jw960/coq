@@ -41,6 +41,18 @@ let empty_glob_sign env = {
   intern_sign = empty_intern_sign;
 }
 
+(* We have identifier <| global_reference <| constr *)
+
+let find_ident id ist =
+  Id.Set.mem id ist.ltacvars ||
+  Id.List.mem id (Termops.ids_of_named_context (Environ.named_context ist.genv))
+
+(* a "var" is a ltac var or a var introduced by an intro tactic *)
+let find_var id ist = Id.Set.mem id ist.ltacvars
+
+let find_hyp id ist =
+  Id.List.mem id (Termops.ids_of_named_context (Environ.named_context ist.genv))
+
 (** In globalize tactics, we need to keep the initial [constr_expr] to recompute
    in the environment by the effective calls to Intro, Inversion, etc
    The [constr_expr] field is [None] in TacDef though *)
