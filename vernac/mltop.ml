@@ -136,12 +136,9 @@ let ml_load s =
              strbrk ": " ++ str (Dynlink.error_message a))
 
 let dir_ml_load s =
-  match !load with
-    | WithTop _ -> ml_load s
-    | WithoutTop ->
-        let warn = not !Flags.quiet in
-        let _,gname = find_file_in_path ~warn !coq_mlpath_copy s in
-        ml_load gname
+  let warn = not !Flags.quiet in
+  let _, ml_file = find_file_in_path ~warn !coq_mlpath_copy s in
+  ml_load ml_file
 
 (* Dynamic interpretation of .ml *)
 let dir_ml_use s =
