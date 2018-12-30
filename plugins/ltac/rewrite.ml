@@ -118,21 +118,22 @@ let app_poly_check env evars f args =
   (evars, cstrs), t
 
 let app_poly_nocheck env evars f args =
-  let evars, fc = f evars in 
-    evars, mkApp (fc, args)
+  let evars, fc = f evars in
+  evars, mkApp (fc, args)
 
 let app_poly_sort b =
   if b then app_poly_nocheck
   else app_poly_check
-    
+
 let find_class_proof proof_type proof_method env evars carrier relation =
   try
     let evars, goal = app_poly_check env evars proof_type [| carrier ; relation |] in
-    let evars', c = Typeclasses.resolve_one_typeclass env (goalevars evars) goal in
-      if extends_undefined (goalevars evars) evars' then raise Not_found
-      else app_poly_check env (evars',cstrevars evars) proof_method [| carrier; relation; c |]
+    let evars', c =
+      Typeclasses.resolve_one_typeclass env (goalevars evars) goal in
+    if extends_undefined (goalevars evars) evars' then raise Not_found
+    else app_poly_check env (evars',cstrevars evars) proof_method [| carrier; relation; c |]
   with e when Logic.catchable_exception e -> raise Not_found
- 
+
 (** Utility functions *)
 
 module GlobalBindings (M : sig
@@ -148,7 +149,7 @@ end) = struct
 
   let reflexive_type = find_global relation_classes "Reflexive"
   let reflexive_proof = find_global relation_classes "reflexivity"
-    
+
   let symmetric_type = find_global relation_classes "Symmetric"
   let symmetric_proof = find_global relation_classes "symmetry"
 

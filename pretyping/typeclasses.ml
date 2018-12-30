@@ -52,8 +52,8 @@ let classes_transparent_state () = Hook.get classes_transparent_state ()
 
 let get_solve_one_instance, solve_one_instance_hook = Hook.make ()
 
-let resolve_one_typeclass ?(unique=get_typeclasses_unique_solutions ()) env evm t =
-  Hook.get get_solve_one_instance env evm t unique
+let resolve_one_typeclass ?(unique=get_typeclasses_unique_solutions ()) t =
+  Hook.get get_solve_one_instance ~unique t
 
 type direction = Forward | Backward
 
@@ -527,14 +527,17 @@ let has_typeclasses filter evd =
 
 let get_solve_all_instances, solve_all_instances_hook = Hook.make ()
 
-let solve_all_instances env evd filter unique split fail =
-  Hook.get get_solve_all_instances env evd filter unique split fail
+let solve_all_instances ~filter ~unique ~split ~fail =
+  Hook.get get_solve_all_instances ~filter ~unique ~split ~fail
 
 (** Profiling resolution of typeclasses *)
 (* let solve_classeskey = CProfile.declare_profile "solve_typeclasses" *)
 (* let solve_problem = CProfile.profile5 solve_classeskey solve_problem *)
 
 let resolve_typeclasses ?(filter=no_goals) ?(unique=get_typeclasses_unique_solutions ())
-    ?(split=true) ?(fail=true) env evd =
-  if not (has_typeclasses filter evd) then evd
-  else solve_all_instances env evd filter unique split fail
+    ?(split=true) ?(fail=true) : unit Proofview.tactic =
+  let open Proofview.Monad in
+  Proofview.tclEVARMAP >>= fun evd ->
+  if not (has_typeclasses filter evd)
+  then Proofview.tclUNIT ()
+  else solve_all_instances ~filter ~unique ~split ~fail

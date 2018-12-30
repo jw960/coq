@@ -1109,7 +1109,7 @@ let resolve_typeclass_evars debug depth unique env evd filter split fail =
     resolve_all_evars debug depth unique env
                       (initial_select_evars filter) evd split fail
 
-let solve_inst env evd filter unique split fail =
+let solve_inst ~filter ~unique ~split ~fail : _ Proofview.tactic =
   let ((), sigma) = Hints.wrap_hint_warning_fun env evd begin fun evd ->
     (), resolve_typeclass_evars
     (get_typeclasses_debug ())
