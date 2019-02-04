@@ -43,7 +43,7 @@ coqc := $(BIN)coqc -coqlib $(LIB) -R prerequisite TestSuite $(COQFLAGS)
 coqchk := $(BIN)coqchk -coqlib $(LIB) -R prerequisite TestSuite
 coqdoc := $(BIN)coqdoc
 coqtop := $(BIN)coqtop -coqlib $(LIB) -boot -q -test-mode -R prerequisite TestSuite
-coqtopbyte := $(BIN)coqtop.byte
+coqtopbyte := $(BIN)coqtop.byte -coqlib $(LIB)
 
 coqc_interactive := $(coqc) -async-proofs-cache force
 coqc_boot_interactive := $(coqc_boot) -async-proofs-cache force
@@ -645,10 +645,12 @@ coqwc/%.v.log : coqwc/%.v
 
 coq-makefile: $(patsubst %/run.sh,%.log,$(wildcard coq-makefile/*/run.sh))
 
+# We need to adjust the relative path due to Windows problem with absolute ones.
 coq-makefile/%.log : coq-makefile/%/run.sh
 	@echo "TEST      coq-makefile/$*"
 	$(HIDE)(\
 	  export COQBIN=$(BIN);\
+	  export COQLIB=$(LIB);\
 	  cd coq-makefile/$* && \
 	  bash run.sh 2>&1; \
 	if [ $$? = 0 ]; then \

@@ -2,8 +2,9 @@
 
 set -e
 
-export COQBIN=$BIN
-export PATH=$COQBIN:$PATH
+export COQBIN="$BIN"
+export COQLIB="$LIB"
+export PATH="$COQBIN:$PATH"
 
 cd misc/poly-capture-global-univs/
 
