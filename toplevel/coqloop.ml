@@ -79,112 +79,6 @@ let reset_input_buffer doc ic ibuf =
   ibuf.tokens <- Pcoq.Parsable.make (Stream.from (prompt_char doc ic ibuf));
   ibuf.start <- 0
 
-(* Functions to print underlined locations from an input buffer. *)
-module TopErr = struct
-
-(* Given a location, returns the list of locations of each line. The last
-   line is returned separately. It also checks the location bounds. *)
-
-let get_bols_of_loc ibuf (bp,ep) =
-  let add_line (b,e) lines =
-    if b < 0 || e < b then CErrors.anomaly (Pp.str "Bad location.");
-    match lines with
-      | ([],None) -> ([], Some (b,e))
-      | (fl,oe) -> ((b,e)::fl, oe)
-  in
-  let rec lines_rec ba after = function
-    | []                  -> add_line (0,ba) after
-    | ll::_ when ll <= bp -> add_line (ll,ba) after
-    | ll::fl              ->
-        let nafter = if ll < ep then add_line (ll,ba) after else after in
-        lines_rec ll nafter fl
-  in
-  let (fl,ll) = lines_rec ibuf.len ([],None) ibuf.bols in
-  (fl,Option.get ll)
-
-let dotted_location (b,e) =
-  if e-b < 3 then
-    ("", String.make (e-b) ' ')
-  else
-    (String.make (e-b-1) '.', " ")
-
-let blanch_utf8_string s bp ep = let open Bytes in
-  let s' = make (ep-bp) ' ' in
-  let j = ref 0 in
-  for i = bp to ep - 1 do
-    let n = Char.code (get s i) in
-    (* Heuristic: assume utf-8 chars are printed using a single
-    fixed-size char and therefore contract all utf-8 code into one
-    space; in any case, preserve tabulation so
-    that its effective interpretation in terms of spacing is preserved *)
-    if get s i == '\t' then set s' !j '\t';
-    if n < 0x80 || 0xC0 <= n then incr j
-  done;
-  Bytes.sub_string s' 0 !j
-
-let adjust_loc_buf ib loc = let open Loc in
-  { loc with ep = loc.ep - ib.start; bp = loc.bp - ib.start }
-
-let print_highlight_location ib loc =
-  let (bp,ep) = Loc.unloc loc in
-  let highlight_lines =
-    match get_bols_of_loc ib (bp,ep) with
-      | ([],(bl,el)) ->
-	  let shift = blanch_utf8_string ib.str bl bp in
-	  let span = String.length (blanch_utf8_string ib.str bp ep) in
-	  (str"> " ++ str(Bytes.sub_string ib.str bl (el-bl-1)) ++ fnl () ++
-           str"> " ++ str(shift) ++ str(String.make span '^'))
-      | ((b1,e1)::ml,(bn,en)) ->
-          let (d1,s1) = dotted_location (b1,bp) in
-          let (dn,sn) = dotted_location (ep,en) in
-          let l1 = (str"> " ++ str d1 ++ str s1 ++
-                      str(Bytes.sub_string ib.str bp (e1-bp))) in
-          let li =
-            prlist (fun (bi,ei) ->
-                      (str"> " ++ str(Bytes.sub_string ib.str bi (ei-bi)))) ml in
-          let ln = (str"> " ++ str(Bytes.sub_string ib.str bn (ep-bn)) ++
-                      str sn ++ str dn) in
-	  (l1 ++ li ++ ln)
-  in
-  highlight_lines
-
-let valid_buffer_loc ib loc =
-  let (b,e) = Loc.unloc loc in b-ib.start >= 0 && e-ib.start < ib.len && b<=e
-
-(* Toplevel error explanation. *)
-let error_info_for_buffer ?loc buf =
-  match loc with
-  | None -> Topfmt.pr_phase ?loc ()
-  | Some loc ->
-      let fname = loc.Loc.fname in
-        (* We are in the toplevel *)
-      match fname with
-      | Loc.ToplevelInput ->
-        let nloc = adjust_loc_buf buf loc in
-        if valid_buffer_loc buf loc then
-          match Topfmt.pr_phase ~loc:nloc () with
-          | None -> None
-          | Some hd -> Some (hd ++ fnl () ++ print_highlight_location buf nloc)
-        (* in the toplevel, but not a valid buffer *)
-        else Topfmt.pr_phase ~loc ()
-      (* we are in batch mode, don't adjust location *)
-      | Loc.InFile _ -> Topfmt.pr_phase ~loc ()
-
-(* Actual printing routine *)
-let print_error_for_buffer ?loc lvl msg buf =
-  let pre_hdr = error_info_for_buffer ?loc buf in
-  if !print_emacs
-  then Topfmt.emacs_logger ?pre_hdr lvl msg
-  else Topfmt.std_logger   ?pre_hdr lvl msg
-
-(*
-let print_toplevel_parse_error (e, info) buf =
-  let loc = Loc.get_loc info in
-  let lvl = Feedback.Error in
-  let msg = CErrors.iprint (e, info) in
-  print_error_for_buffer ?loc lvl msg buf
-*)
-end
 
 (*s The Coq prompt is the name of the focused proof, if any, and "Coq"
     otherwise. We trap all exceptions to prevent the error message printing
@@ -271,39 +165,6 @@ let read_sentence ~state input =
        printer again *)
     (* TopErr.print_toplevel_parse_error reraise top_buffer; *)
     Exninfo.iraise reraise
-
-let extract_default_loc loc doc_id sid : Loc.t option =
-  match loc with
-  | Some _ -> loc
-  | None ->
-    try
-      let doc = Stm.get_doc doc_id in
-      Option.cata fst None Stm.(get_ast ~doc sid)
-    with _ -> loc
-
-(** Coqloop Console feedback handler *)
-let coqloop_feed (fb : Feedback.feedback) = let open Feedback in
-  match fb.contents with
-  | Processed   -> ()
-  | Incomplete  -> ()
-  | Complete    -> ()
-  | ProcessingIn _ -> ()
-  | InProgress _ -> ()
-  | WorkerStatus (_,_) -> ()
-  | AddedAxiom  -> ()
-  | GlobRef (_,_,_,_,_) -> ()
-  | GlobDef (_,_,_,_) -> ()
-  | FileDependency (_,_) -> ()
-  | FileLoaded (_,_) -> ()
-  | Custom (_,_,_) -> ()
-  (* Re-enable when we switch back to feedback-based error printing *)
-  | Message (Error,loc,msg) -> ()
-  (* TopErr.print_error_for_buffer ?loc lvl msg top_buffer *)
-  | Message (Warning,loc,msg) ->
-    let loc = extract_default_loc loc fb.doc_id fb.span_id in
-    TopErr.print_error_for_buffer ?loc Warning msg top_buffer
-  | Message (lvl,loc,msg) ->
-    TopErr.print_error_for_buffer ?loc lvl msg top_buffer
 
 (** Main coq loop : read vernacular expressions until Drop is entered.
     Ctrl-C is handled internally as Sys.Break instead of aborting Coq.
@@ -441,7 +302,7 @@ let loop ~opts ~state =
   let open Coqargs in
   print_emacs := opts.print_emacs;
   (* We initialize the console only if we run the toploop_run *)
-  let tl_feed = Feedback.add_feeder coqloop_feed in
+  let tl_feed = Feedback.add_feeder Topfmt.console_feed in
   if Dumpglob.dump () then begin
     Flags.if_verbose warning "Dumpglob cannot be used in interactive mode.";
     Dumpglob.noglob ()

@@ -1603,16 +1603,16 @@ let () =
     { optdepr  = false;
       optname  = "the printing depth";
       optkey   = ["Printing";"Depth"];
-      optread  = Topfmt.get_depth_boxes;
-      optwrite = Topfmt.set_depth_boxes }
+      optread  = ConsoleOps.get_depth_boxes;
+      optwrite = ConsoleOps.set_depth_boxes }
 
 let () =
   declare_int_option
     { optdepr  = false;
       optname  = "the printing width";
       optkey   = ["Printing";"Width"];
-      optread  = Topfmt.get_margin;
-      optwrite = Topfmt.set_margin }
+      optread  = ConsoleOps.get_margin;
+      optwrite = ConsoleOps.set_margin }
 
 let () =
   declare_bool_option

@@ -9,94 +9,7 @@
 (************************************************************************)
 
 open Pp
-
-(** Pp control also belongs here as the terminal is private to the toplevel *)
-
-type pp_global_params = {
-  margin : int;
-  max_indent : int;
-  max_depth : int;
-  ellipsis : string }
-
-(* Default parameters of pretty-printing *)
-
-let dflt_gp = {
-  margin     = 78;
-  max_indent = 50;
-  max_depth  = 50;
-  ellipsis   = "..." }
-
-(* A deeper pretty-printer to print proof scripts *)
-
-let deep_gp = {
-  margin     = 78;
-  max_indent = 50;
-  max_depth  = 10000;
-  ellipsis   = "..." }
-
-(* set_gp : Format.formatter -> pp_global_params -> unit
- * set the parameters of a formatter *)
-
-let set_gp ft gp =
-  Format.pp_set_margin ft gp.margin ;
-  Format.pp_set_max_indent ft gp.max_indent ;
-  Format.pp_set_max_boxes ft gp.max_depth ;
-  Format.pp_set_ellipsis_text ft gp.ellipsis
-
-let set_dflt_gp ft = set_gp ft dflt_gp
-
-let get_gp ft =
-  { margin = Format.pp_get_margin ft ();
-    max_indent = Format.pp_get_max_indent ft ();
-    max_depth = Format.pp_get_max_boxes ft ();
-    ellipsis = Format.pp_get_ellipsis_text ft () }
-
-(* with_fp : 'a pp_formatter_params -> Format.formatter
- * returns of formatter for given formatter functions *)
-
-let with_fp chan out_function flush_function =
-  let ft = Format.make_formatter out_function flush_function in
-  Format.pp_set_formatter_out_channel ft chan;
-  ft
-
-(* Output on a channel ch *)
-
-let with_output_to ch =
-  let ft = with_fp ch (output_substring ch) (fun () -> flush ch) in
-  set_gp ft deep_gp;
-  ft
-
-let std_ft = ref Format.std_formatter
-let _ = set_dflt_gp !std_ft
-
-let err_ft = ref Format.err_formatter
-let _ = set_gp !err_ft deep_gp
-
-let deep_ft = ref (with_output_to stdout)
-let _ = set_gp !deep_ft deep_gp
-
-(* For parametrization through vernacular *)
-let default = Format.pp_get_max_boxes !std_ft ()
-let default_margin = Format.pp_get_margin !std_ft ()
-
-let get_depth_boxes () = Some (Format.pp_get_max_boxes !std_ft ())
-let set_depth_boxes v =
-  Format.pp_set_max_boxes !std_ft (match v with None -> default | Some v -> v)
-
-let get_margin () = Some (Format.pp_get_margin !std_ft ())
-let set_margin v =
-  let v = match v with None -> default_margin | Some v -> v in
-  Format.pp_set_margin Format.str_formatter v;
-  Format.pp_set_margin !std_ft v;
-  Format.pp_set_margin !deep_ft v;
-  Format.pp_set_margin !err_ft v;
-  (* Heuristic, based on usage: the column on the right of max_indent
-     column is 20% of width, capped to 30 characters *)
-  let m = max (64 * v / 100) (v-30) in
-  Format.pp_set_max_indent Format.str_formatter m;
-  Format.pp_set_max_indent !std_ft m;
-  Format.pp_set_max_indent !deep_ft m;
-  Format.pp_set_max_indent !err_ft m
+open ConsoleOps
 
 (** Console display of feedback *)
 
@@ -356,12 +269,12 @@ let pr_loc loc =
     match fname with
     | Loc.ToplevelInput ->
       Loc.(str"Toplevel input, characters " ++ int loc.bp ++
-	   str"-" ++ int loc.ep ++ str":")
+           str"-" ++ int loc.ep ++ str":")
     | Loc.InFile fname ->
       Loc.(str"File " ++ str "\"" ++ str fname ++ str "\"" ++
-	   str", line " ++ int loc.line_nb ++ str", characters " ++
-	   int (loc.bp-loc.bol_pos) ++ str"-" ++ int (loc.ep-loc.bol_pos) ++
-	   str":")
+           str", line " ++ int loc.line_nb ++ str", characters " ++
+           int (loc.bp-loc.bol_pos) ++ str"-" ++ int (loc.ep-loc.bol_pos) ++
+           str":")
 
 let pr_phase ?loc () =
   match !default_phase, loc with
@@ -388,45 +301,142 @@ let print_err_exn any =
   let msg = CErrors.iprint (e, info) ++ fnl () in
   std_logger ?pre_hdr Feedback.Error msg
 
-let with_output_to_file fname func input =
-  let channel = open_out (String.concat "." [fname; "out"]) in
-  let old_fmt = !std_ft, !err_ft, !deep_ft in
-  let new_ft = Format.formatter_of_out_channel channel in
-  std_ft := new_ft;
-  err_ft := new_ft;
-  deep_ft := new_ft;
-  try
-    let output = func input in
-    std_ft := Util.pi1 old_fmt;
-    err_ft := Util.pi2 old_fmt;
-    deep_ft := Util.pi3 old_fmt;
-    close_out channel;
-    output
-  with reraise ->
-    let reraise = Backtrace.add_backtrace reraise in
-    std_ft := Util.pi1 old_fmt;
-    err_ft := Util.pi2 old_fmt;
-    deep_ft := Util.pi3 old_fmt;
-    close_out channel;
-    Exninfo.iraise reraise
+(* Functions to print underlined locations from an input buffer. *)
+module TopErr = struct
 
-(* For coqtop -time, we display the position in the file,
-   and a glimpse of the executed command *)
+(* Given a location, returns the list of locations of each line. The last
+   line is returned separately. It also checks the location bounds. *)
 
-let pr_cmd_header {CAst.loc;v=com} =
-  let shorten s =
-    if Unicode.utf8_length s > 33 then (Unicode.utf8_sub s 0 30) ^ "..." else s
+let get_bols_of_loc ibuf (bp,ep) =
+  let add_line (b,e) lines =
+    if b < 0 || e < b then CErrors.anomaly (Pp.str "Bad location.");
+    match lines with
+      | ([],None) -> ([], Some (b,e))
+      | (fl,oe) -> ((b,e)::fl, oe)
   in
-  let noblank s = String.map (fun c ->
-      match c with
-        | ' ' | '\n' | '\t' | '\r' -> '~'
-        | x -> x
-      ) s
+  let rec lines_rec ba after = function
+    | []                  -> add_line (0,ba) after
+    | ll::_ when ll <= bp -> add_line (ll,ba) after
+    | ll::fl              ->
+        let nafter = if ll < ep then add_line (ll,ba) after else after in
+        lines_rec ll nafter fl
   in
-  let (start,stop) = Option.cata Loc.unloc (0,0) loc in
-  let safe_pr_vernac x =
-    try Ppvernac.pr_vernac x
-    with e -> str (Printexc.to_string e) in
-  let cmd = noblank (shorten (string_of_ppcmds (safe_pr_vernac com)))
-  in str "Chars " ++ int start ++ str " - " ++ int stop ++
-     str " [" ++ str cmd ++ str "] "
+  let (fl,ll) = lines_rec ibuf.len ([],None) ibuf.bols in
+  (fl,Option.get ll)
+
+let dotted_location (b,e) =
+  if e-b < 3 then
+    ("", String.make (e-b) ' ')
+  else
+    (String.make (e-b-1) '.', " ")
+
+let blanch_utf8_string s bp ep = let open Bytes in
+  let s' = make (ep-bp) ' ' in
+  let j = ref 0 in
+  for i = bp to ep - 1 do
+    let n = Char.code (get s i) in
+    (* Heuristic: assume utf-8 chars are printed using a single
+    fixed-size char and therefore contract all utf-8 code into one
+    space; in any case, preserve tabulation so
+    that its effective interpretation in terms of spacing is preserved *)
+    if get s i == '\t' then set s' !j '\t';
+    if n < 0x80 || 0xC0 <= n then incr j
+  done;
+  Bytes.sub_string s' 0 !j
+
+let adjust_loc_buf ib loc = let open Loc in
+  { loc with ep = loc.ep - ib.start; bp = loc.bp - ib.start }
+
+let print_highlight_location ib loc =
+  let (bp,ep) = Loc.unloc loc in
+  let highlight_lines =
+    match get_bols_of_loc ib (bp,ep) with
+      | ([],(bl,el)) ->
+          let shift = blanch_utf8_string ib.str bl bp in
+          let span = String.length (blanch_utf8_string ib.str bp ep) in
+          (str"> " ++ str(Bytes.sub_string ib.str bl (el-bl-1)) ++ fnl () ++
+           str"> " ++ str(shift) ++ str(String.make span '^'))
+      | ((b1,e1)::ml,(bn,en)) ->
+          let (d1,s1) = dotted_location (b1,bp) in
+          let (dn,sn) = dotted_location (ep,en) in
+          let l1 = (str"> " ++ str d1 ++ str s1 ++
+                      str(Bytes.sub_string ib.str bp (e1-bp))) in
+          let li =
+            prlist (fun (bi,ei) ->
+                      (str"> " ++ str(Bytes.sub_string ib.str bi (ei-bi)))) ml in
+          let ln = (str"> " ++ str(Bytes.sub_string ib.str bn (ep-bn)) ++
+                      str sn ++ str dn) in
+          (l1 ++ li ++ ln)
+  in
+  highlight_lines
+
+let valid_buffer_loc ib loc =
+  let (b,e) = Loc.unloc loc in b-ib.start >= 0 && e-ib.start < ib.len && b<=e
+
+(* Toplevel error explanation. *)
+let error_info_for_buffer ?loc buf =
+  match loc with
+  | None -> pr_phase ?loc ()
+  | Some loc ->
+      let fname = loc.Loc.fname in
+        (* We are in the toplevel *)
+      match fname with
+      | Loc.ToplevelInput ->
+        let nloc = adjust_loc_buf buf loc in
+        if valid_buffer_loc buf loc then
+          match pr_phase ~loc:nloc () with
+          | None -> None
+          | Some hd -> Some (hd ++ fnl () ++ print_highlight_location buf nloc)
+        (* in the toplevel, but not a valid buffer *)
+        else pr_phase ~loc ()
+      (* we are in batch mode, don't adjust location *)
+      | Loc.InFile _ -> pr_phase ~loc ()
+
+(* Actual printing routine *)
+let print_error_for_buffer ~buffer ~emacs ?loc lvl msg =
+  let pre_hdr = error_info_for_buffer ?loc buffer in
+  if emacs
+  then emacs_logger ?pre_hdr lvl msg
+  else std_logger   ?pre_hdr lvl msg
+
+(*
+let print_toplevel_parse_error (e, info) buf =
+  let loc = Loc.get_loc info in
+  let lvl = Feedback.Error in
+  let msg = CErrors.iprint (e, info) in
+  print_error_for_buffer ?loc lvl msg buf
+*)
+end
+
+let extract_default_loc loc doc_id sid : Loc.t option =
+  match loc with
+  | Some _ -> loc
+  | None ->
+    try
+      let doc = Stm.get_doc doc_id in
+      Option.cata fst None Stm.(get_ast ~doc sid)
+    with _ -> loc
+
+(** Coqtop / Coqc Console feedback handler *)
+let console_feed ~emacs ~buffer (fb : Feedback.feedback) = let open Feedback in
+  match fb.contents with
+  | Processed   -> ()
+  | Incomplete  -> ()
+  | Complete    -> ()
+  | ProcessingIn _ -> ()
+  | InProgress _ -> ()
+  | WorkerStatus (_,_) -> ()
+  | AddedAxiom  -> ()
+  | GlobRef (_,_,_,_,_) -> ()
+  | GlobDef (_,_,_,_) -> ()
+  | FileDependency (_,_) -> ()
+  | FileLoaded (_,_) -> ()
+  | Custom (_,_,_) -> ()
+  (* Re-enable when we switch back to feedback-based error printing *)
+  | Message (Error,loc,msg) -> ()
+  (* TopErr.print_error_for_buffer ?loc lvl msg top_buffer *)
+  | Message (Warning,loc,msg) ->
+    let loc = extract_default_loc loc fb.doc_id fb.span_id in
+    TopErr.print_error_for_buffer ?loc ~emacs ~buffer Warning msg
+  | Message (lvl,loc,msg) ->
+    TopErr.print_error_for_buffer ?loc ~emacs ~buffer lvl msg

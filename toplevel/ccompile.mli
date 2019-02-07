@@ -8,10 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(** [load_init_vernaculars opts ~state] Load vernaculars from
-   the init (rc) file *)
-val load_init_vernaculars : Coqargs.t -> state:Vernac.State.t-> Vernac.State.t
-
 (** [compile_files opts] compile files specified in [opts] *)
 val compile_files : Coqargs.t -> Coqcargs.t -> unit
 

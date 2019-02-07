@@ -492,14 +492,14 @@ let formatter dry file =
     if dry then Format.make_formatter (fun _ _ _ -> ()) (fun _ -> ())
     else
       match file with
-	| Some f -> Topfmt.with_output_to f
+        | Some f -> ConsoleOps.with_output_to f
 	| None -> Format.formatter_of_buffer buf
   in
   (* XXX: Fixme, this shouldn't depend on Topfmt *)
   (* We never want to see ellipsis ... in extracted code *)
   Format.pp_set_max_boxes ft max_int;
   (* We reuse the width information given via "Set Printing Width" *)
-  (match Topfmt.get_margin () with
+  (match ConsoleOps.get_margin () with
     | None -> ()
     | Some i ->
       Format.pp_set_margin ft i;

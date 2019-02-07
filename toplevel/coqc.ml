@@ -23,12 +23,11 @@ let coqc_main () =
      initialisation is run. *)
   let coqc_init ~opts args =
     set_noninteractive_mode ();
-    let opts, args = Coqtop.(coqtop_toplevel.init) ~opts args in
     opts, args
   in
   let opts, extras =
     Topfmt.(in_phase ~phase:Initialization)
-      Coqtop.(init_toplevel ~help:Usage.print_usage_coqc ~init:Coqargs.default coqc_init) List.(tl (Array.to_list Sys.argv)) in
+      Coqinit.(init_toplevel ~help:Usage.print_usage_coqc ~init:Coqargs.default coqc_init) List.(tl (Array.to_list Sys.argv)) in
 
   let copts = Coqcargs.parse extras in
 

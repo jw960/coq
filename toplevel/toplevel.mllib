@@ -4,6 +4,7 @@ Coqinit
 Coqargs
 Coqcargs
 G_toplevel
+Topfmt
 Coqloop
 Ccompile
 Coqtop
