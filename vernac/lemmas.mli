@@ -89,28 +89,6 @@ val pf_fold : (Proof_global.t -> 'a) -> t -> 'a
 val by : unit Proofview.tactic -> t -> t * bool
 (** [by tac l] apply a tactic to [l] *)
 
-module Stack : sig
-
-  type lemma = t
-  type t
-
-  val pop : t -> lemma * t option
-  val push : t option -> lemma -> t
-
-  val map_top : f:(lemma -> lemma) -> t -> t
-  val map_top_pstate : f:(Proof_global.t -> Proof_global.t) -> t -> t
-
-  val with_top : t -> f:(lemma -> 'a ) -> 'a
-  val with_top_pstate : t -> f:(Proof_global.t -> 'a ) -> 'a
-
-  val get_all_proof_names : t -> Names.Id.t list
-
-  val copy_info : src:t -> tgt:t -> t
-  (** Gets the current info without checking that the proof has been
-     completed. Useful for the likes of [Admitted]. *)
-
-end
-
 (** Starts the proof of a constant *)
 val start_lemma
   :  name:Id.t
@@ -178,3 +156,8 @@ val save_lemma_proved_delayed
   -> info:Info.t
   -> idopt:Names.lident option
   -> unit
+
+val adjust_guardness_conditions :
+  Evd.side_effects Proof_global.proof_entry ->
+  int list list ->
+  Evd.side_effects Proof_global.proof_entry
