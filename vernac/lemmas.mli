@@ -10,24 +10,6 @@
 
 open Names
 
-(** {4 Proofs attached to a constant} *)
-
-type t
-(** [Lemmas.t] represents a constant that is being proved, usually
-    interactively *)
-
-val set_endline_tactic : Genarg.glob_generic_argument -> t -> t
-(** [set_endline_tactic tac lemma] set ending tactic for [lemma] *)
-
-val pf_map : (Proof_global.t -> Proof_global.t) -> t -> t
-(** [pf_map f l] map the underlying proof object *)
-
-val pf_fold : (Proof_global.t -> 'a) -> t -> 'a
-(** [pf_fold f l] fold over the underlying proof object *)
-
-val by : unit Proofview.tactic -> t -> t * bool
-(** [by tac l] apply a tactic to [l] *)
-
 (** Creating high-level proofs with an associated constant *)
 module Proof_ending : sig
 
@@ -57,9 +39,20 @@ module Recthm : sig
     }
 end
 
+type lemma_possible_guards = int list list
+
 module Info : sig
 
-  type t
+  type t =
+    { hook : DeclareDef.Hook.t option
+    ; compute_guard : lemma_possible_guards
+    ; impargs : Impargs.manual_implicits
+    ; proof_ending : Proof_ending.t CEphemeron.key
+    (* This could be improved and the CEphemeron removed *)
+    ; other_thms : Recthm.t list
+    ; scope : DeclareDef.locality
+    ; kind : Decls.logical_kind
+    }
 
   val make
     :  ?hook: DeclareDef.Hook.t
@@ -72,6 +65,49 @@ module Info : sig
     (** Theorem, etc... *)
     -> unit
     -> t
+
+end
+
+type t =
+  { proof : Proof_global.t
+  ; info : Info.t
+  }
+(** [Lemmas.t] represents a constant that is being proved, usually
+    interactively *)
+
+(** {4 Proofs attached to a constant} *)
+
+val set_endline_tactic : Genarg.glob_generic_argument -> t -> t
+(** [set_endline_tactic tac lemma] set ending tactic for [lemma] *)
+
+val pf_map : (Proof_global.t -> Proof_global.t) -> t -> t
+(** [pf_map f l] map the underlying proof object *)
+
+val pf_fold : (Proof_global.t -> 'a) -> t -> 'a
+(** [pf_fold f l] fold over the underlying proof object *)
+
+val by : unit Proofview.tactic -> t -> t * bool
+(** [by tac l] apply a tactic to [l] *)
+
+module Stack : sig
+
+  type lemma = t
+  type t
+
+  val pop : t -> lemma * t option
+  val push : t option -> lemma -> t
+
+  val map_top : f:(lemma -> lemma) -> t -> t
+  val map_top_pstate : f:(Proof_global.t -> Proof_global.t) -> t -> t
+
+  val with_top : t -> f:(lemma -> 'a ) -> 'a
+  val with_top_pstate : t -> f:(Proof_global.t -> 'a ) -> 'a
+
+  val get_all_proof_names : t -> Names.Id.t list
+
+  val copy_info : src:t -> tgt:t -> t
+  (** Gets the current info without checking that the proof has been
+     completed. Useful for the likes of [Admitted]. *)
 
 end
 
@@ -92,8 +128,6 @@ val start_dependent_lemma
   -> ?info:Info.t
   -> Proofview.telescope
   -> t
-
-type lemma_possible_guards = int list list
 
 (** Pretty much internal, only used in ComFixpoint *)
 val start_lemma_with_initialization

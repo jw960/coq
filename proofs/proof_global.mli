@@ -12,7 +12,15 @@
      toplevel. In particular it defines the global proof
      environment. *)
 
-type t
+type t =
+  { endline_tactic : Genarg.glob_generic_argument option
+  ; section_vars : Constr.named_context option
+  ; proof : Proof.t
+  ; udecl: UState.universe_decl
+  (** Initial universe declarations *)
+  ; initial_euctx : UState.t
+  (** The initial universe context (for the statement) *)
+  }
 
 (* Should be moved into a proper view *)
 val get_proof : t -> Proof.t
