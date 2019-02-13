@@ -590,18 +590,18 @@ let print_ast fmt arg =
 
 end
 
-let declare_plugin fmt name =
+let declare_plugin ~init_id fmt name =
   fprintf fmt "let %s = \"%s\"@\n" plugin_name name;
-  fprintf fmt "let _ = Mltop.add_known_module %s@\n" plugin_name
+  fprintf fmt "let %s () = Mltop.add_known_module %s@\n" init_id plugin_name
 
-let pr_ast fmt = function
+let pr_ast ~init_id fmt = function
 | Code s -> fprintf fmt "%a@\n" print_code s
 | Comment s -> fprintf fmt "%s@\n" s
-| DeclarePlugin name -> declare_plugin fmt name
-| GramExt gram -> fprintf fmt "%a@\n" GramExt.print_ast gram
-| VernacExt vernac -> fprintf fmt "%a@\n" VernacExt.print_ast vernac
-| VernacArgumentExt arg -> fprintf fmt "%a@\n" VernacArgumentExt.print_ast arg
-| TacticExt tac -> fprintf fmt "%a@\n" TacticExt.print_ast tac
+| DeclarePlugin name -> declare_plugin ~init_id fmt name
+| GramExt gram -> fprintf fmt "%a@\n" GramExt.(print_ast ~init_id) gram
+| VernacExt vernac -> fprintf fmt "%a@\n" VernacExt.(print_ast ~init_id) vernac
+| VernacArgumentExt arg -> fprintf fmt "%a@\n" VernacArgumentExt.(print_ast ~init_id) arg
+| TacticExt tac -> fprintf fmt "%a@\n" TacticExt.(print_ast ~init tac
 | ArgumentExt arg -> fprintf fmt "%a@\n" ArgumentExt.print_ast arg
 
 let () =
@@ -613,7 +613,7 @@ let () =
   let ast = parse_file file in
   let chan = open_out output in
   let fmt = formatter_of_out_channel chan in
-  let iter ast = Format.fprintf fmt "@[%a@]%!"pr_ast ast in
+  let iter ast = Format.fprintf fmt "@[%a@]%!" pr_ast ast in
   let () = List.iter iter ast in
   let () = close_out chan in
   exit 0

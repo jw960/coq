@@ -592,6 +592,12 @@ let with_grammar_rule_protection f x =
     let () = unfreeze fs in
     iraise reraise
 
+(** Registering parsing libraries *)
+let () =
+  G_prim.init ();
+  G_constr.init ();
+  ()
+
 (** Registering grammar of generic arguments *)
 
 let () =

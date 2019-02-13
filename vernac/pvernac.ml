@@ -79,5 +79,10 @@ let main_entry proof_mode =
   Unsafe.set_tactic_entry proof_mode;
   Vernac_.main_entry
 
+(** Registering parsing libraries *)
+let () =
+  G_vernac.init ();
+  ()
+
 let () =
   register_grammar Genredexpr.wit_red_expr (Vernac_.red_expr);
