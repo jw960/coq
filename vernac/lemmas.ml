@@ -514,6 +514,9 @@ let save_proof_admitted ?proof ~pstate =
   Proof_global.apply_terminator (Proof_global.get_terminator pstate) pe
 
 let save_proof_proved ?proof ?pstate ~opaque ~idopt =
+  (* Invariant (uh) *)
+  if Option.is_empty pstate && Option.is_empty proof then
+    user_err (str "No focused proof (No proof-editing in progress).");
   let (proof_obj,terminator) =
     match proof with
     | None ->
