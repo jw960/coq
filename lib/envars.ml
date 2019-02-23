@@ -14,6 +14,15 @@ open Util
 
 let getenv_else s dft = try Sys.getenv s with Not_found -> dft ()
 
+(* Workaround coq/coq#8731 *)
+let getenv_else_non_empty s dft =
+  try
+    let v = Sys.getenv s in
+    if String.equal v ""
+    then dft ()
+    else v
+  with Not_found -> dft ()
+
 let safe_getenv warning n =
   getenv_else n (fun () ->
     warning ("Environment variable "^n^" not found: using '$"^n^"' .");
@@ -95,7 +104,7 @@ let check_file_else ~dir ~file oth =
   if Sys.file_exists (path / file) then path else oth ()
 
 let guess_coqlib fail =
-  getenv_else "COQLIB" (fun () ->
+  getenv_else_non_empty "COQLIB" (fun () ->
   let prelude = "theories/Init/Prelude.vo" in
   check_file_else ~dir:Coq_config.coqlibsuffix ~file:prelude
     (fun () ->
