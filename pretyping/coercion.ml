@@ -542,8 +542,8 @@ let inh_conv_coerce_to_gen ?loc ~program_mode resolve_tc rigidonly flags env evd
 	      error_actual_type ?loc env best_failed_evd cj t e
 	    else 
       	      inh_conv_coerce_to_fail ?loc env evd' rigidonly (Some cj.uj_val) cj.uj_type t
-	  with NoCoercionNoUnifier (_evd,_error) ->
-	    error_actual_type ?loc env best_failed_evd cj t e
+          with NoCoercionNoUnifier (evd,error) ->
+            error_actual_type ?loc env evd cj t error
   in
   let val' = match val' with Some v -> v | None -> assert(false) in
     (evd',{ uj_val = val'; uj_type = t })
