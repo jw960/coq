@@ -1,8 +1,16 @@
 (library
+ (name coq_dynlink)
+ (public_name coq.dynlink)
+ (synopsis "Fake Dynlink Library for platforms without Native Dynlink (i.e., 32bit OSX)")
+ (modules cdynlink)
+ (virtual_modules cdynlink))
+
+(library
  (name vernac)
  (synopsis "Coq's Vernacular Language")
  (public_name coq.vernac)
  (wrapped false)
+ (modules :standard \ cdynlink)
  (libraries tactics parsing))
 
 (rule

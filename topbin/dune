@@ -4,14 +4,6 @@
  (files (coqtop_bin.exe as coqtop)))
 
 (executable
- (name coqtop_bin)
- (public_name coqtop.opt)
- (package coq)
- (modules coqtop_bin)
- (libraries coq.toplevel)
- (link_flags -linkall))
-
-(executable
  (name coqtop_byte_bin)
  (public_name coqtop.byte)
  (package coq)
@@ -21,12 +13,21 @@
  (link_flags -linkall))
 
 (executable
+ (name coqtop_bin)
+ (public_name coqtop.opt)
+ (package coq)
+ (modules coqtop_bin)
+ (libraries coq.toplevel)
+ ; XXX Add static plugins
+ (link_flags -linkall (:include %{project_root}/config/static_plugins.sexp)))
+
+(executable
  (name coqc_bin)
  (public_name coqc)
  (package coq)
  (modules coqc_bin)
  (libraries coq.toplevel)
- (link_flags -linkall))
+ (link_flags -linkall (:include %{project_root}/config/static_plugins.sexp)))
 
 ; Workers
 (executables

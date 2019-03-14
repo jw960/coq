@@ -1222,6 +1222,16 @@ let write_makefile f =
 
 let _ = write_makefile "config/Makefile"
 
+(* Write foo *)
+let () =
+  let f = "config/static_plugins.sexp" in
+  safe_remove f;
+  let o = open_out f in
+  let pr s = fprintf o s in
+  pr "()";
+  close_out o;
+  Unix.chmod f 0o444
+
 let write_macos_metadata exec =
   let f = "config/Info-"^exec^".plist" in
   let () = safe_remove f in

@@ -27,7 +27,7 @@
  (public_name coqdep)
  (package coq)
  (modules coqdep_lexer coqdep_common coqdep)
- (libraries coq.lib))
+ (libraries fake_dynlink coq.lib))
 
 (ocamllex coqdep_lexer)
 
@@ -46,3 +46,9 @@
  (package coq)
  (modules coq_tex coq_dune)
  (libraries str))
+
+(library
+ (name real_dynlink)
+ (implements coq_dynlink)
+ (modules cdynlink)
+ (libraries dynlink))
