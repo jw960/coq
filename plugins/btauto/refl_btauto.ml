@@ -49,7 +49,11 @@ end
 
 module Env = struct
 
-  module ConstrHashtbl = Hashtbl.Make (Constr)
+  module ConstrHashtbl = Hashtbl.Make(struct
+    type t = Constr.t
+    let equal = Constr.equal
+    let hash k = Hashval.to_int @@ Constr.hash k
+  end)
 
   type t = (int ConstrHashtbl.t * int ref)
 

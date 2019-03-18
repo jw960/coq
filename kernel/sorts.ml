@@ -94,12 +94,12 @@ let family_equal = (==)
 open Hashset.Combine
 
 let hash = function
-  | SProp -> combinesmall 1 0
-  | Prop -> combinesmall 1 1
-  | Set -> combinesmall 1 2
+  | SProp -> combinesmall Hashval._1 Hashval._0
+  | Prop -> combinesmall Hashval._1 Hashval._1
+  | Set -> combinesmall Hashval._1 Hashval._2
   | Type u ->
     let h = Univ.Universe.hash u in
-    combinesmall 2 h
+    combinesmall Hashval._2 h
 
 module List = struct
   let mem = List.memq
@@ -140,8 +140,8 @@ let relevance_of_sort_family = function
   | _ -> Relevant
 
 let relevance_hash = function
-  | Relevant -> 0
-  | Irrelevant -> 1
+  | Relevant -> Hashval._0
+  | Irrelevant -> Hashval._1
 
 let relevance_of_sort = function
   | SProp -> Irrelevant

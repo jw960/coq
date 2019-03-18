@@ -33,7 +33,7 @@ type annot_sw = {
 
 val eq_annot_sw : annot_sw -> annot_sw -> bool
 
-val hash_annot_sw : annot_sw -> int
+val hash_annot_sw : annot_sw -> Hashval.t
 
 type sort_annot = string * int
       

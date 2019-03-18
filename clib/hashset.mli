@@ -55,9 +55,9 @@ end
 module Make (E : EqType) : S with type elt = E.t
 
 module Combine : sig
-  val combine : int -> int -> int
-  val combinesmall : int -> int -> int
-  val combine3 : int -> int -> int -> int
-  val combine4 : int -> int -> int -> int -> int
-  val combine5 : int -> int -> int -> int -> int -> int
+  val combine : Hashval.t -> Hashval.t -> Hashval.t
+  val combinesmall : Hashval.t -> Hashval.t -> Hashval.t
+  val combine3 : Hashval.t -> Hashval.t -> Hashval.t -> Hashval.t
+  val combine4 : Hashval.t -> Hashval.t -> Hashval.t -> Hashval.t -> Hashval.t
+  val combine5 : Hashval.t -> Hashval.t -> Hashval.t -> Hashval.t -> Hashval.t -> Hashval.t
 end

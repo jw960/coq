@@ -221,11 +221,12 @@ module Combine = struct
        be prime numbers. There were chosen empirically. Notice that the
        problem of hashing trees is hard and there are plenty of study on
        this topic. Therefore, there must be room for improvement here. *)
-    let alpha = 65599
-    let beta  = 7
-    let combine x y     = x * alpha + y
+    let alpha = Hashval.of_int 65599
+    let beta  = Hashval.of_int 7
+    let combine x y     = Hashval.(x * alpha + y)
     let combine3 x y z   = combine x (combine y z)
     let combine4 x y z t = combine x (combine3 y z t)
     let combine5 x y z t u = combine x (combine4 y z t u)
-    let combinesmall x y = beta * x + y
+    let combinesmall x y = Hashval.(beta * x + y)
+
 end

@@ -17,7 +17,7 @@ sig
 
     val make : Names.DirPath.t -> int -> t
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
     val compare : t -> t -> int
 
   end
@@ -47,7 +47,7 @@ sig
   val equal : t -> t -> bool
   (** Equality function *)
 
-  val hash : t -> int
+  val hash : t -> Hashval.t
 
   val make : UGlobal.t -> t
 
@@ -91,7 +91,7 @@ sig
   val equal : t -> t -> bool
   (** Equality function on formal universes *)
 
-  val hash : t -> int
+  val hash : t -> Hashval.t
   (** Hash function *)
 
   val make : Level.t -> t
@@ -291,7 +291,7 @@ sig
   val hcons : t -> t
   (** Hash-consing. *)
 
-  val hash : t -> int
+  val hash : t -> Hashval.t
   (** Hash value *)
 
   val share : t -> t * int

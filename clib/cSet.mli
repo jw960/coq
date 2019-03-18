@@ -23,7 +23,7 @@ module Make(M : OrderedType) : S
 module type HashedType =
 sig
   type t
-  val hash : t -> int
+  val hash : t -> Hashval.t
 end
 
 module Hashcons (M : OrderedType) (H : HashedType with type t = M.t) : Hashcons.S with

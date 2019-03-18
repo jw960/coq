@@ -68,16 +68,20 @@ let set_global v =
 module SConstTable = Hashtbl.Make (struct
   type t = structured_constant
   let equal = eq_structured_constant
-  let hash = hash_structured_constant
+  let hash k = Hashval.to_int @@ hash_structured_constant k
 end)
 
 module AnnotTable = Hashtbl.Make (struct
   type t = annot_switch
   let equal = eq_annot_switch
-  let hash = hash_annot_switch
+  let hash k = Hashval.to_int @@ hash_annot_switch k
 end)
 
-module ProjNameTable = Hashtbl.Make (Projection.Repr)
+module ProjNameTable = Hashtbl.Make (struct
+  type t = Projection.Repr.t
+  let equal = Projection.Repr.equal
+  let hash k = Hashval.to_int @@ Projection.Repr.hash k
+end)
 
 let str_cst_tbl : int SConstTable.t = SConstTable.create 31
 

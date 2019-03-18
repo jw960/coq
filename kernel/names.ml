@@ -34,7 +34,7 @@ struct
 
   let compare = String.compare
 
-  let hash = String.hash
+  let hash x = Hashval.of_int @@ String.hash x
 
   let check_valid ?(strict=true) x =
     let iter (fatal, x) = if fatal || strict then CErrors.user_err Pp.(str x) in
@@ -106,7 +106,7 @@ struct
     | _ -> false
 
   let hash = function
-    | Anonymous -> 0
+    | Anonymous -> Hashval._0
     | Name id -> Id.hash id
 
   let print = function
@@ -168,7 +168,7 @@ struct
     let accu = Hashset.Combine.combine (Id.hash id) accu in
     hash accu dp
 
-  let hash dp = hash 0 dp
+  let hash dp = hash Hashval._0 dp
 
   let make x = x
   let repr x = x
@@ -235,7 +235,7 @@ struct
   open Hashset.Combine
 
   let hash (i, id, dp) =
-    combine3 (Int.hash i) (Id.hash id) (DirPath.hash dp)
+    combine3 (Hashval.of_int @@ Int.hash i) (Id.hash id) (DirPath.hash dp)
 
   module Self_Hashcons =
     struct
@@ -318,10 +318,10 @@ module ModPath = struct
   open Hashset.Combine
 
   let rec hash = function
-  | MPfile dp -> combinesmall 1 (DirPath.hash dp)
-  | MPbound id -> combinesmall 2 (MBId.hash id)
+  | MPfile dp -> combinesmall Hashval._1 (DirPath.hash dp)
+  | MPbound id -> combinesmall Hashval._2 (MBId.hash id)
   | MPdot (mp, lbl) ->
-    combinesmall 3 (combine (hash mp) (Label.hash lbl))
+    combinesmall Hashval._3 (combine (hash mp) (Label.hash lbl))
 
   let initial = MPfile DirPath.initial
 
@@ -366,14 +366,14 @@ module KerName = struct
   type t = {
     modpath : ModPath.t;
     knlabel : Label.t;
-    mutable refhash : int;
+    mutable refhash : Hashval.t;
     (** Lazily computed hash. If unset, it is set to negative values. *)
   }
 
   type kernel_name = t
 
   let make modpath knlabel =
-    { modpath; knlabel; refhash = -1; }
+    { modpath; knlabel; refhash = Hashval.minus_1; }
   let repr kn = (kn.modpath, kn.knlabel)
 
   let make2 = make
@@ -404,7 +404,7 @@ module KerName = struct
   let equal kn1 kn2 =
     let h1 = kn1.refhash in
     let h2 = kn2.refhash in
-    if 0 <= h1 && 0 <= h2 && not (Int.equal h1 h2) then false
+    if Hashval.(not (is_neg h1) && not (is_neg h2) && not (equal h1 h2)) then false
     else
       Label.equal kn1.knlabel kn2.knlabel &&
       ModPath.equal kn1.modpath kn2.modpath
@@ -413,11 +413,11 @@ module KerName = struct
 
   let hash kn =
     let h = kn.refhash in
-    if h < 0 then
+    if Hashval.is_neg h then
       let { modpath = mp; knlabel = lbl; _ } = kn in
       let h = combine (ModPath.hash mp) (Label.hash lbl) in
       (* Ensure positivity on all platforms. *)
-      let h = h land 0x3FFFFFFF in
+      let h = Hashval.force_nonneg h in
       let () = kn.refhash <- h in
       h
     else h
@@ -635,11 +635,11 @@ let ind_syntactic_ord (m1, i1) (m2, i2) =
   if Int.equal c 0 then MutInd.SyntacticOrd.compare m1 m2 else c
 
 let ind_hash (m, i) =
-  Hashset.Combine.combine (MutInd.hash m) (Int.hash i)
+  Hashset.Combine.combine (MutInd.hash m) Hashval.(of_int Int.(hash i))
 let ind_user_hash (m, i) =
-  Hashset.Combine.combine (MutInd.UserOrd.hash m) (Int.hash i)
+  Hashset.Combine.combine (MutInd.UserOrd.hash m) Hashval.(of_int (Int.hash i))
 let ind_syntactic_hash (m, i) =
-  Hashset.Combine.combine (MutInd.SyntacticOrd.hash m) (Int.hash i)
+  Hashset.Combine.combine (MutInd.SyntacticOrd.hash m) Hashval.(of_int (Int.hash i))
 
 let eq_constructor (ind1, j1) (ind2, j2) = Int.equal j1 j2 && eq_ind ind1 ind2
 let eq_user_constructor (ind1, j1) (ind2, j2) =
@@ -658,11 +658,11 @@ let constructor_syntactic_ord (ind1, j1) (ind2, j2) =
   if Int.equal c 0 then ind_syntactic_ord ind1 ind2 else c
 
 let constructor_hash (ind, i) =
-  Hashset.Combine.combine (ind_hash ind) (Int.hash i)
+  Hashset.Combine.combine (ind_hash ind) Hashval.(of_int (Int.hash i))
 let constructor_user_hash (ind, i) =
-  Hashset.Combine.combine (ind_user_hash ind) (Int.hash i)
+  Hashset.Combine.combine (ind_user_hash ind) Hashval.(of_int (Int.hash i))
 let constructor_syntactic_hash (ind, i) =
-  Hashset.Combine.combine (ind_syntactic_hash ind) (Int.hash i)
+  Hashset.Combine.combine (ind_syntactic_hash ind) Hashval.(of_int (Int.hash i))
 
 module InductiveOrdered = struct
   type t = inductive
@@ -779,7 +779,7 @@ struct
       eq_ind a.proj_ind b.proj_ind && Int.equal a.proj_arg b.proj_arg
 
     let hash p =
-      Hashset.Combine.combinesmall p.proj_arg (ind_hash p.proj_ind)
+      Hashset.Combine.combinesmall Hashval.(of_int p.proj_arg) (ind_hash p.proj_ind)
 
     module SyntacticOrd = struct
       let compare a b =
@@ -791,7 +791,7 @@ struct
         a.proj_arg == b.proj_arg && eq_syntactic_ind a.proj_ind b.proj_ind
 
       let hash p =
-        Hashset.Combine.combinesmall p.proj_arg (ind_hash p.proj_ind)
+        Hashset.Combine.combinesmall Hashval.(of_int p.proj_arg) (ind_hash p.proj_ind)
     end
     module CanOrd = struct
       let compare a b =
@@ -803,7 +803,7 @@ struct
         a.proj_arg == b.proj_arg && eq_ind a.proj_ind b.proj_ind
 
       let hash p =
-        Hashset.Combine.combinesmall p.proj_arg (ind_hash p.proj_ind)
+        Hashset.Combine.combinesmall Hashval.(of_int p.proj_arg) (ind_hash p.proj_ind)
     end
     module UserOrd = struct
       let compare a b =
@@ -815,7 +815,7 @@ struct
         a.proj_arg == b.proj_arg && eq_user_ind a.proj_ind b.proj_ind
 
       let hash p =
-        Hashset.Combine.combinesmall p.proj_arg (ind_user_hash p.proj_ind)
+        Hashset.Combine.combinesmall Hashval.(of_int p.proj_arg) (ind_user_hash p.proj_ind)
     end
 
     let compare a b =
@@ -869,21 +869,21 @@ struct
 
   let repr_equal p p' = Repr.equal (repr p) (repr p')
 
-  let hash (c, b) = (if b then 0 else 1) + Repr.hash c
+  let hash (c, b) = Hashset.Combine.combinesmall (if b then Hashval._0 else Hashval._1) (Repr.hash c)
 
   module SyntacticOrd = struct
     let compare (c, b) (c', b') =
       if b = b' then Repr.SyntacticOrd.compare c c' else -1
     let equal (c, b as x) (c', b' as x') =
       x == x' || b = b' && Repr.SyntacticOrd.equal c c'
-    let hash (c, b) = (if b then 0 else 1) + Repr.SyntacticOrd.hash c
+    let hash (c, b) = Hashset.Combine.combinesmall (if b then Hashval._0 else Hashval._1) (Repr.SyntacticOrd.hash c)
   end
   module CanOrd = struct
     let compare (c, b) (c', b') =
       if b = b' then Repr.CanOrd.compare c c' else -1
     let equal (c, b as x) (c', b' as x') =
       x == x' || b = b' && Repr.CanOrd.equal c c'
-    let hash (c, b) = (if b then 0 else 1) + Repr.CanOrd.hash c
+    let hash (c, b) = Hashset.Combine.combinesmall (if b then Hashval._0 else Hashval._1) (Repr.CanOrd.hash c)
   end
 
   module Self_Hashcons =
@@ -959,10 +959,10 @@ module GlobRefInternal = struct
   let global_hash_gen hash_cst hash_ind hash_cons gr =
     let open Hashset.Combine in
     match gr with
-    | ConstRef c -> combinesmall 1 (hash_cst c)
-    | IndRef i -> combinesmall 2 (hash_ind i)
-    | ConstructRef c -> combinesmall 3 (hash_cons c)
-    | VarRef id -> combinesmall 4 (Id.hash id)
+    | ConstRef c -> combinesmall Hashval._1 (hash_cst c)
+    | IndRef i -> combinesmall Hashval._2 (hash_ind i)
+    | ConstructRef c -> combinesmall Hashval._3 (hash_cons c)
+    | VarRef id -> combinesmall Hashval._4 (Id.hash id)
 
 end
 

@@ -54,10 +54,10 @@ type annot_switch =
    {ci : case_info; rtbl : reloc_table; tailcall : bool; max_stack_size : int}
 
 val eq_structured_constant : structured_constant -> structured_constant -> bool
-val hash_structured_constant : structured_constant -> int
+val hash_structured_constant : structured_constant -> Hashval.t
 
 val eq_annot_switch : annot_switch -> annot_switch -> bool
-val hash_annot_switch : annot_switch -> int
+val hash_annot_switch : annot_switch -> Hashval.t
 
 val fun_val : vfun -> values
 val fix_val : vfix -> values

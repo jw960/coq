@@ -387,7 +387,7 @@ module Cache =
     struct
       type t = constructor
       let equal = eq_constructor
-      let hash = constructor_hash
+      let hash k = Hashval.to_int @@ constructor_hash k
     end
 
     module ConstrTable = Hashtbl.Make(ConstrHash)

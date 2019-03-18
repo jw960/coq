@@ -14,7 +14,7 @@ let repr x = x
 let unsafe_of_int x = x
 let compare = Int.compare
 let equal = Int.equal
-let hash = Int.hash
+let hash x = Hashval.of_int @@ Int.hash x
 let print x = Pp.(str "?X" ++ int x)
 
 module Set = Int.Set

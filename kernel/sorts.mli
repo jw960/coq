@@ -25,7 +25,7 @@ val type1  : t
 
 val equal : t -> t -> bool
 val compare : t -> t -> int
-val hash : t -> int
+val hash : t -> Hashval.t
 
 val is_sprop : t -> bool
 val is_set : t -> bool
@@ -51,7 +51,7 @@ val super : t -> t
 (** On binders: is this variable proof relevant *)
 type relevance = Relevant | Irrelevant
 
-val relevance_hash : relevance -> int
+val relevance_hash : relevance -> Hashval.t
 
 val relevance_equal : relevance -> relevance -> bool
 

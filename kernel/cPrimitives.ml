@@ -38,30 +38,30 @@ let equal (p1 : t) (p2 : t) =
   p1 == p2
 
 let hash = function
-  | Int63head0 -> 1
-  | Int63tail0 -> 2
-  | Int63add -> 3
-  | Int63sub -> 4
-  | Int63mul -> 5
-  | Int63div -> 6
-  | Int63mod -> 7
-  | Int63lsr -> 8
-  | Int63lsl -> 9
-  | Int63land -> 10
-  | Int63lor -> 11
-  | Int63lxor -> 12
-  | Int63addc -> 13
-  | Int63subc -> 14
-  | Int63addCarryC -> 15
-  | Int63subCarryC -> 16
-  | Int63mulc -> 17
-  | Int63diveucl -> 18
-  | Int63div21 -> 19
-  | Int63addMulDiv -> 20
-  | Int63eq -> 21
-  | Int63lt -> 22
-  | Int63le -> 23
-  | Int63compare -> 24
+  | Int63head0 -> Hashval.of_int 1
+  | Int63tail0 -> Hashval.of_int 2
+  | Int63add -> Hashval.of_int 3
+  | Int63sub -> Hashval.of_int 4
+  | Int63mul -> Hashval.of_int 5
+  | Int63div -> Hashval.of_int 6
+  | Int63mod -> Hashval.of_int 7
+  | Int63lsr -> Hashval.of_int 8
+  | Int63lsl -> Hashval.of_int 9
+  | Int63land -> Hashval.of_int 10
+  | Int63lor -> Hashval.of_int 11
+  | Int63lxor -> Hashval.of_int 12
+  | Int63addc -> Hashval.of_int 13
+  | Int63subc -> Hashval.of_int 14
+  | Int63addCarryC -> Hashval.of_int 15
+  | Int63subCarryC -> Hashval.of_int 16
+  | Int63mulc -> Hashval.of_int 17
+  | Int63diveucl -> Hashval.of_int 18
+  | Int63div21 -> Hashval.of_int 19
+  | Int63addMulDiv -> Hashval.of_int 20
+  | Int63eq -> Hashval.of_int 21
+  | Int63lt -> Hashval.of_int 22
+  | Int63le -> Hashval.of_int 23
+  | Int63compare -> Hashval.of_int 24
 
 (* Should match names in nativevalues.ml *)
 let to_string = function

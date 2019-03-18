@@ -42,7 +42,8 @@ let eq_annot_sw asw1 asw2 =
 open Hashset.Combine
 
 let hash_annot_sw asw =
-  combine (ind_hash asw.asw_ind) (String.hash asw.asw_prefix)
+  (* XXX Fix String hash interface *)
+  combine (ind_hash asw.asw_ind) Hashval.(of_int (String.hash asw.asw_prefix))
 
 type sort_annot = string * int
 

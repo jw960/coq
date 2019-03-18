@@ -38,7 +38,7 @@ sig
   val compare : t -> t -> int
   (** Comparison over identifiers. *)
 
-  val hash : t -> int
+  val hash : t -> Hashval.t
   (** Hash over identifiers. *)
 
   val is_valid : string -> bool
@@ -98,7 +98,7 @@ sig
   val equal : t -> t -> bool
   (** Equality over names. *)
 
-  val hash : t -> int
+  val hash : t -> Hashval.t
   (** Hash over names. *)
 
   val hcons : t -> t
@@ -134,7 +134,7 @@ sig
   val compare : t -> t -> int
   (** Comparison over directory paths. *)
 
-  val hash : t -> int
+  val hash : t -> Hashval.t
   (** Hash over directory paths. *)
 
   val make : module_ident list -> t
@@ -174,7 +174,7 @@ sig
   val compare : t -> t -> int
   (** Comparison over labels. *)
 
-  val hash : t -> int
+  val hash : t -> Hashval.t
   (** Hash over labels. *)
 
   val make : string -> t
@@ -213,7 +213,7 @@ sig
   val compare : t -> t -> int
   (** Comparison over unique bound names. *)
 
-  val hash : t -> int
+  val hash : t -> Hashval.t
   (** Hash over unique bound names. *)
 
   val make : DirPath.t -> Id.t -> t
@@ -248,7 +248,7 @@ sig
 
   val compare : t -> t -> int
   val equal : t -> t -> bool
-  val hash : t -> int
+  val hash : t -> Hashval.t
 
   val is_bound : t -> bool
 
@@ -300,7 +300,7 @@ sig
   (** Comparisons *)
   val compare : t -> t -> int
   val equal : t -> t -> bool
-  val hash : t -> int
+  val hash : t -> Hashval.t
 end
 
 module KNset  : CSig.SetS with type elt = KerName.t
@@ -343,25 +343,25 @@ sig
   module CanOrd : sig
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
   end
 
   module UserOrd : sig
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
   end
 
   module SyntacticOrd : sig
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
   end
 
   val equal : t -> t -> bool
   (** Default comparison, alias for [CanOrd.equal] *)
 
-  val hash : t -> int
+  val hash : t -> Hashval.t
   (** Hashing function *)
 
   val change_label : t -> Label.t -> t
@@ -433,25 +433,25 @@ sig
   module CanOrd : sig
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
   end
 
   module UserOrd : sig
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
   end
 
   module SyntacticOrd : sig
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
   end
 
   val equal : t -> t -> bool
   (** Default comparison, alias for [CanOrd.equal] *)
 
-  val hash : t -> int
+  val hash : t -> Hashval.t
 
   (** Displaying *)
 
@@ -500,20 +500,20 @@ val eq_ind : inductive -> inductive -> bool
 val eq_user_ind : inductive -> inductive -> bool
 val eq_syntactic_ind : inductive -> inductive -> bool
 val ind_ord : inductive -> inductive -> int
-val ind_hash : inductive -> int
+val ind_hash : inductive -> Hashval.t
 val ind_user_ord : inductive -> inductive -> int
-val ind_user_hash : inductive -> int
+val ind_user_hash : inductive -> Hashval.t
 val ind_syntactic_ord : inductive -> inductive -> int
-val ind_syntactic_hash : inductive -> int
+val ind_syntactic_hash : inductive -> Hashval.t
 val eq_constructor : constructor -> constructor -> bool
 val eq_user_constructor : constructor -> constructor -> bool
 val eq_syntactic_constructor : constructor -> constructor -> bool
 val constructor_ord : constructor -> constructor -> int
-val constructor_hash : constructor -> int
+val constructor_hash : constructor -> Hashval.t
 val constructor_user_ord : constructor -> constructor -> int
-val constructor_user_hash : constructor -> int
+val constructor_user_hash : constructor -> Hashval.t
 val constructor_syntactic_ord : constructor -> constructor -> int
-val constructor_syntactic_hash : constructor -> int
+val constructor_syntactic_hash : constructor -> Hashval.t
 
 (** {6 Hash-consing } *)
 
@@ -557,17 +557,17 @@ module Projection : sig
     module SyntacticOrd : sig
       val compare : t -> t -> int
       val equal : t -> t -> bool
-      val hash : t -> int
+      val hash : t -> Hashval.t
     end
     module CanOrd : sig
       val compare : t -> t -> int
       val equal : t -> t -> bool
-      val hash : t -> int
+      val hash : t -> Hashval.t
     end
     module UserOrd : sig
       val compare : t -> t -> int
       val equal : t -> t -> bool
-      val hash : t -> int
+      val hash : t -> Hashval.t
     end
 
     val constant : t -> Constant.t
@@ -580,7 +580,7 @@ module Projection : sig
     val label : t -> Label.t
 
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
     val compare : t -> t -> int
 
     val map : (MutInd.t -> MutInd.t) -> t -> t
@@ -601,12 +601,12 @@ module Projection : sig
   module SyntacticOrd : sig
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
   end
   module CanOrd : sig
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
   end
 
   val constant : t -> Constant.t
@@ -619,7 +619,7 @@ module Projection : sig
   val unfold : t -> t
 
   val equal : t -> t -> bool
-  val hash : t -> int
+  val hash : t -> Hashval.t
   val hcons : t -> t
   (** Hashconsing of projections. *)
 
@@ -656,14 +656,14 @@ module GlobRef : sig
     type nonrec t = t
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
   end
 
   module Ordered_env : sig
     type nonrec t = t
     val compare : t -> t -> int
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
   end
 
   module Set_env : CSig.SetS with type elt = t

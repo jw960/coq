@@ -28,7 +28,7 @@ module type HashconsedType =
     type u
     val hashcons :  u -> t -> t
     val eq : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
   end
 
 (** The output is a function [generate] such that [generate args] creates a
@@ -66,7 +66,7 @@ module Make (X : HashconsedType) : (S with type t = X.t and type u = X.u) =
 
     let hcons (tab, u) x =
       let y = X.hashcons u x in
-      Htbl.repr (X.hash y) y tab
+      Htbl.repr (Hashval.to_int (X.hash y)) y tab
 
     let stats (tab, _) = Htbl.stats tab
 
@@ -99,7 +99,7 @@ let recursive_hcons h f u =
 (* Basic hashcons modules for string and obj. Integers do not need be
    hashconsed.  *)
 
-module type HashedType = sig type t val hash : t -> int end
+module type HashedType = sig type t val hash : t -> Hashval.t end
 
 (* list *)
 module Hlist (D:HashedType) =
@@ -121,7 +121,7 @@ module Hlist (D:HashedType) =
       | x :: l ->
         let accu = Hashset.Combine.combine (D.hash x) accu in
         hash accu l
-      let hash l = hash 0 l
+      let hash l = hash Hashval._0 l
     end)
 
 (* string *)
@@ -142,5 +142,5 @@ module Hstring = Make(
 
     let hash s =
       let len = String.length s in
-      hash len s 0 0
+      Hashval.of_int (hash len s 0 0)
   end)

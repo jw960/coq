@@ -601,8 +601,8 @@ val compare_head_gen_leq : Univ.Instance.t instance_compare_fn ->
 
 (** {6 Hashconsing} *)
 
-val hash : constr -> int
-val case_info_hash : case_info -> int
+val hash : constr -> Hashval.t
+val case_info_hash : case_info -> Hashval.t
 
 (*********************************************************************)
 

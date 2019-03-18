@@ -51,7 +51,7 @@ module ST=struct
   struct
     type t = int * int
     let equal (i1, j1) (i2, j2) = Int.equal i1 i2 && Int.equal j1 j2
-    let hash (i, j) = Hashset.Combine.combine (Int.hash i) (Int.hash j)
+    let hash (i, j) = Hashval.to_int @@ Hashset.Combine.combine Hashval.(of_int (Int.hash i)) Hashval.(of_int (Int.hash j))
   end
   module IntPairTable = Hashtbl.Make(IntPair)
 
@@ -157,11 +157,12 @@ let rec term_equal t1 t2 =
 open Hashset.Combine
 
 let rec hash_term = function
-  | Symb c -> combine 1 (Constr.hash c)
-  | Product (s1, s2) -> combine3 2 (Sorts.hash s1) (Sorts.hash s2)
-  | Eps i -> combine 3 (Id.hash i)
-  | Appli (t1, t2) -> combine3 4 (hash_term t1) (hash_term t2)
-  | Constructor {ci_constr=(c,u); ci_arity=i; ci_nhyps=j} -> combine4 5 (constructor_hash c) i j
+  | Symb c -> combine Hashval._1 (Constr.hash c)
+  | Product (s1, s2) -> combine3 (Hashval.of_int 2) (Sorts.hash s1) (Sorts.hash s2)
+  | Eps i -> combine Hashval._3 (Id.hash i)
+  | Appli (t1, t2) -> combine3 (Hashval.of_int 4) (hash_term t1) (hash_term t2)
+  | Constructor {ci_constr=(c,u); ci_arity=i; ci_nhyps=j} ->
+          combine4 (Hashval.of_int 5) (constructor_hash c) (Hashval.of_int i) (Hashval.of_int j)
 
 type ccpattern =
     PApp of term * ccpattern list (* arguments are reversed *)
@@ -235,20 +236,20 @@ type node =
 module Constrhash = Hashtbl.Make
   (struct type t = constr
 	  let equal = eq_constr_nounivs
-	  let hash = Constr.hash
+          let hash k = Hashval.to_int @@ Constr.hash k
    end)
 module Typehash = Constrhash
 
 module Termhash = Hashtbl.Make
   (struct type t = term
 	  let equal = term_equal
-	  let hash = hash_term
+          let hash k = Hashval.to_int @@ hash_term k
    end)
 
 module Identhash = Hashtbl.Make
   (struct type t = Id.t
 	  let equal = Id.equal
-	  let hash = Id.hash
+          let hash k = Hashval.to_int @@ Id.hash k
    end)
 
 type forest=

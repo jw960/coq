@@ -97,22 +97,24 @@ let dummy_gname =
 
 open Hashset.Combine
 
+let option_hash hf z = Option.map hf z |> Option.default Hashval._0
+
 let gname_hash gn = match gn with
 | Gind (s, ind) ->
-   combinesmall 1 (combine (String.hash s) (ind_hash ind))
+   combinesmall Hashval._1 (combine Hashval.(of_int (String.hash s)) (ind_hash ind))
 | Gconstruct (s, c) ->
-   combinesmall 2 (combine (String.hash s) (constructor_hash c))
+   combinesmall Hashval._2 (combine Hashval.(of_int (String.hash s)) (constructor_hash c))
 | Gconstant (s, c) ->
-   combinesmall 3 (combine (String.hash s) (Constant.hash c))
-| Gcase (l, i) -> combinesmall 4 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gpred (l, i) -> combinesmall 5 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gfixtype (l, i) -> combinesmall 6 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gnorm (l, i) -> combinesmall 7 (combine (Option.hash Label.hash l) (Int.hash i))
-| Gnormtbl (l, i) -> combinesmall 8 (combine (Option.hash Label.hash l) (Int.hash i))
-| Ginternal s -> combinesmall 9 (String.hash s)
-| Grel i -> combinesmall 10 (Int.hash i)
-| Gnamed id -> combinesmall 11 (Id.hash id)
-| Gproj (s, p, i) -> combinesmall 12 (combine (String.hash s) (combine (ind_hash p) i))
+   combinesmall Hashval._3 (combine Hashval.(of_int (String.hash s)) (Constant.hash c))
+| Gcase (l, i) -> combinesmall Hashval._4 (combine (option_hash Label.hash l) Hashval.(of_int (Int.hash i)))
+| Gpred (l, i) -> combinesmall Hashval._5 (combine (option_hash Label.hash l) Hashval.(of_int (Int.hash i)))
+| Gfixtype (l, i) -> combinesmall Hashval._6 (combine (option_hash Label.hash l) Hashval.(of_int (Int.hash i)))
+| Gnorm (l, i) -> combinesmall Hashval._7 (combine (option_hash Label.hash l) Hashval.(of_int (Int.hash i)))
+| Gnormtbl (l, i) -> combinesmall Hashval._8 (combine (option_hash Label.hash l) Hashval.(of_int (Int.hash i)))
+| Ginternal s -> combinesmall Hashval._9 Hashval.(of_int (String.hash s))
+| Grel i -> combinesmall Hashval._10 Hashval.(of_int (Int.hash i))
+| Gnamed id -> combinesmall Hashval._11 (Id.hash id)
+| Gproj (s, p, i) -> combinesmall Hashval._12 (combine Hashval.(of_int (String.hash s)) (combine (ind_hash p) Hashval.(of_int i)))
 
 let case_ctr = ref (-1)
 
@@ -176,21 +178,21 @@ let eq_symbol sy1 sy2 =
 
 let hash_symbol symb =
   match symb with
-  | SymbValue v -> combinesmall 1 (Hashtbl.hash v) (** FIXME *)
-  | SymbSort s -> combinesmall 2 (Sorts.hash s)
-  | SymbName name -> combinesmall 3 (Name.hash name)
-  | SymbConst c -> combinesmall 4 (Constant.hash c)
-  | SymbMatch sw -> combinesmall 5 (hash_annot_sw sw)
-  | SymbInd ind -> combinesmall 6 (ind_hash ind)
-  | SymbMeta m -> combinesmall 7 m
-  | SymbEvar evk -> combinesmall 8 (Evar.hash evk)
-  | SymbLevel l -> combinesmall 9 (Univ.Level.hash l)
-  | SymbProj (i, k) -> combinesmall 10 (combine (ind_hash i) k)
+  | SymbValue v -> combinesmall Hashval._1 Hashval.(of_int (Hashtbl.hash v)) (** FIXME *)
+  | SymbSort s -> combinesmall Hashval._2 (Sorts.hash s)
+  | SymbName name -> combinesmall Hashval._3 (Name.hash name)
+  | SymbConst c -> combinesmall Hashval._4 (Constant.hash c)
+  | SymbMatch sw -> combinesmall Hashval._5 (hash_annot_sw sw)
+  | SymbInd ind -> combinesmall Hashval._6 (ind_hash ind)
+  | SymbMeta m -> combinesmall Hashval._7 Hashval.(of_int m)
+  | SymbEvar evk -> combinesmall Hashval._8 (Evar.hash evk)
+  | SymbLevel l -> combinesmall Hashval._9 (Univ.Level.hash l)
+  | SymbProj (i, k) -> combinesmall Hashval._10 (combine (ind_hash i) Hashval.(of_int k))
 
 module HashedTypeSymbol = struct
   type t = symbol
   let equal = eq_symbol
-  let hash = hash_symbol
+  let hash k = Hashval.to_int (hash_symbol k)
 end
 
 module HashtblSymbol = Hashtbl.Make(HashedTypeSymbol)
@@ -327,49 +329,49 @@ let eq_primitive p1 p2 =
   | _ -> false
 
 let primitive_hash = function
-  | Mk_prod -> 1
-  | Mk_sort -> 2
-  | Mk_ind -> 3
-  | Mk_const -> 4
-  | Mk_sw -> 5
+  | Mk_prod -> Hashval.of_int 1
+  | Mk_sort -> Hashval.of_int 2
+  | Mk_ind -> Hashval.of_int 3
+  | Mk_const -> Hashval.of_int 4
+  | Mk_sw -> Hashval.of_int 5
   | Mk_fix (r, i) ->
-     let h = Array.fold_left (fun h i -> combine h (Int.hash i)) 0 r in
-     combinesmall 6 (combine h (Int.hash i))
+     let h = Array.fold_left (fun h i -> combine h Hashval.(of_int (Int.hash i))) Hashval._0 r in
+     combinesmall Hashval._6 (combine h Hashval.(of_int (Int.hash i)))
   | Mk_cofix i ->
-     combinesmall 7 (Int.hash i)
+     combinesmall Hashval._7 Hashval.(of_int(Int.hash i))
   | Mk_rel i ->
-     combinesmall 8 (Int.hash i)
+     combinesmall Hashval._8 Hashval.(of_int(Int.hash i))
   | Mk_var id ->
-     combinesmall 9 (Id.hash id)
-  | Is_int -> 11
-  | Cast_accu -> 12
-  | Upd_cofix -> 13
-  | Force_cofix -> 14
-  | Mk_uint -> 15
-  | Mk_int -> 16
-  | Mk_bool -> 17
-  | Val_to_int -> 18
-  | Mk_meta -> 19
-  | Mk_evar -> 20
-  | MLand -> 21
-  | MLle -> 22
-  | MLlt -> 23
-  | MLinteq -> 24
-  | MLlsl -> 25
-  | MLlsr -> 26
-  | MLland -> 27
-  | MLlor -> 28
-  | MLlxor -> 29
-  | MLadd -> 30
-  | MLsub -> 31
-  | MLmul -> 32
-  | MLmagic -> 33
-  | Coq_primitive (prim, None) -> combinesmall 34 (CPrimitives.hash prim)
+     combinesmall Hashval._9 (Id.hash id)
+  | Is_int -> Hashval._11
+  | Cast_accu -> Hashval._12
+  | Upd_cofix -> Hashval._13
+  | Force_cofix -> Hashval._14
+  | Mk_uint -> Hashval._15
+  | Mk_int -> Hashval._16
+  | Mk_bool -> Hashval._17
+  | Val_to_int -> Hashval._18
+  | Mk_meta -> Hashval._19
+  | Mk_evar -> Hashval._20
+  | MLand -> Hashval._21
+  | MLle -> Hashval._22
+  | MLlt -> Hashval._23
+  | MLinteq -> Hashval._24
+  | MLlsl -> Hashval._25
+  | MLlsr -> Hashval._26
+  | MLland -> Hashval._27
+  | MLlor -> Hashval._28
+  | MLlxor -> Hashval._29
+  | MLadd -> Hashval._30
+  | MLsub -> Hashval._31
+  | MLmul -> Hashval._32
+  | MLmagic -> Hashval._33
+  | Coq_primitive (prim, None) -> combinesmall Hashval._34 (CPrimitives.hash prim)
   | Coq_primitive (prim, Some (prefix,(kn,_))) ->
-     combinesmall 35 (combine3 (String.hash prefix) (Constant.hash kn) (CPrimitives.hash prim))
-  | Mk_proj -> 36
-  | MLarrayget -> 37
-  | Mk_empty_instance -> 38
+     combinesmall Hashval._35 (combine3 (Hashval.of_int @@ String.hash prefix) (Constant.hash kn) (CPrimitives.hash prim))
+  | Mk_proj -> Hashval.of_int 36
+  | MLarrayget -> Hashval.of_int 37
+  | Mk_empty_instance -> Hashval.of_int 38
 
 type mllambda =
   | MLlocal        of lname 
@@ -492,63 +494,63 @@ and eq_mllam_branches gn1 gn2 n env1 env2 br1 br2 =
   Array.equal eq_branch br1 br2
 
 (* hash_mllambda gn n env t computes the hash for t ignoring occurrences of gn *)
-let rec hash_mllambda gn n env t =
+let rec hash_mllambda gn n (env : int LNmap.t) t =
   match t with
-  | MLlocal ln -> combinesmall 1 (LNmap.find ln env)
-  | MLglobal gn' -> combinesmall 2 (if eq_gname gn gn' then 0 else gname_hash gn')
-  | MLprimitive prim -> combinesmall 3 (primitive_hash prim)
+  | MLlocal ln -> combinesmall Hashval._1 Hashval.(of_int (LNmap.find ln env))
+  | MLglobal gn' -> combinesmall Hashval._2 (if eq_gname gn gn' then Hashval._0 else gname_hash gn')
+  | MLprimitive prim -> combinesmall Hashval._3 (primitive_hash prim)
   | MLlam (lns, ml) ->
       let env = push_lnames n env lns in
-      combinesmall 4 (combine (Array.length lns) (hash_mllambda gn (n+1) env ml))
+      combinesmall Hashval._4 (combine Hashval.(of_int (Array.length lns)) (hash_mllambda gn (n+1) env ml))
   | MLletrec (defs, body) ->
       let lns = Array.map (fun (x,_,_) -> x) defs in
       let env = push_lnames n env lns in
       let n = n + Array.length defs in
-      let h = combine (hash_mllambda gn n env body) (Array.length defs) in
-      combinesmall 5 (hash_mllambda_letrec gn n env h defs)
+      let h = combine (hash_mllambda gn n env body) Hashval.(of_int (Array.length defs)) in
+      combinesmall Hashval._5 (hash_mllambda_letrec gn n env h defs)
   | MLlet (ln, def, body) ->
       let hdef = hash_mllambda gn n env def in
       let env = LNmap.add ln n env in
-      combinesmall 6 (combine hdef (hash_mllambda gn (n+1) env body))
+      combinesmall Hashval._6 (combine hdef (hash_mllambda gn (n+1) env body))
   | MLapp (ml, args) ->
       let h = hash_mllambda gn n env ml in
-      combinesmall 7 (hash_mllambda_array gn n env h args)
+      combinesmall Hashval._7 (hash_mllambda_array gn n env h args)
   | MLif (cond,br,br') ->
       let hcond = hash_mllambda gn n env cond in
       let hbr = hash_mllambda gn n env br in
       let hbr' = hash_mllambda gn n env br' in
-      combinesmall 8 (combine3 hcond hbr hbr')
+      combinesmall Hashval._8 (combine3 hcond hbr hbr')
   | MLmatch (annot, c, accu, br) ->
       let hannot = hash_annot_sw annot in
       let hc = hash_mllambda gn n env c in
       let haccu = hash_mllambda gn n env accu in
-      combinesmall 9 (hash_mllam_branches gn n env (combine3 hannot hc haccu) br)
+      combinesmall Hashval._9 (hash_mllam_branches gn n env (combine3 hannot hc haccu) br)
   | MLconstruct (pf, cs, args) ->
       let hpf = String.hash pf in
       let hcs = constructor_hash cs in
-      combinesmall 10 (hash_mllambda_array gn n env (combine hpf hcs) args)
+      combinesmall Hashval._10 (hash_mllambda_array gn n env (combine Hashval.(of_int hpf) hcs) args)
   | MLint i ->
-      combinesmall 11 i
+      combinesmall Hashval._11 Hashval.(of_int i)
   | MLuint i ->
-      combinesmall 12 (Uint63.hash i)
+      combinesmall Hashval._12 Hashval.(of_int (Uint63.hash i))
   | MLsetref (id, ml) ->
       let hid = String.hash id in
       let hml = hash_mllambda gn n env ml in
-      combinesmall 13 (combine hid hml)
+      combinesmall Hashval._13 (combine Hashval.(of_int hid) hml)
   | MLsequence (ml, ml') ->
       let hml = hash_mllambda gn n env ml in
       let hml' = hash_mllambda gn n env ml' in
-      combinesmall 14 (combine hml hml')
+      combinesmall Hashval._14 (combine hml hml')
   | MLarray arr ->
-      combinesmall 15 (hash_mllambda_array gn n env 1 arr)
+      combinesmall Hashval._15 (hash_mllambda_array gn n env Hashval._1 arr)
   | MLisaccu (s, ind, c) ->
-      combinesmall 16 (combine (String.hash s) (combine (ind_hash ind) (hash_mllambda gn n env c)))
+      combinesmall Hashval._16 (combine Hashval.(of_int (String.hash s)) (combine (ind_hash ind) (hash_mllambda gn n env c)))
 
 and hash_mllambda_letrec gn n env init defs =
   let hash_def (_,args,ml) =
     let env = push_lnames n env args in
     let nargs = Array.length args in
-    combine nargs (hash_mllambda gn (n + nargs) env ml)
+    combine Hashval.(of_int nargs) (hash_mllambda gn (n + nargs) env ml)
   in
   Array.fold_left (fun acc t -> combine (hash_def t) acc) init defs
 
@@ -561,7 +563,7 @@ and hash_mllam_branches gn n env init br =
     let hcs = constructor_hash cs in
     let env = opush_lnames n env args in
     let hbody = hash_mllambda gn (n + nargs) env body in
-    combine3 nargs hcs hbody
+    combine3 (Hashval.of_int nargs) hcs hbody
   in
   let hash_branch acc (ptl,body) =
     List.fold_left (fun acc t -> combine (hash_cargs t body) acc) acc ptl
@@ -688,32 +690,32 @@ let hash_global g =
       let nlns = Array.length lns in
       let nmls = Array.length mls in
       let env = push_lnames 0 LNmap.empty lns in
-      let hmls = hash_mllambda_array gn nlns env (combine nlns nmls) mls in
-      combinesmall 1 hmls
+      let hmls = hash_mllambda_array gn nlns env (combine Hashval.(of_int nlns) Hashval.(of_int nmls)) mls in
+      combinesmall Hashval._1 hmls
   | Gtblfixtype (gn,lns,mls) ->
       let nlns = Array.length lns in
       let nmls = Array.length mls in
       let env = push_lnames 0 LNmap.empty lns in
-      let hmls = hash_mllambda_array gn nlns env (combine nlns nmls) mls in
-      combinesmall 2 hmls
+      let hmls = hash_mllambda_array gn nlns env (combine Hashval.(of_int nlns) Hashval.(of_int nmls)) mls in
+      combinesmall Hashval._2 hmls
   | Glet (gn, def) ->
-      combinesmall 3 (hash_mllambda gn 0 LNmap.empty def)
+      combinesmall Hashval._3 (hash_mllambda gn 0 LNmap.empty def)
   | Gletcase (gn,lns,annot,c,accu,br) ->
       let nlns = Array.length lns in
       let env = push_lnames 0 LNmap.empty lns in
       let t = MLmatch (annot,c,accu,br) in
-      combinesmall 4 (combine nlns (hash_mllambda gn nlns env t))
-  | Gopen s -> combinesmall 5 (String.hash s)
+      combinesmall Hashval._4 (combine Hashval.(of_int nlns) (hash_mllambda gn nlns env t))
+  | Gopen s -> combinesmall Hashval._5 Hashval.(of_int (String.hash s))
   | Gtype (ind, arr) ->
-      combinesmall 6 (combine (ind_hash ind) (Array.fold_left combine 0 arr))
-  | Gcomment s -> combinesmall 7 (String.hash s)
+      combinesmall Hashval._6 (combine (ind_hash ind) (Array.fold_left (fun x y -> combine x Hashval.(of_int y)) Hashval._0 arr))
+  | Gcomment s -> combinesmall Hashval._7 Hashval.(of_int (String.hash s))
   
 let global_stack = ref ([] : global list)
 
 module HashedTypeGlobal = struct
   type t = global
   let equal = eq_global
-  let hash = hash_global
+  let hash k = Hashval.to_int @@ hash_global k
 end
 
 module HashtblGlobal = Hashtbl.Make(HashedTypeGlobal)
@@ -1792,7 +1794,7 @@ let pp_global fmt g =
 	pp_ldecls params pp_array t 
   | Gletcase(gn,params,annot,a,accu,bs) ->
       Format.fprintf fmt "@[(* Hash = %i *)@\nlet rec %a %a =@\n  %a@]@\n@."
-      (hash_global g)
+      (Hashval.to_int (hash_global g))
 	pp_gname gn pp_ldecls params 
 	pp_mllam (MLmatch(annot,a,accu,bs))
   | Gcomment s ->

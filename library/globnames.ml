@@ -126,8 +126,8 @@ module ExtRefOrdered = struct
   open Hashset.Combine
 
   let hash = function
-  | TrueGlobal gr -> combinesmall 1 (GlobRef.Ordered_env.hash gr)
-  | SynDef kn -> combinesmall 2 (KerName.hash kn)
+  | TrueGlobal gr -> combinesmall Hashval._1 (GlobRef.Ordered_env.hash gr)
+  | SynDef kn -> combinesmall Hashval._2 (KerName.hash kn)
 
 end
 

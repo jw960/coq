@@ -43,7 +43,7 @@ type arg_kind =
 
 type args_red = arg_kind list
 
-val hash : t -> int
+val hash : t -> Hashval.t
 
 val to_string : t -> string
 
