@@ -106,7 +106,7 @@ struct
     | _ -> false
 
   let hash = function
-    | Anonymous -> 0
+    | Anonymous -> Hashval.zero
     | Name id -> Id.hash id
 
   let print = function
@@ -168,7 +168,7 @@ struct
     let accu = Hashset.Combine.combine (Id.hash id) accu in
     hash accu dp
 
-  let hash dp = hash 0 dp
+  let hash dp = hash Hashval.zero dp
 
   let make x = x
   let repr x = x
@@ -318,10 +318,10 @@ module ModPath = struct
   open Hashset.Combine
 
   let rec hash = function
-  | MPfile dp -> combinesmall 1 (DirPath.hash dp)
-  | MPbound id -> combinesmall 2 (MBId.hash id)
+  | MPfile dp -> combinesmall Hashval.one (DirPath.hash dp)
+  | MPbound id -> combinesmall Hashval.two (MBId.hash id)
   | MPdot (mp, lbl) ->
-    combinesmall 3 (combine (hash mp) (Label.hash lbl))
+    combinesmall Hashval.three (combine (hash mp) (Label.hash lbl))
 
   let initial = MPfile DirPath.initial
 
@@ -366,7 +366,7 @@ module KerName = struct
   type t = {
     modpath : ModPath.t;
     knlabel : Label.t;
-    mutable refhash : int;
+    mutable refhash : Hashval.t;
     (** Lazily computed hash. If unset, it is set to negative values. *)
   }
 
@@ -404,20 +404,20 @@ module KerName = struct
   let equal kn1 kn2 =
     let h1 = kn1.refhash in
     let h2 = kn2.refhash in
-    if 0 <= h1 && 0 <= h2 && not (Int.equal h1 h2) then false
+    if 0 <= h1 && 0 <= h2 && not Hashval.(equal h1 h2) then false
     else
       Label.equal kn1.knlabel kn2.knlabel &&
       ModPath.equal kn1.modpath kn2.modpath
 
   open Hashset.Combine
 
-  let hash kn =
+  let hash kn : Hashval.t =
     let h = kn.refhash in
     if h < 0 then
       let { modpath = mp; knlabel = lbl; _ } = kn in
       let h = combine (ModPath.hash mp) (Label.hash lbl) in
       (* Ensure positivity on all platforms. *)
-      let h = h land 0x3FFFFFFF in
+      let h = Hashval.(h land (of_int 0x3FFFFFFF)) in
       let () = kn.refhash <- h in
       h
     else h

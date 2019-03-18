@@ -18,7 +18,7 @@ sig
 
   (** Equality on strings *)
 
-  val hash : string -> int
+  val hash : string -> Hashval.t
   (** Hashing on strings. Should be compatible with generic one. *)
 
   val is_empty : string -> bool

@@ -33,7 +33,7 @@ module type S = sig
   type t
   val create : int -> t
   val clear : t -> unit
-  val repr : int -> elt -> t -> elt
+  val repr : int32 -> elt -> t -> elt
   val stats : t -> statistics
 end
 
@@ -46,7 +46,7 @@ module Make (E : EqType) =
 
   type t = {
     mutable table : elt Weak.t array;
-    mutable hashes : int array array;
+    mutable hashes : Hashval.t array array;
     mutable limit : int;               (* bucket size limit *)
     mutable oversize : int;            (* number of oversize buckets *)
     mutable rover : int;               (* for internal bookkeeping *)
@@ -176,14 +176,14 @@ module Make (E : EqType) =
     in
     loop 0
 
-  let find_or h t d ifnotfound =
+  let find_or (h : Hashval.t) t d ifnotfound =
     let index = get_index t h in
     let bucket = t.table.(index) in
     let hashes = t.hashes.(index) in
     let sz = Weak.length bucket in
     let rec loop i =
       if i >= sz then ifnotfound index
-      else if Int.equal h hashes.(i) then begin
+      else if Hashval.equal h hashes.(i) then begin
         match Weak.get bucket i with
         | Some v when E.eq v d -> v
         | _ -> loop (i + 1)

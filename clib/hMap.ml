@@ -12,7 +12,7 @@ module type HashedType =
 sig
   type t
   val compare : t -> t -> int
-  val hash : t -> int
+  val hash : t -> Hashval.t
 end
 
 module SetMake(M : HashedType) =

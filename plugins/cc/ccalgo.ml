@@ -55,7 +55,7 @@ module ST=struct
   struct
     type t = int * int
     let equal (i1, j1) (i2, j2) = Int.equal i1 i2 && Int.equal j1 j2
-    let hash (i, j) = Hashset.Combine.combine (Int.hash i) (Int.hash j)
+    let hash (i, j) = Hashset.Combine.combine Hashval.(of_int i) (Hashval.of_int j)
   end
   module IntPairTable = Hashtbl.Make(IntPair)
 

@@ -30,7 +30,7 @@ type key =
 module KeyOrdered = struct
   type t = key
 
-  let hash gr =
+  let hash gr = Hashval.of_int @@
     match gr with
     | KGlob gr -> 9 + GlobRef.Ordered.hash gr
     | KLam -> 0
@@ -48,8 +48,8 @@ module KeyOrdered = struct
     | KGlob gr1, KGlob gr2 -> GlobRef.Ordered.compare gr1 gr2
     | _, KGlob _ -> -1
     | KGlob _, _ -> 1
-    | k, k' -> Int.compare (hash k) (hash k')
-    
+    | k, k' -> Hashval.compare (hash k) (hash k')
+
   let equal k1 k2 =
     match k1, k2 with
     | KGlob gr1, KGlob gr2 -> GlobRef.Ordered.equal gr1 gr2

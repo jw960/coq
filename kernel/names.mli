@@ -134,7 +134,7 @@ sig
   val compare : t -> t -> int
   (** Comparison over directory paths. *)
 
-  val hash : t -> int
+  val hash : t -> Hashval.t
   (** Hash over directory paths. *)
 
   val make : module_ident list -> t
@@ -580,7 +580,7 @@ module Projection : sig
     val label : t -> Label.t
 
     val equal : t -> t -> bool
-    val hash : t -> int
+    val hash : t -> Hashval.t
     val compare : t -> t -> int
 
     val map : (MutInd.t -> MutInd.t) -> t -> t

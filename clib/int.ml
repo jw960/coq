@@ -14,7 +14,7 @@ external equal : int -> int -> bool = "%eq"
 
 external compare : int -> int -> int = "caml_int_compare"
 
-let hash i = i land 0x3FFFFFFF
+let hash i = Hashval.of_int (i land 0x3FFFFFFF)
 
 module Self =
 struct

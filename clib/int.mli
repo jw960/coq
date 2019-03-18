@@ -16,7 +16,7 @@ external equal : t -> t -> bool = "%eq"
 
 external compare : t -> t -> int = "caml_int_compare"
 
-val hash : t -> int
+val hash : t -> Hashval.t
 
 module Set : Set.S with type elt = t
 module Map : CMap.ExtS with type key = t and module Set := Set

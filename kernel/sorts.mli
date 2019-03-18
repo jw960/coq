@@ -51,7 +51,7 @@ val super : t -> t
 (** On binders: is this variable proof relevant *)
 type relevance = Relevant | Irrelevant
 
-val relevance_hash : relevance -> int
+val relevance_hash : relevance -> Hashval.t
 
 val relevance_equal : relevance -> relevance -> bool
 

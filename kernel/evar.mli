@@ -29,7 +29,7 @@ val equal : t -> t -> bool
 val compare : t -> t -> int
 (** Comparison over existential variables. *)
 
-val hash : t -> int
+val hash : t -> Hashval.t
 (** Hash over existential variables. *)
 
 val print : t -> Pp.t

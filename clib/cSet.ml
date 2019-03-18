@@ -18,13 +18,7 @@ module type S = Set.S
 
 module Make(M : OrderedType)= Set.Make(M)
 
-module type HashedType =
-sig
-  type t
-  val hash : t -> int
-end
-
-module Hashcons(M : OrderedType)(H : HashedType with type t = M.t)  =
+module Hashcons(M : OrderedType)(H : Hashval.Type with type t = M.t)  =
 struct
   module Set = Make(M)
 
@@ -60,7 +54,7 @@ struct
     type t = set
     type u = M.t -> M.t
     let eq s1 s2 = s1 == s2 || eqeq (spine s1 []) (spine s2 [])
-    let hash s = Set.fold (fun v accu -> combine (H.hash v) accu) s 0
+    let hash s = Set.fold (fun v accu -> combine (H.hash v) accu) s Hashval.zero
     let hashcons = umap
   end
 

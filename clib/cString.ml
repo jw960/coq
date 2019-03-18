@@ -13,7 +13,7 @@ module type S = module type of String
 module type ExtS =
 sig
   include S
-  val hash : string -> int
+  val hash : string -> Hashval.t
   val is_empty : string -> bool
   val explode : string -> string list
   val implode : string list -> string
@@ -39,12 +39,12 @@ include String
 let rec hash len s i accu =
   if i = len then accu
   else
-    let c = Char.code (String.unsafe_get s i) in
-    hash len s (succ i) (accu * 19 + c)
+    let c = Hashval.of_int @@ Char.code (String.unsafe_get s i) in
+    hash len s (succ i) Hashval.(accu * (of_int 19) + c)
 
 let hash s =
   let len = String.length s in
-  hash len s 0 0
+  hash len s 0 Hashval.zero
 
 let explode s =
   let rec explode_rec n =
