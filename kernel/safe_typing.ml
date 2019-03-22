@@ -421,6 +421,30 @@ let check_required current_libs needed =
   in
   Array.iter check needed
 
+(** Insertion of constants and parameters in environment *)
+type 'a effect_entry =
+| EffectEntry : private_constants effect_entry
+| PureEntry : unit effect_entry
+
+type global_declaration =
+  | ConstantEntry : 'a effect_entry * 'a Entries.constant_entry -> global_declaration
+  | GlobalRecipe of Cooking.recipe
+
+type exported_private_constant =
+  Constant.t * Entries.side_effect_role
+
+(** Trace operators *)
+type trace_ops =
+  { constant : bool * Label.t * global_declaration -> unit
+  ; mind : Label.t * Entries.mutual_inductive_entry -> unit
+  ; constraints: Univ.Constraint.t -> unit
+  ; named_assum : (Id.t * Constr.types * bool) Univ.in_universe_context_set -> unit
+  ; named_def: Id.t * Entries.section_def_entry -> unit
+  ; other : string -> unit
+  }
+
+let tops = ref None
+let set_trace_ops t = tops := Some t
 
 (** {6 Insertion of section variables} *)
 
@@ -441,12 +465,14 @@ let safe_push_named d env =
 
 
 let push_named_def (id,de) senv =
+  Option.iter (fun t -> t.named_def (id,de)) !tops;
   let c, r, typ = Term_typing.translate_local_def senv.env id de in
   let x = Context.make_annot id r in
   let env'' = safe_push_named (LocalDef (x, c, typ)) senv.env in
   { senv with env = env'' }
 
 let push_named_assum ((id,t,poly),ctx) senv =
+  Option.iter (fun _t -> _t.named_assum ((id,t,poly),ctx)) !tops;
   let senv' = push_context_set poly ctx senv in
   let t, r = Term_typing.translate_local_assum senv'.env t in
   let x = Context.make_annot id r in
@@ -550,18 +576,6 @@ let add_field ?(is_include=false) ((l,sfb) as field) gn senv =
 (** Applying a certain function to the resolver of a safe environment *)
 
 let update_resolver f senv = { senv with modresolver = f senv.modresolver }
-
-(** Insertion of constants and parameters in environment *)
-type 'a effect_entry =
-| EffectEntry : private_constants effect_entry
-| PureEntry : unit effect_entry
-
-type global_declaration =
-  | ConstantEntry : 'a effect_entry * 'a Entries.constant_entry -> global_declaration
-  | GlobalRecipe of Cooking.recipe
-
-type exported_private_constant = 
-  Constant.t * Entries.side_effect_role
 
 let add_constant_aux ~in_section senv (kn, cb) =
   let l = Constant.label kn in
@@ -805,6 +819,7 @@ let export_private_constants ~in_section ce senv =
   (ce, exported), senv
 
 let add_constant ~in_section l decl senv =
+  Option.iter (fun t -> t.constant (in_section, l, decl)) !tops;
   let kn = Constant.make2 senv.modpath l in
   let senv =
     let cb = 
@@ -841,6 +856,7 @@ let check_mind mie lab =
     assert (Id.equal (Label.to_id lab) oie.mind_entry_typename)
 
 let add_mind l mie senv =
+  Option.iter (fun t -> t.mind (l, mie)) !tops;
   let () = check_mind mie l in
   let kn = MutInd.make2 senv.modpath l in
   let mib = Indtypes.check_inductive senv.env kn mie in
@@ -852,6 +868,7 @@ let add_mind l mie senv =
 (** Insertion of module types *)
 
 let add_modtype l params_mte inl senv =
+  Option.iter (fun t -> t.other "modtype") !tops;
   let mp = MPdot(senv.modpath, l) in
   let mtb = Mod_typing.translate_modtype senv.env mp inl params_mte  in
   let mtb = Declareops.hcons_module_type mtb in
@@ -873,6 +890,7 @@ let full_add_module_type mp mt senv =
 (** Insertion of modules *)
 
 let add_module l me inl senv =
+  Option.iter (fun t -> t.other "module") !tops;
   let mp = MPdot(senv.modpath, l) in
   let mb = Mod_typing.translate_module senv.env mp inl me in
   let mb = Declareops.hcons_module_body mb in
@@ -1284,6 +1302,7 @@ let register_inductive ind prim senv =
   add_retroknowledge action senv
 
 let add_constraints c =
+  Option.iter (fun t -> t.constraints c) !tops;
   add_constraints
     (Now (false, Univ.ContextSet.add_constraints c Univ.ContextSet.empty))
 
