@@ -74,6 +74,37 @@ val join_safe_environment :
 val is_joined_environment : safe_environment -> bool
 (** {6 Enriching a safe environment } *)
 
+(** Insertion of global axioms or definitions *)
+
+type 'a effect_entry =
+| EffectEntry : private_constants effect_entry
+| PureEntry : unit effect_entry
+
+type global_declaration =
+  | ConstantEntry : 'a effect_entry * 'a Entries.constant_entry -> global_declaration
+  | GlobalRecipe of Cooking.recipe
+
+(** Trace operations  *)
+type trace_ops =
+  { constant : DirPath.t * Label.t * global_declaration -> unit
+  ; mind : DirPath.t * Label.t * Entries.mutual_inductive_entry -> unit
+  ; constraints: Univ.Constraint.t -> unit
+  ; named_assum : (Id.t * Constr.types * bool) Univ.in_universe_context_set -> unit
+  ; named_def: Id.t * Entries.section_def_entry -> unit
+  ; push_context : bool * Univ.UContext.t -> unit
+  ; push_context_set : bool * Univ.ContextSet.t -> unit
+  ; lib_start : DirPath.t -> unit
+  ; mod_impl : Label.t * Entries.module_entry * Declarations.inline -> unit
+  ; mod_start : Label.t -> unit
+  ; mod_end : Label.t * (Entries.module_struct_entry * Declarations.inline) option -> unit
+  ; mod_param : MBId.t * Entries.module_struct_entry * Declarations.inline -> unit
+  ; mod_include : Entries.module_struct_entry * bool * Declarations.inline -> unit
+  ; mod_type : Label.t * Entries.module_type_entry * Declarations.inline -> unit
+  ; mod_type_start : Label.t -> unit
+  ; mod_type_end : Label.t -> unit
+  ; other : string -> unit
+  }
+
 (** Insertion of local declarations (Local or Variables) *)
 
 val push_named_assum :
@@ -85,22 +116,14 @@ val push_named_assum :
 val push_named_def :
   Id.t * Entries.section_def_entry -> safe_transformer0
 
-(** Insertion of global axioms or definitions *)
-
-type 'a effect_entry =
-| EffectEntry : private_constants effect_entry
-| PureEntry : unit effect_entry
-
-type global_declaration =
-  | ConstantEntry : 'a effect_entry * 'a Entries.constant_entry -> global_declaration
-  | GlobalRecipe of Cooking.recipe
-
 type exported_private_constant = 
   Constant.t * Entries.side_effect_role
 
 val export_private_constants : in_section:bool ->
   private_constants Entries.definition_entry ->
   (unit Entries.definition_entry * exported_private_constant list) safe_transformer
+
+val set_trace_ops : trace_ops -> unit
 
 (** returns the main constant plus a list of auxiliary constants (empty
     unless one requires the side effects to be exported) *)

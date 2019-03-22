@@ -10,6 +10,13 @@
 
 open Names
 
+type trace_ops =
+  { snapshot_env : int -> unit
+  ; restore_env : int -> unit
+  }
+
+val set_trace_ops : trace_ops -> unit
+
 (** Lib: record of operations, backtrack, low-level sections *)
 
 (** This module provides a general mechanism to keep a trace of all operations
