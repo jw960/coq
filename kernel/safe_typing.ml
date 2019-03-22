@@ -278,6 +278,37 @@ end
 
 type private_constants = SideEffects.t
 
+type 'a effect_entry =
+| EffectEntry : private_constants effect_entry
+| PureEntry : unit effect_entry
+
+type global_declaration =
+  | ConstantEntry : 'a effect_entry * 'a Entries.constant_entry -> global_declaration
+  | GlobalRecipe of Cooking.recipe
+
+(** Trace operators *)
+type trace_ops =
+  { constant : bool * Label.t * global_declaration -> unit
+  ; mind : Label.t * Entries.mutual_inductive_entry -> unit
+  ; constraints: Univ.Constraint.t -> unit
+  ; named_assum : (Id.t * Constr.types * bool) Univ.in_universe_context_set -> unit
+  ; named_def: Id.t * Entries.section_def_entry -> unit
+  ; push_context_set : bool * Univ.ContextSet.t -> unit
+  ; lib_start : DirPath.t -> unit
+  ; mod_impl : Label.t * Entries.module_entry * Declarations.inline -> unit
+  ; mod_start : Label.t -> unit
+  ; mod_end : Label.t * (Entries.module_struct_entry * Declarations.inline) option -> unit
+  ; mod_param : MBId.t * Entries.module_struct_entry * Declarations.inline -> unit
+  ; mod_include : Entries.module_struct_entry * bool * Declarations.inline -> unit
+  ; mod_type_ : Label.t * Entries.module_type_entry * Declarations.inline -> unit
+  ; mod_type_start : Label.t -> unit
+  ; mod_type_end : Label.t -> unit
+  ; other : string -> unit
+  }
+
+let tops = ref None
+let set_trace_ops t = tops := Some t
+
 let side_effects_of_private_constants l =
   let ans = List.rev (SideEffects.repr l) in
   List.map_append (fun { eff; _ } -> eff) ans
@@ -422,29 +453,8 @@ let check_required current_libs needed =
   Array.iter check needed
 
 (** Insertion of constants and parameters in environment *)
-type 'a effect_entry =
-| EffectEntry : private_constants effect_entry
-| PureEntry : unit effect_entry
-
-type global_declaration =
-  | ConstantEntry : 'a effect_entry * 'a Entries.constant_entry -> global_declaration
-  | GlobalRecipe of Cooking.recipe
-
 type exported_private_constant =
   Constant.t * Entries.side_effect_role
-
-(** Trace operators *)
-type trace_ops =
-  { constant : bool * Label.t * global_declaration -> unit
-  ; mind : Label.t * Entries.mutual_inductive_entry -> unit
-  ; constraints: Univ.Constraint.t -> unit
-  ; named_assum : (Id.t * Constr.types * bool) Univ.in_universe_context_set -> unit
-  ; named_def: Id.t * Entries.section_def_entry -> unit
-  ; other : string -> unit
-  }
-
-let tops = ref None
-let set_trace_ops t = tops := Some t
 
 (** {6 Insertion of section variables} *)
 
@@ -479,6 +489,10 @@ let push_named_assum ((id,t,poly),ctx) senv =
   let env'' = safe_push_named (LocalAssum (x,t)) senv'.env in
     {senv' with env=env''}
 
+(* This has to go in front of all internal uses *)
+let push_context_set poly ctx =
+  Option.iter (fun t -> t.push_context_set (poly, ctx)) !tops;
+  push_context_set poly ctx
 
 (** {6 Insertion of new declarations to current environment } *)
 
@@ -868,7 +882,7 @@ let add_mind l mie senv =
 (** Insertion of module types *)
 
 let add_modtype l params_mte inl senv =
-  Option.iter (fun t -> t.other "modtype") !tops;
+  Option.iter (fun (t : trace_ops) -> t.mod_type_ (l,params_mte,inl)) !tops;
   let mp = MPdot(senv.modpath, l) in
   let mtb = Mod_typing.translate_modtype senv.env mp inl params_mte  in
   let mtb = Declareops.hcons_module_type mtb in
@@ -890,7 +904,7 @@ let full_add_module_type mp mt senv =
 (** Insertion of modules *)
 
 let add_module l me inl senv =
-  Option.iter (fun t -> t.other "module") !tops;
+  Option.iter (fun t -> t.mod_impl (l,me,inl)) !tops;
   let mp = MPdot(senv.modpath, l) in
   let mb = Mod_typing.translate_module senv.env mp inl me in
   let mb = Declareops.hcons_module_body mb in
@@ -905,6 +919,7 @@ let add_module l me inl senv =
 (** {6 Starting / ending interactive modules and module types } *)
 
 let start_module l senv =
+  Option.iter (fun t -> t.mod_start l) !tops;
   let () = check_modlabel l senv in
   let () = check_empty_context senv in
   let mp = MPdot(senv.modpath, l) in
@@ -916,6 +931,7 @@ let start_module l senv =
     required = senv.required }
 
 let start_modtype l senv =
+  Option.iter (fun t -> t.mod_type_start l) !tops;
   let () = check_modlabel l senv in
   let () = check_empty_context senv in
   let mp = MPdot(senv.modpath, l) in
@@ -930,6 +946,7 @@ let start_modtype l senv =
     This module should have been freshly started. *)
 
 let add_module_parameter mbid mte inl senv =
+  Option.iter (fun t -> t.mod_param (mbid, mte, inl)) !tops;
   let () = check_empty_struct senv in
   let mp = MPbound mbid in
   let mtb = Mod_typing.translate_modtype senv.env mp inl ([],mte) in
@@ -1010,6 +1027,7 @@ let propagate_senv newdef newenv newresolver senv oldsenv =
     native_symbols = senv.native_symbols}
 
 let end_module l restype senv =
+  Option.iter (fun t -> t.mod_end (l,restype)) !tops;
   let mp = senv.modpath in
   let params, oldsenv = check_struct senv.modvariant in
   let () = check_current_label l mp in
@@ -1041,6 +1059,7 @@ let build_mtb mp sign cst delta =
     mod_retroknowledge = ModTypeRK }
 
 let end_modtype l senv =
+  Option.iter (fun t -> t.mod_type_end l) !tops;
   let mp = senv.modpath in
   let params, oldsenv = check_sig senv.modvariant in
   let () = check_current_label l mp in
@@ -1060,6 +1079,7 @@ let end_modtype l senv =
 (** {6 Inclusion of module or module type } *)
 
 let add_include me is_module inl senv =
+  Option.iter (fun t -> t.mod_include (me,is_module,inl)) !tops;
   let open Mod_typing in
   let mp_sup = senv.modpath in
   let sign,(),resolver,cst =
@@ -1128,6 +1148,7 @@ let current_modpath senv = senv.modpath
 let current_dirpath senv = Names.ModPath.dp (current_modpath senv)
 
 let start_library dir senv =
+  Option.iter (fun t -> t.lib_start dir) !tops;
   check_initial senv;
   assert (not (DirPath.is_empty dir));
   let mp = MPfile dir in
@@ -1305,7 +1326,6 @@ let add_constraints c =
   Option.iter (fun t -> t.constraints c) !tops;
   add_constraints
     (Now (false, Univ.ContextSet.add_constraints c Univ.ContextSet.empty))
-
 
 (* NB: The next old comment probably refers to [propagate_loads] above.
    When a Require is done inside a module, we'll redo this require

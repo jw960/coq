@@ -91,6 +91,16 @@ type trace_ops =
   ; constraints: Univ.Constraint.t -> unit
   ; named_assum : (Id.t * Constr.types * bool) Univ.in_universe_context_set -> unit
   ; named_def: Id.t * Entries.section_def_entry -> unit
+  ; push_context_set : bool * Univ.ContextSet.t -> unit
+  ; lib_start : DirPath.t -> unit
+  ; mod_impl : Label.t * Entries.module_entry * Declarations.inline -> unit
+  ; mod_start : Label.t -> unit
+  ; mod_end : Label.t * (Entries.module_struct_entry * Declarations.inline) option -> unit
+  ; mod_param : MBId.t * Entries.module_struct_entry * Declarations.inline -> unit
+  ; mod_include : Entries.module_struct_entry * bool * Declarations.inline -> unit
+  ; mod_type_ : Label.t * Entries.module_type_entry * Declarations.inline -> unit
+  ; mod_type_start : Label.t -> unit
+  ; mod_type_end : Label.t -> unit
   ; other : string -> unit
   }
 

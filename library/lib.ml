@@ -563,6 +563,14 @@ let section_instance = function
 let is_in_section ref =
   try ignore (section_instance ref); true with Not_found -> false
 
+type trace_ops =
+  { snapshot_env : int -> unit
+  ; restore_env : int -> unit
+  }
+
+let tops = ref None
+let set_trace_ops t = tops := Some t
+
 (*************)
 (* Sections. *)
 let open_section id =
@@ -572,6 +580,7 @@ let open_section id =
   if Nametab.exists_section obj_dir then
     user_err ~hdr:"open_section" (Id.print id ++ str " already exists.");
   let fs = Summary.freeze_summaries ~marshallable:false in
+  Option.iter (fun t -> t.snapshot_env (Hashtbl.hash fs)) !tops;
   add_entry (make_foname id) (OpenedSection (prefix, fs));
   (*Pushed for the lifetime of the section: removed by unfrozing the summary*)
   Nametab.(push_dir (Until 1) obj_dir (GlobDirRef.DirOpenSection prefix));
@@ -601,6 +610,7 @@ let close_section () =
   lib_state := { !lib_state with lib_stk = before };
   pop_path_prefix ();
   let newdecls = List.map discharge_item secdecls in
+  Option.iter (fun t -> t.restore_env (Hashtbl.hash fs)) !tops;
   Summary.unfreeze_summaries fs;
   List.iter (Option.iter (fun (id,o) -> add_discharged_leaf id o)) newdecls
 
