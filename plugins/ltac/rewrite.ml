@@ -922,11 +922,11 @@ let make_leibniz_proof env c ty r =
 let reset_env env =
   let env' = Global.env_of_context (Environ.named_context_val env) in
     Environ.push_rel_context (Environ.rel_context env) env'
-      
+
 let fold_match ?(force=false) env sigma c =
   let (ci, p, c, brs) = destCase sigma c in
   let cty = Retyping.get_type_of env sigma c in
-  let dep, pred, exists, (sk,eff) = 
+  let dep, pred, exists, sk =
     let env', ctx, body =
       let ctx, pred = decompose_lam_assum sigma p in
       let env' = push_rel_context ctx env in
@@ -951,19 +951,19 @@ let fold_match ?(force=false) env sigma c =
 	if dep
 	then case_dep_scheme_kind_from_type
 	else case_scheme_kind_from_type)
-    in 
+    in
     let exists = Ind_tables.check_scheme sk ci.ci_ind in
-      if exists || force then
-        dep, pred, exists, Ind_tables.find_scheme ~static:false sk ci.ci_ind
-      else raise Not_found
+    if exists || force then
+      dep, pred, exists, Ind_tables.find_scheme sk ci.ci_ind
+    else raise Not_found
   in
   let app =
     let ind, args = Inductiveops.find_mrectype env sigma cty in
     let pars, args = List.chop ci.ci_npar args in
     let meths = List.map (fun br -> br) (Array.to_list brs) in
       applist (mkConst sk, pars @ [pred] @ meths @ args @ [c])
-  in 
-    sk, (if exists then env else reset_env env), app, eff
+  in
+  sk, (if exists then env else reset_env env), app
 
 let unfold_match env sigma sk app =
   match EConstr.kind sigma app with
@@ -1219,26 +1219,26 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
 		    state, Success (make_leibniz_proof env ctxc ty r)
 		| None -> state, c'
 	    else
-	      match try Some (fold_match env (goalevars evars) t) with Not_found -> None with
-	      | None -> state, c'
-	      | Some (cst, _, t', eff (*FIXME*)) ->
-		 let state, res = aux { state ; env ; unfresh ;
-					term1 = t' ; ty1 = ty ;
-					cstr = (prop,cstr) ; evars } in
-		let res = 
-		  match res with
-		  | Success prf -> 
-		    Success { prf with
-		      rew_from = t; 
-		      rew_to = unfold_match env (goalevars evars) cst prf.rew_to }
-		  | x' -> c'
-		in state, res
-	in 
-	let res = 
-	  match res with
-	  | Success r -> Success (coerce env unfresh (prop,cstr) r)
-	  | Fail | Identity -> res
-	in state, res
+       match try Some (fold_match env (goalevars evars) t) with Not_found -> None with
+       | None -> state, c'
+       | Some (cst, _, t') ->
+         let state, res = aux { state ; env ; unfresh ;
+                         term1 = t' ; ty1 = ty ;
+                         cstr = (prop,cstr) ; evars } in
+       let res =
+         match res with
+         | Success prf ->
+           Success { prf with
+                     rew_from = t;
+                     rew_to = unfold_match env (goalevars evars) cst prf.rew_to }
+         | x' -> c'
+       in state, res
+ in
+ let res =
+   match res with
+   | Success r -> Success (coerce env unfresh (prop,cstr) r)
+   | Fail | Identity -> res
+ in state, res
       | _ -> state, Fail
   in { strategy = aux }
 
@@ -1979,9 +1979,9 @@ let add_morphism_infer ~pstate atts m n : Proof_global.t option =
   let uctx, instance = build_morphism_signature env evd m in
     if Lib.is_modtype () then
       let uctx = UState.univ_entry ~poly:atts.polymorphic uctx in
-      let cst = Declare.declare_constant ~internal:Declare.InternalTacticRequest instance_id
-          (Entries.ParameterEntry
-             (None,(instance,uctx),None),
+      let cst = Declare.declare_constant
+          instance_id
+          (Entries.ParameterEntry (None,(instance,uctx),None),
            Decl_kinds.IsAssumption Decl_kinds.Logical)
       in
       add_instance (Typeclasses.new_instance
@@ -2236,4 +2236,3 @@ let get_symmetric_proof =
 
 let get_transitive_proof = 
   get_lemma_proof PropGlobal.get_transitive_proof
-  

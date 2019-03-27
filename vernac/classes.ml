@@ -140,7 +140,7 @@ let do_declare_instance env sigma ~global ~poly k u ctx ctx' pri decl imps subst
   Pretyping.check_evars env (Evd.from_env env) sigma termtype;
   let univs = Evd.check_univ_decl ~poly sigma decl in
   let termtype = to_constr sigma termtype in
-  let cst = Declare.declare_constant ~internal:Declare.InternalTacticRequest id
+  let cst = Declare.declare_constant id
       (ParameterEntry
          (None,(termtype,univs),None), Decl_kinds.IsAssumption Decl_kinds.Logical)
   in
@@ -426,7 +426,7 @@ let context ~pstate poly l =
         let entry = Declare.definition_entry ~univs ~types:t b in
         (DefinitionEntry entry, IsAssumption Logical)
       in
-      let cst = Declare.declare_constant ~internal:Declare.InternalTacticRequest id decl in
+      let cst = Declare.declare_constant id decl in
         match class_of_constr sigma (of_constr t) with
 	| Some (rels, ((tc,_), args) as _cl) ->
             add_instance (Typeclasses.new_instance tc Hints.empty_hint_info false (ConstRef cst));

@@ -10,7 +10,6 @@
 
 open Names
 open Constr
-open Declare
 
 (** This module provides support for registering inductive scheme builders,
    declaring schemes and generating schemes on demand *)
@@ -22,44 +21,41 @@ type individual
 type 'a scheme_kind
 
 type mutual_scheme_object_function =
-  internal_flag -> MutInd.t -> constr array Evd.in_evar_universe_context * Safe_typing.private_constants
+  MutInd.t -> constr array Evd.in_evar_universe_context
 
 type individual_scheme_object_function =
-  internal_flag -> inductive -> constr Evd.in_evar_universe_context * Safe_typing.private_constants
+  inductive -> constr Evd.in_evar_universe_context
 
 (** Main functions to register a scheme builder *)
 
 val declare_mutual_scheme_object : string -> ?aux:string ->
   mutual_scheme_object_function -> mutual scheme_kind
 
-val declare_individual_scheme_object : string -> ?aux:string ->
-  individual_scheme_object_function ->
-  individual scheme_kind
+val declare_individual_scheme_object
+  :  string
+  -> ?aux:string
+  -> individual_scheme_object_function
+  -> individual scheme_kind
 
 (** Force generation of a (mutually) scheme with possibly user-level names *)
 
 val define_individual_scheme
-  :  static:bool
-  -> individual scheme_kind
-  -> internal_flag (** internal *)
+  :  individual scheme_kind
   -> Id.t option
-  -> inductive -> Constant.t * Safe_typing.private_constants
+  -> inductive
+  -> Constant.t
 
 val define_mutual_scheme
-  :  static:bool
-  -> mutual scheme_kind
-  -> internal_flag (** internal *)
+  :  mutual scheme_kind
   -> (int * Id.t) list
   -> MutInd.t
-  -> Constant.t array * Safe_typing.private_constants
+  -> Constant.t array
 
 (** Main function to retrieve a scheme in the cache or to generate it *)
 val find_scheme
-  :  ?mode:internal_flag
-  -> static:bool                (* whether the scheme has been generated dynamically *)
-  -> 'a scheme_kind
+  :  'a scheme_kind
   -> inductive
-  -> Constant.t * Safe_typing.private_constants
+  -> Constant.t
 
 val check_scheme : 'a scheme_kind -> inductive -> bool
 

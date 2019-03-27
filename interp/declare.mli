@@ -35,11 +35,6 @@ val declare_variable : variable -> variable_declaration -> Libobject.object_name
 
 type constant_declaration = Safe_typing.private_constants constant_entry * logical_kind
 
-type internal_flag =
-  | UserAutomaticRequest
-  | InternalTacticRequest
-  | UserIndividualRequest
-
 (* Defaut definition entries, transparent with no secctx or proj information *)
 val definition_entry : ?fix_exn:Future.fix_exn ->
   ?opaque:bool -> ?inline:bool -> ?types:types ->
@@ -52,11 +47,15 @@ val definition_entry : ?fix_exn:Future.fix_exn ->
 
   internal specify if the constant has been created by the kernel or by the
   user, and in the former case, if its errors should be silent *)
-val declare_constant :
- ?internal:internal_flag -> ?local:bool -> Id.t -> ?export_seff:bool -> constant_declaration -> Constant.t
+val declare_constant
+  : ?local:bool
+  -> Id.t
+  -> ?export_seff:bool
+  -> constant_declaration
+  -> Constant.t
 
-val declare_definition : 
-  ?internal:internal_flag -> ?opaque:bool -> ?kind:definition_object_kind ->
+val declare_definition :
+  ?opaque:bool -> ?kind:definition_object_kind ->
   ?local:bool -> Id.t -> ?types:constr ->
   constr Entries.in_universes_entry -> Constant.t
 

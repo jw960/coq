@@ -27,12 +27,6 @@ open Cooking
 open Decls
 open Decl_kinds
 
-(** flag for internal message display *)
-type internal_flag =
-  | UserAutomaticRequest (* kernel action, a message is displayed *)
-  | InternalTacticRequest  (* kernel action, no message is displayed *)
-  | UserIndividualRequest   (* user action, a message is displayed *)
-
 (** Declaration of constants and parameters *)
 
 type constant_obj = {
@@ -121,7 +115,7 @@ let update_tables c =
   declare_constant_implicits c;
   Notation.declare_ref_arguments_scope Evd.empty (ConstRef c)
 
-let register_side_effect (c, role) =
+let register_side_effect c =
   let o = inConstant {
     cst_decl = None;
     cst_kind = IsProof Theorem;
@@ -129,10 +123,7 @@ let register_side_effect (c, role) =
   } in
   let id = Label.to_id (Constant.label c) in
   ignore(add_leaf id o);
-  update_tables c;
-  match role with
-  | Subproof -> ()
-  | Schema (ind, kind) -> !declare_scheme kind [|ind,c|]
+  update_tables c
 
 let declare_constant_common id cst =
   let o = inConstant cst in
@@ -153,7 +144,7 @@ let definition_entry ?fix_exn ?(opaque=false) ?(inline=false) ?types
     const_entry_feedback = None;
     const_entry_inline_code = inline}
 
-let declare_constant ?(internal = UserIndividualRequest) ?(local = false) id ?(export_seff=false) (cd, kind) =
+let declare_constant ?(local = false) id ?(export_seff=false) (cd, kind) =
   let is_poly de = match de.const_entry_universes with
   | Monomorphic_entry _ -> false
   | Polymorphic_entry _ -> true
@@ -180,13 +171,12 @@ let declare_constant ?(internal = UserIndividualRequest) ?(local = false) id ?(e
   } in
   declare_constant_common id cst
 
-let declare_definition ?(internal=UserIndividualRequest)
-  ?(opaque=false) ?(kind=Decl_kinds.Definition) ?(local = false)
+let declare_definition ?(opaque=false) ?(kind=Decl_kinds.Definition) ?(local = false)
   id ?types (body,univs) =
   let cb =
     definition_entry ?types ~univs ~opaque body
   in
-    declare_constant ~internal ~local id
+    declare_constant ~local id
       (Entries.DefinitionEntry cb, Decl_kinds.IsDefinition kind)
 
 (** Declaration of section variables and local definitions *)

@@ -54,7 +54,6 @@ val concat_private : private_constants -> private_constants -> private_constants
     [e1] must be more recent than those of [e2]. *)
 
 val private_con_of_con : safe_environment -> Constant.t -> private_constants
-val private_con_of_scheme : kind:string -> safe_environment -> (inductive * Constant.t) list -> private_constants
 
 val mk_pure_proof : Constr.constr -> private_constants Entries.proof_output
 val inline_private_constants_in_constr :
@@ -95,8 +94,7 @@ type global_declaration =
   | ConstantEntry : 'a effect_entry * 'a Entries.constant_entry -> global_declaration
   | GlobalRecipe of Cooking.recipe
 
-type exported_private_constant = 
-  Constant.t * Entries.side_effect_role
+type exported_private_constant = Constant.t
 
 val export_private_constants : in_section:bool ->
   private_constants Entries.definition_entry ->

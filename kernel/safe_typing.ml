@@ -243,69 +243,30 @@ type side_effect = {
   eff      : Entries.side_eff list;
 }
 
-module SideEffects :
-sig
-  type t
-  val repr : t -> side_effect list
-  val empty : t
-  val add : side_effect -> t -> t
-  val concat : t -> t -> t
-end =
-struct
-
-module SeffOrd = struct
-open Entries
-type t = side_effect
-let compare e1 e2 =
-  let cmp e1 e2 = Constant.CanOrd.compare e1.seff_constant e2.seff_constant in
-  List.compare cmp e1.eff e2.eff
-end
-
-module SeffSet = Set.Make(SeffOrd)
-
-type t = { seff : side_effect list; elts : SeffSet.t }
-(** Invariant: [seff] is a permutation of the elements of [elts] *)
-
-let repr eff = eff.seff
-let empty = { seff = []; elts = SeffSet.empty }
-let add x es =
-  if SeffSet.mem x es.elts then es
-  else { seff = x :: es.seff; elts = SeffSet.add x es.elts }
-let concat xes yes =
-  List.fold_right add xes.seff yes
-
-end
-
-type private_constants = SideEffects.t
+type private_constants = side_effect list
 
 let side_effects_of_private_constants l =
-  let ans = List.rev (SideEffects.repr l) in
+  let ans = List.rev l in
   List.map_append (fun { eff; _ } -> eff) ans
 
-let empty_private_constants = SideEffects.empty
+let empty_private_constants = []
 let add_private mb eff effs =
   let from_env = CEphemeron.create mb in
-  SideEffects.add { eff; from_env } effs
-let concat_private = SideEffects.concat
+  { eff; from_env } :: effs
 
-let make_eff env cst r =
+let concat_private = (@)
+
+let make_eff env cst =
   let open Entries in
   let cbo = Environ.lookup_constant cst env.env in
   {
     seff_constant = cst;
     seff_body = cbo;
     seff_env = get_opaque_body env.env cbo;
-    seff_role = r;
   }
 
 let private_con_of_con env c =
-  let open Entries in
-  let eff = [make_eff env c Subproof] in
-  add_private env.revstruct eff empty_private_constants
-
-let private_con_of_scheme ~kind env cl =
-  let open Entries in
-  let eff = List.map (fun (i, c) -> make_eff env c (Schema (i, kind))) cl in
+  let eff = [make_eff env c] in
   add_private env.revstruct eff empty_private_constants
 
 let universes_of_private eff =
@@ -560,8 +521,7 @@ type global_declaration =
   | ConstantEntry : 'a effect_entry * 'a Entries.constant_entry -> global_declaration
   | GlobalRecipe of Cooking.recipe
 
-type exported_private_constant = 
-  Constant.t * Entries.side_effect_role
+type exported_private_constant = Constant.t
 
 let add_constant_aux ~in_section senv (kn, cb) =
   let l = Constant.label kn in
@@ -585,7 +545,7 @@ let add_constant_aux ~in_section senv (kn, cb) =
   in
   senv''
 
-let mk_pure_proof c = (c, Univ.ContextSet.empty), SideEffects.empty
+let mk_pure_proof c = (c, Univ.ContextSet.empty), []
 
 let inline_side_effects env body side_eff =
   let open Entries in
@@ -601,7 +561,7 @@ let inline_side_effects env body side_eff =
     (cbl, mb)
   in
   (* CAVEAT: we assure that most recent effects come first *)
-  let side_eff = List.map filter (SideEffects.repr side_eff) in
+  let side_eff = List.map filter side_eff in
   let sigs = List.rev_map (fun (cbl, mb) -> mb, List.length cbl) side_eff in
   let side_eff = List.fold_left (fun accu (cbl, _) -> cbl @ accu) [] side_eff in
   let side_eff = List.rev side_eff in
@@ -739,7 +699,7 @@ let turn_direct orig =
 
 let export_eff eff =
   let open Entries in
-  (eff.seff_constant, eff.seff_body, eff.seff_role)
+  (eff.seff_constant, eff.seff_body)
 
 let export_side_effects mb env c =
   let open Entries in
@@ -755,7 +715,7 @@ let export_side_effects mb env c =
         let cbl = List.filter not_exists se in
         if List.is_empty cbl then acc, sl
         else cbl :: acc, (mb,List.length cbl) :: sl in
-      let seff, signatures = List.fold_left aux ([],[]) (SideEffects.repr eff) in
+      let seff, signatures = List.fold_left aux ([],[]) eff in
       let trusted = check_signatures mb signatures in
       let push_seff env eff =
         let { seff_constant = kn; seff_body = cb ; _ } = eff in
@@ -797,10 +757,9 @@ let export_side_effects mb env c =
 
 let export_private_constants ~in_section ce senv =
   let exported, ce = export_side_effects senv.revstruct senv.env ce in
-  let bodies = List.map (fun (kn, cb, _) -> (kn, cb)) exported in
-  let exported = List.map (fun (kn, _, r) -> (kn, r)) exported in
-  let senv = List.fold_left (add_constant_aux ~in_section) senv bodies in
-  (ce, exported), senv
+  let exported_k = List.map fst exported in
+  let senv = List.fold_left (add_constant_aux ~in_section) senv exported in
+  (ce, exported_k), senv
 
 let add_constant ~in_section l decl senv =
   let kn = Constant.make2 senv.modpath l in

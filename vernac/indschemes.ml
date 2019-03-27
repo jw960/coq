@@ -101,10 +101,9 @@ let () =
 
 (* Util *)
 
-let define ~poly id internal sigma c t =
-  let f = declare_constant ~internal in
+let define ~poly id sigma c t =
   let univs = Evd.univ_entry ~poly sigma in
-  let kn = f id
+  let kn = declare_constant id
     (DefinitionEntry
       { const_entry_body = c;
         const_entry_secctx = None;
@@ -120,74 +119,64 @@ let define ~poly id internal sigma c t =
 
 (* Boolean equality *)
 
-let declare_beq_scheme_gen internal names kn =
-  ignore (define_mutual_scheme ~static:true beq_scheme_kind internal names kn)
+let declare_beq_scheme_gen names kn =
+  ignore (define_mutual_scheme beq_scheme_kind names kn)
 
-let alarm what internal msg =
-  let debug = false in
-  match internal with
-  | UserAutomaticRequest
-  | InternalTacticRequest ->
-    (if debug then
-      Feedback.msg_debug
-	(hov 0 msg ++ fnl () ++ what ++ str " not defined.")); None
-  | _ -> Some msg
+let alarm _ msg = msg
 
-let try_declare_scheme what f internal names kn =
-  try f internal names kn
+let try_declare_scheme what f names kn =
+  try f names kn
   with e ->
   let e = CErrors.push e in
   let rec extract_exn = function Logic_monad.TacticFailure e -> extract_exn e | e -> e in
   let msg = match extract_exn (fst e) with
     | ParameterWithoutEquality cst ->
-	alarm what internal
+        alarm what
 	  (str "Boolean equality not found for parameter " ++ Printer.pr_global cst ++
 	   str".")
     | InductiveWithProduct ->
-	alarm what internal
+        alarm what
 	  (str "Unable to decide equality of functional arguments.")
     | InductiveWithSort ->
-	alarm what internal
+        alarm what
 	  (str "Unable to decide equality of type arguments.")
     | NonSingletonProp ind ->
-	alarm what internal
+        alarm what
 	  (str "Cannot extract computational content from proposition " ++
 	   quote (Printer.pr_inductive (Global.env()) ind) ++ str ".")
     | EqNotFound (ind',ind) ->
-	alarm what internal
+        alarm what
 	  (str "Boolean equality on " ++
 	   quote (Printer.pr_inductive (Global.env()) ind') ++
 	   strbrk " is missing.")
     | UndefinedCst s ->
-	alarm what internal
+        alarm what
 	  (strbrk "Required constant " ++ str s ++ str " undefined.")
     | AlreadyDeclared msg ->
-        alarm what internal (msg ++ str ".")
+        alarm what (msg ++ str ".")
     | DecidabilityMutualNotSupported ->
-        alarm what internal
+        alarm what
           (str "Decidability lemma for mutual inductive types not supported.")
     | EqUnknown s ->
-         alarm what internal
+         alarm what
            (str "Found unsupported " ++ str s ++ str " while building Boolean equality.")
     | NoDecidabilityCoInductive ->
-         alarm what internal
+         alarm what
            (str "Scheme Equality is only for inductive types.")
     | DecidabilityIndicesNotSupported ->
-         alarm what internal
+         alarm what
            (str "Inductive types with annotations not supported.")
     | ConstructorWithNonParametricInductiveType ind ->
-         alarm what internal
+         alarm what
            (strbrk "Unsupported constructor with an argument whose type is a non-parametric inductive type." ++
             strbrk " Type " ++ quote (Printer.pr_inductive (Global.env()) ind) ++
             str " is applied to an argument which is not a variable.")
     | e when CErrors.noncritical e ->
-        alarm what internal
-	  (str "Unexpected error during scheme creation: " ++ CErrors.print e)
+      alarm what
+        (str "Unexpected error during scheme creation: " ++ CErrors.print e)
     | _ -> iraise e
   in
-  match msg with
-  | None -> ()
-  | Some msg -> iraise (UserError (None, msg), snd e)
+  iraise (UserError (None, msg), snd e)
 
 let beq_scheme_msg mind =
   let mib = Global.lookup_mind mind in
@@ -197,13 +186,13 @@ let beq_scheme_msg mind =
     (List.init (Array.length mib.mind_packets) (fun i -> (mind,i)))
 
 let declare_beq_scheme_with l kn =
-  try_declare_scheme (beq_scheme_msg kn) declare_beq_scheme_gen UserIndividualRequest l kn
+  try_declare_scheme (beq_scheme_msg kn) declare_beq_scheme_gen l kn
 
 let try_declare_beq_scheme kn =
   (* TODO: handle Fix, eventually handle
       proof-irrelevance; improve decidability by depending on decidability
       for the parameters rather than on the bl and lb properties *)
-  try_declare_scheme (beq_scheme_msg kn) declare_beq_scheme_gen UserAutomaticRequest [] kn
+  try_declare_scheme (beq_scheme_msg kn) declare_beq_scheme_gen [] kn
 
 let declare_beq_scheme = declare_beq_scheme_with []
 
@@ -221,7 +210,7 @@ let declare_one_case_analysis_scheme ind =
        induction scheme, the other ones share the same code with the
        apropriate type *)
   if Sorts.List.mem InType kelim then
-    ignore (define_individual_scheme ~static:true dep UserAutomaticRequest None ind)
+    ignore (define_individual_scheme dep None ind)
 
 (* Induction/recursion schemes *)
 
@@ -258,7 +247,7 @@ let declare_one_induction_scheme ind =
       (if from_prop then kinds_from_prop
        else if depelim then kinds_from_type
        else nondep_kinds_from_type) in
-  List.iter (fun kind -> ignore (define_individual_scheme ~static:true kind UserAutomaticRequest None ind))
+  List.iter (fun kind -> ignore (define_individual_scheme kind None ind))
     elims
 
 let declare_induction_schemes kn =
@@ -271,21 +260,21 @@ let declare_induction_schemes kn =
 
 (* Decidable equality *)
 
-let declare_eq_decidability_gen internal names kn =
+let declare_eq_decidability_gen names kn =
   let mib = Global.lookup_mind kn in
   if mib.mind_finite <> Declarations.CoFinite then
-    ignore (define_mutual_scheme ~static:true eq_dec_scheme_kind internal names kn)
+    ignore (define_mutual_scheme eq_dec_scheme_kind names kn)
 
 let eq_dec_scheme_msg ind = (* TODO: mutual inductive case *)
   str "Decidable equality on " ++ quote (Printer.pr_inductive (Global.env()) ind)
 
 let declare_eq_decidability_scheme_with l kn =
   try_declare_scheme (eq_dec_scheme_msg (kn,0))
-    declare_eq_decidability_gen UserIndividualRequest l kn
+    declare_eq_decidability_gen l kn
 
 let try_declare_eq_decidability kn =
   try_declare_scheme (eq_dec_scheme_msg (kn,0))
-    declare_eq_decidability_gen UserAutomaticRequest [] kn
+    declare_eq_decidability_gen [] kn
 
 let declare_eq_decidability = declare_eq_decidability_scheme_with []
 
@@ -294,17 +283,16 @@ let ignore_error f x =
 
 let declare_rewriting_schemes ind =
   if Hipattern.is_inductive_equality ind then begin
-    ignore (define_individual_scheme ~static:true rew_r2l_scheme_kind UserAutomaticRequest None ind);
-    ignore (define_individual_scheme ~static:true rew_r2l_dep_scheme_kind UserAutomaticRequest None ind);
-    ignore (define_individual_scheme ~static:true rew_r2l_forward_dep_scheme_kind
-      UserAutomaticRequest None ind);
+    ignore (define_individual_scheme rew_r2l_scheme_kind None ind);
+    ignore (define_individual_scheme rew_r2l_dep_scheme_kind None ind);
+    ignore (define_individual_scheme rew_r2l_forward_dep_scheme_kind None ind);
     (* These ones expect the equality to be symmetric; the first one also *)
     (* needs eq *)
-    ignore_error (define_individual_scheme ~static:true rew_l2r_scheme_kind UserAutomaticRequest None) ind;
+    ignore_error (define_individual_scheme rew_l2r_scheme_kind None) ind;
     ignore_error
-      (define_individual_scheme ~static:true rew_l2r_dep_scheme_kind UserAutomaticRequest None) ind;
+      (define_individual_scheme rew_l2r_dep_scheme_kind None) ind;
     ignore_error
-      (define_individual_scheme ~static:true rew_l2r_forward_dep_scheme_kind UserAutomaticRequest None) ind
+      (define_individual_scheme rew_l2r_forward_dep_scheme_kind None) ind
   end
 
 let warn_cannot_build_congruence =
@@ -318,7 +306,7 @@ let declare_congr_scheme ind =
       try Coqlib.check_required_library Coqlib.logic_module_name; true
       with e when CErrors.noncritical e -> false
     then
-      ignore (define_individual_scheme ~static:true congr_scheme_kind UserAutomaticRequest None ind)
+      ignore (define_individual_scheme congr_scheme_kind None ind)
     else
       warn_cannot_build_congruence ()
   end
@@ -326,7 +314,7 @@ let declare_congr_scheme ind =
 let declare_sym_scheme ind =
   if Hipattern.is_inductive_equality ind then
     (* Expect the equality to be symmetric *)
-    ignore_error (define_individual_scheme ~static:true sym_scheme_kind UserAutomaticRequest None) ind
+    ignore_error (define_individual_scheme sym_scheme_kind None) ind
 
 (* Scheme command *)
 
@@ -412,7 +400,7 @@ let do_mutual_induction_scheme ?(force_mutual=false) lnamedepindsort =
     let decltype = Retyping.get_type_of env0 sigma (EConstr.of_constr decl) in
     let decltype = EConstr.to_constr sigma decltype in
     let proof_output = Future.from_val ((decl,Univ.ContextSet.empty),Safe_typing.empty_private_constants) in
-    let cst = define ~poly fi UserIndividualRequest sigma proof_output (Some decltype) in
+    let cst = define ~poly fi sigma proof_output (Some decltype) in
     ConstRef cst :: lrecref
   in
   let _ = List.fold_right2 declare listdecl lrecnames [] in
@@ -541,7 +529,7 @@ let do_combined_scheme name schemes =
      some other polymorphism they can also manually define the
      combined scheme. *)
   let poly = Global.is_polymorphic (ConstRef (List.hd csts)) in
-  ignore (define ~poly name.v UserIndividualRequest sigma proof_output (Some typ));
+  ignore (define ~poly name.v sigma proof_output (Some typ));
   fixpoint_message None [name.v]
 
 (**********************************************************************)
