@@ -73,8 +73,21 @@ WHAT DO YOU NEED ?
 INSTALLATION PROCEDURE.
 =======================
 
-Coq offers the choice of two build systems, a Dune-based one, and a
-make-based one. The default and recommended in the Dune based one.
+The build and installation procedure using Dune is quite
+straightforward. We recommend you read Dune's user manual for
+questions, as Coq mostly implements a standard build workflow.
 
-Please see INSTALL.dune.md and INSTALL.make.md for system-specific
-instructions.
+## Quick Installation Procedure [Dune].
+=======================================
+
+1. COQ_CONFIGURE_PREFIX=$prefix make release
+2. dune install [--prefix=$prefix] coq
+
+If you don't pass the prefix argument to `dune install` it will choose
+your default OCaml library path.
+
+## Developer setup.
+===================
+
+For more information about the Dune build system just type `make`, you
+can also read `dev/doc/build-system.dune.md`
