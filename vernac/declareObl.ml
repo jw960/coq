@@ -363,8 +363,9 @@ let declare_definition prg =
   let () = progmap_remove prg in
   let ubinders = UState.universe_binders uctx in
   let hook_data = Option.map (fun hook -> hook, uctx, obls) prg.prg_hook in
+  let should_suggest = false in
   DeclareDef.declare_definition
-    ~name:prg.prg_name ~scope:prg.prg_scope ubinders ~kind:prg.prg_kind ce
+    ~name:prg.prg_name ~scope:prg.prg_scope ubinders ~kind:prg.prg_kind ~should_suggest ce
     prg.prg_implicits ?hook_data
 
 let rec lam_index n t acc =
@@ -446,7 +447,7 @@ let declare_mutual_definition l =
   let fix_exn = Hook.get get_fix_exn () in
   let kns =
     List.map4
-      (fun name -> DeclareDef.declare_fix ~name ~opaque ~scope ~kind
+      (fun name -> DeclareDef.declare_fix ~name ~opaque ~scope ~kind ~should_suggest:false
           UnivNames.empty_binders univs)
       fixnames fixdecls fixtypes fiximps
   in

@@ -44,19 +44,24 @@ module Hook = struct
 end
 
 (* Locality stuff *)
-let declare_definition ~name ~scope ~kind ?hook_data udecl ce imps =
+let declare_definition ~name ~scope ~kind ~should_suggest ?hook_data udecl ce imps =
   let fix_exn = Future.fix_exn_of ce.Proof_global.proof_entry_body in
   let gr = match scope with
   | Discharge ->
-      let () =
-        declare_variable ~name ~kind:Decls.(IsDefinition kind) (SectionLocalDef ce)
-      in
-      VarRef name
+    let () =
+      declare_variable ~name ~kind:Decls.(IsDefinition kind) (SectionLocalDef ce) in
+    let () = if should_suggest then
+        Proof_using.suggest_variable (Global.env ()) name 
+    in
+    VarRef name
   | Global local ->
-      let kn = declare_constant ~name ~local ~kind:Decls.(IsDefinition kind) (DefinitionEntry ce) in
-      let gr = ConstRef kn in
-      let () = Declare.declare_univ_binders gr udecl in
-      gr
+    let kn : Names.Constant.t =
+      declare_constant ~name ~local ~kind:Decls.(IsDefinition kind) (DefinitionEntry ce) in
+    let () = if should_suggest then
+        Proof_using.suggest_constant (Global.env ()) kn in
+    let gr = ConstRef kn in
+    let () = Declare.declare_univ_binders gr udecl in
+    gr
   in
   let () = maybe_declare_manual_implicits false gr imps in
   let () = definition_message name in
@@ -68,9 +73,9 @@ let declare_definition ~name ~scope ~kind ?hook_data udecl ce imps =
   end;
   gr
 
-let declare_fix ?(opaque = false) ?hook_data ~name ~scope ~kind udecl univs ((def,_),eff) t imps =
+let declare_fix ?(opaque = false) ?hook_data ~name ~scope ~kind ~should_suggest udecl univs ((def,_),eff) t imps =
   let ce = definition_entry ~opaque ~types:t ~univs ~eff def in
-  declare_definition ~name ~scope ~kind ?hook_data udecl ce imps
+  declare_definition ~name ~scope ~kind ~should_suggest ?hook_data udecl ce imps
 
 let check_definition_evars ~allow_evars sigma =
   let env = Global.env () in

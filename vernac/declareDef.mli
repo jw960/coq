@@ -43,6 +43,7 @@ val declare_definition
   :  name:Id.t
   -> scope:locality
   -> kind:Decls.definition_object_kind
+  -> should_suggest:bool
   -> ?hook_data:(Hook.t * UState.t * (Id.t * Constr.t) list)
   -> UnivNames.universe_binders
   -> Evd.side_effects Proof_global.proof_entry
@@ -55,6 +56,7 @@ val declare_fix
   -> name:Id.t
   -> scope:locality
   -> kind:Decls.definition_object_kind
+  -> should_suggest:bool
   -> UnivNames.universe_binders
   -> Entries.universes_entry
   -> Evd.side_effects Entries.proof_output

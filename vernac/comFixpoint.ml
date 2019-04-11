@@ -302,7 +302,7 @@ let declare_fixpoint_generic ?indexes ~scope ~poly ((fixnames,fixrs,fixdefs,fixt
   let pl = Evd.universe_binders evd in
   let mk_pure c = (c, Univ.ContextSet.empty), Evd.empty_side_effects in
   let fixdecls = List.map mk_pure fixdecls in
-  ignore (List.map4 (fun name -> DeclareDef.declare_fix ~name ~scope ~kind:fix_kind pl ctx)
+  ignore (List.map4 (fun name -> DeclareDef.declare_fix ~should_suggest:false ~name ~scope ~kind:fix_kind pl ctx)
             fixnames fixdecls fixtypes fiximps);
   recursive_message (not cofix) gidx fixnames;
   List.iter (Metasyntax.add_notation_interpretation (Global.env())) ntns;
