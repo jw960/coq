@@ -41,8 +41,8 @@
 (ocamllex coqwc)
 
 (executables
- (names coq_tex coq_dune)
- (public_names coq-tex coq_dune)
+ (names coq_tex coq_dune test_dune)
+ (public_names coq-tex coq_dune test_dune)
  (package coq)
- (modules coq_tex coq_dune)
+ (modules coq_tex coq_dune test_dune)
  (libraries str))
