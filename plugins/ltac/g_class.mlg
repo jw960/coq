@@ -30,12 +30,12 @@ let set_transparency cl b =
 
 }
 
-VERNAC COMMAND EXTEND Typeclasses_Unfold_Settings CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND Typeclasses_Unfold_Settings
 | [ "Typeclasses" "Transparent" reference_list(cl) ] -> {
     set_transparency cl true }
 END
 
-VERNAC COMMAND EXTEND Typeclasses_Rigid_Settings CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND Typeclasses_Rigid_Settings
 | [ "Typeclasses" "Opaque" reference_list(cl) ] -> {
     set_transparency cl false }
 END
@@ -69,7 +69,7 @@ END
 
 (* true = All transparent, false = Opaque if possible *)
 
-VERNAC COMMAND EXTEND Typeclasses_Settings CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND Typeclasses_Settings
  | [ "Typeclasses" "eauto" ":=" debug(d) eauto_search_strategy(s) int_opt(depth) ] -> {
      set_typeclasses_debug d;
      Option.iter set_typeclasses_strategy s;

@@ -123,7 +123,7 @@ let define internal role id c poly univs =
   let univs = UState.univ_entry ~poly ctx in
   let entry = {
     const_entry_body =
-      Future.from_val ((c,Univ.ContextSet.empty),
+      Lazy.from_val ((c,Univ.ContextSet.empty),
                        Safe_typing.empty_private_constants);
     const_entry_secctx = None;
     const_entry_type = None;

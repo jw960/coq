@@ -24,10 +24,6 @@ let error_missing_arg s =
 (******************************************************************************)
 (* Imperative effects! This must be fixed at some point.                      *)
 (******************************************************************************)
-let set_worker_id opt s =
-  assert (s <> "master");
-  Flags.async_proofs_worker_id := s
-
 let set_type_in_type () =
   let typing_flags = Environ.typing_flags (Global.env ()) in
   Global.set_typing_flags { typing_flags with Declarations.check_universes = false }
@@ -51,8 +47,6 @@ type t = {
   vo_requires : (string * string option * bool option) list;
   (* None = No Import; Some false = Import; Some true = Export *)
 
-  toplevel_name : Stm.interactive_top;
-
   load_vernacular_list : (string * bool) list;
   batch : bool;
 
@@ -67,7 +61,6 @@ type t = {
 
   set_options : (Goptions.option_name * option_command) list;
 
-  stm_flags   : Stm.AsyncOpts.stm_opt;
   debug       : bool;
   diffs_set   : bool;
   time        : bool;
@@ -105,8 +98,6 @@ let default = {
   vo_includes = [];
   vo_requires = [];
 
-  toplevel_name = Stm.TopLogical default_toplevel;
-
   load_vernacular_list = [];
   batch = false;
 
@@ -121,7 +112,6 @@ let default = {
 
   set_options = [];
 
-  stm_flags    = Stm.AsyncOpts.default_opts;
   debug        = false;
   diffs_set    = false;
   time         = false;
@@ -203,46 +193,10 @@ let get_bool opt = function
   | _ ->
     error_wrong_arg ("Error: yes/no expected after option "^opt)
 
-let get_int opt n =
-  try int_of_string n
-  with Failure _ ->
-    error_wrong_arg ("Error: integer expected after option "^opt)
-
 let get_float opt n =
   try float_of_string n
   with Failure _ ->
     error_wrong_arg ("Error: float expected after option "^opt)
-
-let get_host_port opt s =
-  match String.split_on_char ':' s with
-  | [host; portr; portw] ->
-    Some (Spawned.Socket(host, int_of_string portr, int_of_string portw))
-  | ["stdfds"] -> Some Spawned.AnonPipe
-  | _ ->
-    error_wrong_arg ("Error: host:portr:portw or stdfds expected after option "^opt)
-
-let get_error_resilience opt = function
-  | "on" | "all" | "yes" -> `All
-  | "off" | "no" -> `None
-  | s -> `Only (String.split_on_char ',' s)
-
-let get_priority opt s =
-  try CoqworkmgrApi.priority_of_string s
-  with Invalid_argument _ ->
-    error_wrong_arg ("Error: low/high expected after "^opt)
-
-let get_async_proofs_mode opt = let open Stm.AsyncOpts in function
-  | "no" | "off" -> APoff
-  | "yes" | "on" -> APon
-  | "lazy" -> APonLazy
-  | _ ->
-    error_wrong_arg ("Error: on/off/lazy expected after "^opt)
-
-let get_cache opt = function
-  | "force" -> Some Stm.AsyncOpts.Force
-  | _ ->
-    error_wrong_arg ("Error: force expected after "^opt)
-
 
 let get_native_name s =
   (* We ignore even critical errors because this mode has to be super silent *)
@@ -323,65 +277,10 @@ let parse_args ~help ~init arglist : t * string list =
       Envars.set_user_coqlib (next ());
       oval
 
-    |"-async-proofs" ->
-      { oval with stm_flags = { oval.stm_flags with
-        Stm.AsyncOpts.async_proofs_mode = get_async_proofs_mode opt (next())
-      }}
-    |"-async-proofs-j" ->
-      { oval with stm_flags = { oval.stm_flags with
-        Stm.AsyncOpts.async_proofs_n_workers = (get_int opt (next ()))
-      }}
-    |"-async-proofs-cache" ->
-      { oval with stm_flags = { oval.stm_flags with
-        Stm.AsyncOpts.async_proofs_cache = get_cache opt (next ())
-      }}
-
-    |"-async-proofs-tac-j" ->
-      let j = get_int opt (next ()) in
-      if j <= 0 then begin
-        error_wrong_arg ("Error: -async-proofs-tac-j only accepts values greater than or equal to 1")
-      end;
-      { oval with stm_flags = { oval.stm_flags with
-        Stm.AsyncOpts.async_proofs_n_tacworkers = j
-      }}
-
-    |"-async-proofs-worker-priority" ->
-      CoqworkmgrApi.async_proofs_worker_priority := get_priority opt (next ());
-      oval
-
-    |"-async-proofs-private-flags" ->
-      { oval with stm_flags = { oval.stm_flags with
-        Stm.AsyncOpts.async_proofs_private_flags = Some (next ());
-      }}
-
-    |"-async-proofs-tactic-error-resilience" ->
-      { oval with stm_flags = { oval.stm_flags with
-        Stm.AsyncOpts.async_proofs_tac_error_resilience = get_error_resilience opt (next ())
-      }}
-
-    |"-async-proofs-command-error-resilience" ->
-      { oval with stm_flags = { oval.stm_flags with
-        Stm.AsyncOpts.async_proofs_cmd_error_resilience = get_bool opt (next ())
-      }}
-
-    |"-async-proofs-delegation-threshold" ->
-      { oval with stm_flags = { oval.stm_flags with
-        Stm.AsyncOpts.async_proofs_delegation_threshold = get_float opt (next ())
-      }}
-
-    |"-worker-id" -> set_worker_id opt (next ()); oval
-
     |"-compat" ->
       let v = G_vernac.parse_compat_version (next ()) in
       Flags.compat_version := v;
       add_compat_require oval v
-
-    |"-dump-glob" ->
-      Dumpglob.dump_into_file (next ());
-      { oval with glob_opt = true }
-
-    |"-feedback-glob" ->
-      Dumpglob.feedback_glob (); oval
 
     |"-exclude-dir" ->
       System.exclude_directory (next ()); oval
@@ -437,21 +336,6 @@ let parse_args ~help ~init arglist : t * string list =
     |"-require-export-from" | "-refrom" ->
       let from = next () in add_vo_require oval (next ()) (Some from) (Some true)
 
-    |"-top" ->
-      let topname = Libnames.dirpath_of_string (next ()) in
-      if Names.DirPath.is_empty topname then
-        CErrors.user_err Pp.(str "Need a non empty toplevel module name");
-      { oval with toplevel_name = Stm.TopLogical topname }
-
-    |"-topfile" ->
-      { oval with toplevel_name = Stm.TopPhysical (next()) }
-
-    |"-main-channel" ->
-      Spawned.main_channel := get_host_port opt (next()); oval
-
-    |"-control-channel" ->
-      Spawned.control_channel := get_host_port opt (next()); oval
-
     |"-w" | "-W" ->
       let w = next () in
       if w = "none" then
@@ -492,12 +376,6 @@ let parse_args ~help ~init arglist : t * string list =
       { oval with set_options = (opt, OptionUnset) :: oval.set_options }
 
     (* Options with zero arg *)
-    |"-async-queries-always-delegate"
-    |"-async-proofs-always-delegate"
-    |"-async-proofs-never-reopen-branch" ->
-      { oval with stm_flags = { oval.stm_flags with
-        Stm.AsyncOpts.async_proofs_never_reopen_branch = true
-      }}
     |"-batch" ->
       Flags.quiet := true;
       { oval with batch = true }
@@ -513,7 +391,6 @@ let parse_args ~help ~init arglist : t * string list =
                   else
                     error_wrong_arg "Error: on|off|removed expected after -diffs";
                   { oval with diffs_set = true }
-    |"-stm-debug" -> Stm.stm_debug := true; oval
     |"-emacs" -> set_emacs oval
     |"-filteropts" -> { oval with filter_opts = true }
     |"-impredicative-set" ->
@@ -524,7 +401,6 @@ let parse_args ~help ~init arglist : t * string list =
     |"-indices-matter" -> { oval with indices_matter = true }
     |"-m"|"--memory" -> { oval with memory_stat = true }
     |"-noinit"|"-nois" -> { oval with load_init = false }
-    |"-no-glob"|"-noglob" -> Dumpglob.noglob (); { oval with glob_opt = true }
     |"-output-context" -> { oval with output_context = true }
     |"-profile-ltac" -> Flags.profile_ltac := true; oval
     |"-q" -> { oval with load_rcfile = false; }

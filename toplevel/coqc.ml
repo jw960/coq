@@ -32,15 +32,8 @@ let coqc_main () =
 
   let copts = Coqcargs.parse extras in
 
-  if not opts.Coqargs.glob_opt then Dumpglob.dump_to_dotglob ();
-
   Topfmt.(in_phase ~phase:CompilationPhase)
     Ccompile.compile_files opts copts;
-
-  (* Careful this will modify the load-path and state so after this
-     point some stuff may not be safe anymore. *)
-  Topfmt.(in_phase ~phase:CompilationPhase)
-    Ccompile.do_vio opts copts;
 
   (* Allow the user to output an arbitrary state *)
   outputstate copts;

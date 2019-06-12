@@ -325,7 +325,7 @@ let build_functional_principle (evd:Evd.evar_map ref) interactive_proof old_prin
   (* 	end; *)
 
   let open Proof_global in
-  let { id; entries; persistence } = Lemmas.pf_fold (close_proof ~opaque:Transparent ~keep_body_ucst_separate:false (fun x -> x)) lemma in
+  let { id; entries; persistence } = Lemmas.pf_fold (close_proof ~opaque:Transparent ~keep_body_ucst_separate:false ) lemma in
   match entries with
   | [entry] ->
     (id,(entry,persistence)), hook
@@ -553,7 +553,7 @@ let make_scheme evd (fas : (pconstant*Sorts.family) list) : Safe_typing.private_
       List.map (compute_new_princ_type_from_rel funs sorts) other_princ_types
     in
     let first_princ_body,first_princ_type = const.const_entry_body, const.const_entry_type in
-    let ctxt,fix = decompose_lam_assum (fst(fst(Future.force first_princ_body))) in (* the principle has for forall ...., fix .*)
+    let ctxt,fix = decompose_lam_assum (fst(fst(Lazy.force first_princ_body))) in (* the principle has for forall ...., fix .*)
     let (idxs,_),(_,ta,_ as decl) = destFix fix in
     let other_result =
       List.map (* we can now compute the other principles *)
@@ -597,7 +597,7 @@ let make_scheme evd (fas : (pconstant*Sorts.family) list) : Safe_typing.private_
 	   in
 	   {const with
 	      const_entry_body = 
-                (Future.from_val (Safe_typing.mk_pure_proof princ_body));
+                (Lazy.from_val (Safe_typing.mk_pure_proof princ_body));
 	      const_entry_type = Some scheme_type
 	   }
       )

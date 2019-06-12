@@ -35,7 +35,6 @@ type hook_type = UState.t -> (Id.t * Constr.t) list -> Decl_kinds.locality -> Gl
 val mk_hook : hook_type -> declaration_hook
 val call_hook
   :  ?hook:declaration_hook
-  -> ?fix_exn:Future.fix_exn
   -> hook_type
 
 (* Proofs that define a constant + terminators *)
@@ -126,13 +125,11 @@ val initialize_named_context_for_proof : unit -> Environ.named_context_val
 (** {6 Saving proofs } *)
 
 val save_lemma_admitted
-  :  ?proof:(Proof_global.proof_object * proof_terminator)
-  -> lemma:t
+  :  lemma:t
   -> unit
 
 val save_lemma_proved
-  :  ?proof:(Proof_global.proof_object * proof_terminator)
-  -> ?lemma:t
+  :  lemma:t
   -> opaque:Proof_global.opacity_flag
   -> idopt:Names.lident option
   -> unit

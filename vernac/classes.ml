@@ -442,10 +442,6 @@ let do_instance_type_ctx_instance props k env' ctx' sigma ~program_mode subst =
              let (loc_mid, c) = List.find is_id rest in
              let rest' = List.filter (fun v -> not (is_id v)) rest
              in
-             let {CAst.loc;v=mid} = get_id loc_mid in
-             List.iter (fun (n, _, x) ->
-                 if Name.equal n (Name mid) then
-                   Option.iter (fun x -> Dumpglob.add_glob ?loc (ConstRef x)) x) k.cl_projs;
              c :: props, rest'
            with Not_found ->
              ((CAst.make @@ CHole (None(* Some Evar_kinds.GoalEvar *), Namegen.IntroAnonymous, None)) :: props), rest

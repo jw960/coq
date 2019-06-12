@@ -310,32 +310,6 @@ val print_ast : Format.formatter -> vernac_ext -> unit
 end =
 struct
 
-let print_rule_classifier fmt r = match r.vernac_class with
-| None -> fprintf fmt "None"
-| Some f ->
-  let no_binder = function ExtTerminal _ -> true | ExtNonTerminal _ -> false in
-  if List.for_all no_binder r.vernac_toks then
-    fprintf fmt "Some @[%a@]" print_code f
-  else
-    fprintf fmt "Some @[(fun %a-> %a)@]" print_binders r.vernac_toks print_code f
-
-(* let print_atts fmt = function *)
-(*   | None -> fprintf fmt "@[let () = Attributes.unsupported_attributes atts in@] " *)
-(*   | Some atts -> *)
-(*     let rec print_left fmt = function *)
-(*       | [] -> assert false *)
-(*       | [x,_] -> fprintf fmt "%s" x *)
-(*       | (x,_) :: rem -> fprintf fmt "(%s, %a)" x print_left rem *)
-(*     in *)
-(*     let rec print_right fmt = function *)
-(*       | [] -> assert false *)
-(*       | [_,y] -> fprintf fmt "%s" y *)
-(*       | (_,y) :: rem -> fprintf fmt "(%s ++ %a)" y print_right rem *)
-(*     in *)
-(*     let nota = match atts with [_] -> "" | _ -> "Attributes.Notations." in *)
-(*     fprintf fmt "@[let %a = Attributes.parse %s(%a) atts in@] " *)
-(*       print_left atts nota print_right atts *)
-
 let print_atts_left fmt = function
   | None -> fprintf fmt "()"
   | Some atts ->
@@ -393,20 +367,11 @@ let rec print_sig fmt = function
     print_symbol symb print_sig rem
 
 let print_rule state fmt r =
-  fprintf fmt "Vernacextend.TyML (%b, %a, %a, %a)"
-    r.vernac_depr print_sig r.vernac_toks (print_body state) r print_rule_classifier r
+  fprintf fmt "Vernacextend.TyML (%b, %a, %a)"
+    r.vernac_depr print_sig r.vernac_toks (print_body state) r
 
 let print_rules state fmt rules =
   print_list fmt (fun fmt r -> fprintf fmt "(%a)" (print_rule state) r) rules
-
-let print_classifier fmt = function
-| ClassifDefault -> fprintf fmt ""
-| ClassifName "QUERY" ->
-  fprintf fmt "~classifier:(fun _ -> Vernacextend.classify_as_query)"
-| ClassifName "SIDEFF" ->
-  fprintf fmt "~classifier:(fun _ -> Vernacextend.classify_as_sideeff)"
-| ClassifName s -> fatal (Printf.sprintf "Unknown classifier %s" s)
-| ClassifCode c -> fprintf fmt "~classifier:(%s)" c.code
 
 let print_entry fmt = function
 | None -> fprintf fmt "None"
@@ -414,8 +379,8 @@ let print_entry fmt = function
 
 let print_ast fmt ext =
   let pr fmt () =
-    fprintf fmt "Vernacextend.vernac_extend ~command:\"%s\" %a ?entry:%a %a"
-      ext.vernacext_name print_classifier ext.vernacext_class
+    fprintf fmt "Vernacextend.vernac_extend ~command:\"%s\" ?entry:%a %a"
+      ext.vernacext_name
       print_entry ext.vernacext_entry (print_rules ext.vernacext_state) ext.vernacext_rules
   in
   let () = fprintf fmt "let () = @[%a@]@\n" pr () in

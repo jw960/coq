@@ -384,8 +384,6 @@ let push_name_env ?(global_level=false) ntnvars implargs env =
       if Id.Map.is_empty ntnvars && Id.equal id ldots_var
         then error_ldots_var ?loc;
       set_var_scope ?loc id false (env.tmp_scope,env.scopes) ntnvars;
-      if global_level then Dumpglob.dump_definition CAst.(make ?loc id) true "var"
-      else Dumpglob.dump_binding ?loc id;
       {env with ids = Id.Set.add id env.ids; impls = Id.Map.add id implargs env.impls}
 
 let intern_generalized_binder ?(global_level=false) intern_type ntnvars
@@ -888,7 +886,6 @@ let intern_notation intern env ntnvars loc ntn fullargs =
   let ntn,fullargs = contract_curly_brackets ntn fullargs in
   (* Recover interpretation { } *)
   let ((ids,c),df) = interp_notation ?loc ntn (env.tmp_scope,env.scopes) in
-  Dumpglob.dump_notation_location (ntn_loc ?loc fullargs ntn) ntn df;
   (* Dispatch parsing substitution to an interpretation substitution *)
   let subst = split_by_type ids fullargs in
   (* Instantiate the notation *)
@@ -896,12 +893,6 @@ let intern_notation intern env ntnvars loc ntn fullargs =
 
 (**********************************************************************)
 (* Discriminating between bound variables and global references       *)
-
-let string_of_ty = function
-  | Inductive _ -> "ind"
-  | Recursive -> "def"
-  | Method -> "meth"
-  | Variable -> "var"
 
 let gvar (loc, id) us = match us with
 | None -> DAst.make ?loc @@ GVar id
@@ -922,8 +913,6 @@ let intern_var env (ltacvars,ntnvars) namedctx loc id us =
     let ty,expl_impls,impls,argsc = Id.Map.find id env.impls in
     let expl_impls = List.map
       (fun id -> CAst.make ?loc @@ CRef (qualid_of_ident ?loc id,None), Some (make ?loc @@ ExplByName id)) expl_impls in
-    let tys = string_of_ty ty in
-    Dumpglob.dump_reference ?loc "<>" (Id.to_string id) tys;
     gvar (loc,id) us, make_implicits_list impls, argsc, expl_impls
   with Not_found ->
   (* Is [id] bound in current term or is an ltac var bound to constr *)
@@ -948,7 +937,6 @@ let intern_var env (ltacvars,ntnvars) namedctx loc id us =
 	let ref = VarRef id in
 	let impls = implicits_of_global ref in
 	let scopes = find_arguments_scope ref in
-	Dumpglob.dump_reference ?loc "<>" (string_of_qualid (Decls.variable_secpath id)) "var";
 	DAst.make ?loc @@ GRef (ref, us), impls, scopes, []
       with e when CErrors.noncritical e ->
 	(* [id] a goal variable *)
@@ -984,12 +972,8 @@ let check_no_explicitation l =
   | (_, Some {loc}) :: _ ->
     user_err ?loc  (str"Unexpected explicitation of the argument of an abbreviation.")
 
-let dump_extended_global loc = function
-  | TrueGlobal ref -> (*feedback_global loc ref;*) Dumpglob.add_glob ?loc ref
-  | SynDef sp -> Dumpglob.add_glob_kn ?loc sp
-
 let intern_extended_global_of_qualid qid =
-  let r = Nametab.locate_extended qid in dump_extended_global qid.CAst.loc r; r
+  let r = Nametab.locate_extended qid in r
 
 let intern_reference qid =
   let r =
@@ -1565,7 +1549,6 @@ let drop_notations_pattern looked_for genv =
         Syntax_def.search_filtered_syntactic_definition filter sp
       | TrueGlobal g ->
 	  test_kind top g;
-          Dumpglob.add_glob ?loc:qid.loc g;
 	  let (_,argscs) = find_remaining_scopes [] pats g in
 	  Some (g,[],List.map2 (fun x -> in_pat false (x,snd scopes)) argscs pats)
     with Not_found -> None
@@ -1616,7 +1599,6 @@ let drop_notations_pattern looked_for genv =
       let ntn,(terms,termlists) = contract_curly_brackets_pat ntn fullargs in
       let ((ids',c),df) = Notation.interp_notation ?loc ntn scopes in
       let (terms,termlists) = split_by_type_pat ?loc ids' (terms,termlists) in
-      Dumpglob.dump_notation_location (patntn_loc ?loc fullargs ntn) ntn df;
       in_not top loc scopes (terms,termlists) extrargs c
     | CPatDelimiters (key, e) ->
       in_pat top (None,find_delimiters_scope ?loc key::snd scopes) e

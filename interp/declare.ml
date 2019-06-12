@@ -144,9 +144,9 @@ let register_side_effect (c, role) =
   | Schema (ind, kind) -> !declare_scheme kind [|ind,c|]
 
 let default_univ_entry = Monomorphic_entry Univ.ContextSet.empty
-let definition_entry ?fix_exn ?(opaque=false) ?(inline=false) ?types
+let definition_entry ?(opaque=false) ?(inline=false) ?types
     ?(univs=default_univ_entry) ?(eff=Safe_typing.empty_private_constants) body =
-  { const_entry_body = Future.from_val ?fix_exn ((body,Univ.ContextSet.empty), eff);
+  { const_entry_body = Lazy.from_val ((body,Univ.ContextSet.empty), eff);
     const_entry_secctx = None;
     const_entry_type = types;
     const_entry_universes = univs;
@@ -168,8 +168,8 @@ let define_constant ?role ?(export_seff=false) id cd =
         not de.const_entry_opaque ||
         is_poly de ->
       (* This globally defines the side-effects in the environment. *)
-      let body, export = Global.export_private_constants ~in_section (Future.force de.const_entry_body) in
-      let de = { de with const_entry_body = Future.from_val (body, ()) } in
+      let body, export = Global.export_private_constants ~in_section (Lazy.force de.const_entry_body) in
+      let de = { de with const_entry_body = Lazy.from_val (body, ()) } in
       export, ConstantEntry (PureEntry, DefinitionEntry de)
     | _ -> [], ConstantEntry (EffectEntry, cd)
   in
@@ -222,7 +222,7 @@ let cache_variable ((sp,_),o) =
     | SectionLocalDef (de) ->
       (* The body should already have been forced upstream because it is a
          section-local definition, but it's not enforced by typing *)
-      let ((body, uctx), eff) = Global.export_private_constants ~in_section:true (Future.force de.const_entry_body) in
+      let ((body, uctx), eff) = Global.export_private_constants ~in_section:true (Lazy.force de.const_entry_body) in
       let () = List.iter register_side_effect eff in
       let poly, univs = match de.const_entry_universes with
       | Monomorphic_entry uctx -> false, uctx

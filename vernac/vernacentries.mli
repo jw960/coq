@@ -8,8 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-val dump_global : Libnames.qualid Constrexpr.or_by_notation -> unit
-
 (** Default proof mode set by `start_proof` *)
 val get_default_proof_mode : unit -> Pvernac.proof_mode
 
@@ -22,7 +20,6 @@ val vernac_require :
 (** The main interpretation function of vernacular expressions *)
 val interp :
   ?verbosely:bool ->
-  ?proof:(Proof_global.proof_object * Lemmas.proof_terminator) ->
   st:Vernacstate.t -> Vernacexpr.vernac_control -> Vernacstate.t
 
 (** Prepare a "match" template for a given inductive type.

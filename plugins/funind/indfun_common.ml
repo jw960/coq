@@ -125,7 +125,6 @@ open Declare
 let definition_message = Declare.definition_message
 
 let save id const ?hook uctx (locality,_,kind) =
-  let fix_exn = Future.fix_exn_of const.const_entry_body in
   let r = match locality with
     | Discharge ->
         let k = Kindops.logical_kind_of_goal_kind kind in
@@ -137,7 +136,7 @@ let save id const ?hook uctx (locality,_,kind) =
         let kn = declare_constant id ~local (DefinitionEntry const, k) in
         ConstRef kn
   in
-  Lemmas.call_hook ?hook ~fix_exn uctx [] locality r;
+  Lemmas.call_hook ?hook uctx [] locality r;
   definition_message id
 
 let with_full_print f a =
@@ -153,7 +152,6 @@ let with_full_print f a =
   Impargs.make_implicit_args false;
   Impargs.make_strict_implicit_args false;
   Impargs.make_contextual_implicit_args false;
-  Dumpglob.pause ();
   try
     let res = f a in
     Impargs.make_implicit_args old_implicit_args;
@@ -162,7 +160,6 @@ let with_full_print f a =
     Flags.raw_print := old_rawprint;
     Constrextern.print_universes := old_printuniverses;
     Detyping.print_allow_match_default_clause := old_printallowmatchdefaultclause;
-    Dumpglob.continue ();
     res
   with
     | reraise ->
@@ -172,7 +169,6 @@ let with_full_print f a =
 	Flags.raw_print := old_rawprint;
 	Constrextern.print_universes := old_printuniverses;
         Detyping.print_allow_match_default_clause := old_printallowmatchdefaultclause;
-	Dumpglob.continue ();
 	raise reraise
 
 
@@ -489,7 +485,7 @@ type tcc_lemma_value =
 
 (* We only "purify" on exceptions. XXX: What is this doing here? *)
 let funind_purify f x =
-  let st = Vernacstate.freeze_interp_state ~marshallable:false in
+  let st = Vernacstate.freeze_interp_state ~stack:None ~marshallable:false in
   try f x
   with e ->
     let e = CErrors.push e in

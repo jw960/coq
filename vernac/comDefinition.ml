@@ -85,7 +85,7 @@ let do_definition ~program_mode ?hook ident k univdecl bl red_option c ctypopt =
   in
   if program_mode then
     let env = Global.env () in
-    let (c,ctx), sideff = Future.force ce.const_entry_body in
+    let (c,ctx), sideff = Lazy.force ce.const_entry_body in
     assert(Safe_typing.empty_private_constants = sideff);
     assert(Univ.ContextSet.is_empty ctx);
     Obligations.check_evars env evd;

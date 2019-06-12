@@ -35,7 +35,7 @@ DECLARE PLUGIN "demo_plugin"
 (*                                                                            *)
 (* -------------------------------------------------------------------------- *)
 
-VERNAC COMMAND EXTEND Cmd1 CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND Cmd1
 | [ "Cmd1" ] -> { () }
 END
 
@@ -102,7 +102,7 @@ END
 (*                                                                            *)
 (* -------------------------------------------------------------------------- *)
 
-VERNAC COMMAND EXTEND Cmd2 CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND Cmd2
 | [ "Cmd2" "With" "Some" "Terminal" "Parameters" ] -> { () }
 END
 
@@ -125,7 +125,7 @@ open Stdarg
 
 }
 
-VERNAC COMMAND EXTEND Cmd3 CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND Cmd3
 | [ "Cmd3" int(i) ] -> { () }
 END
 
@@ -182,7 +182,7 @@ END
 (*                                                                            *)
 (* -------------------------------------------------------------------------- *)
 
-VERNAC COMMAND EXTEND Cmd4 CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND Cmd4
 | [ "Cmd4" int_list(l) ] -> { () }
 END
 
@@ -280,7 +280,7 @@ END
 
 (* Here: *)
 
-VERNAC COMMAND EXTEND Cmd5 CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND Cmd5
 | [ "Cmd5" custom5(x) ] -> { () }
 END
 
@@ -295,7 +295,7 @@ END
 (*                                                                            *)
 (* -------------------------------------------------------------------------- *)
 
-VERNAC COMMAND EXTEND Cmd6 CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND Cmd6
 | [ "Cmd6" ] -> { Feedback.msg_notice (Pp.str "Everything is awesome!") }
 END
 
@@ -344,7 +344,7 @@ let counter = ref ~name:"counter" 0
 
 }
 
-VERNAC COMMAND EXTEND Cmd7 CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND Cmd7
 | [ "Cmd7" ] -> { counter := succ !counter;
                   Feedback.msg_notice (Pp.str "counter = " ++ Pp.str (string_of_int (!counter))) }
 END

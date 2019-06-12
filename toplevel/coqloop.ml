@@ -19,7 +19,7 @@ let top_stderr x =
  * entered to be able to report errors without pretty-printing. *)
 
 type input_buffer = {
-  mutable prompt : Stm.doc -> string;
+  mutable prompt : int -> string;
   mutable str : Bytes.t; (* buffer of already read characters *)
   mutable len : int;    (* number of chars in the buffer *)
   mutable bols : int list; (* offsets in str of beginning of lines *)
@@ -189,12 +189,7 @@ end
 (*s The Coq prompt is the name of the focused proof, if any, and "Coq"
     otherwise. We trap all exceptions to prevent the error message printing
     from cycling. *)
-let make_prompt () =
-  try
-    (Names.Id.to_string (Vernacstate.Proof_global.get_current_proof_name ())) ^ " < "
-  with Vernacstate.Proof_global.NoCurrentProof ->
-    "Coq < "
-  [@@ocaml.warning "-3"]
+let make_prompt () = "Coq < "
 
 (* the coq prompt added to the default one when in emacs mode
    The prompt contains the current state label [n] (for global
@@ -205,9 +200,9 @@ let make_prompt () =
    "n |lem1|lem2|lem3| p < "
 *)
 let make_emacs_prompt doc =
-  let statnum = Stateid.to_string (Stm.get_current_state ~doc) in
-  let dpth = Stm.current_proof_depth ~doc in
-  let pending = Stm.get_all_proof_names ~doc in
+  let statnum = "0" in
+  let dpth = 0 in
+  let pending = [Names.Id.(of_string "oo")] in
   let pendingprompt =
     List.fold_left
       (fun acc x -> acc ^ (if CString.is_empty acc then "" else "|") ^ Names.Id.to_string x)
@@ -260,10 +255,12 @@ let rec discard_to_dot () =
     | CLexer.Error.E _ -> discard_to_dot ()
     | e when CErrors.noncritical e -> ()
 
+let stm_parse_sentence ~doc:_ ~entry:_ _ _ = None
+
 let read_sentence ~state input =
   (* XXX: careful with ignoring the state Eugene!*)
   let open Vernac.State in
-  try Stm.parse_sentence ~doc:state.doc state.sid ~entry:G_toplevel.vernac_toplevel input
+  try stm_parse_sentence ~doc:state.doc state.sid ~entry:G_toplevel.vernac_toplevel input
   with reraise ->
     let reraise = CErrors.push reraise in
     discard_to_dot ();
@@ -277,10 +274,11 @@ let extract_default_loc loc doc_id sid : Loc.t option =
   match loc with
   | Some _ -> loc
   | None ->
-    try
-      let doc = Stm.get_doc doc_id in
-      Option.cata (fun {CAst.loc} -> loc) None Stm.(get_ast ~doc sid)
-    with _ -> loc
+    loc
+    (* try
+     *   let doc = doc_id in
+     *   Option.cata (fun {CAst.loc} -> loc) None Stm.(get_ast ~doc sid)
+     * with _ -> loc *)
 
 (** Coqloop Console feedback handler *)
 let coqloop_feed (fb : Feedback.feedback) = let open Feedback in
@@ -352,10 +350,11 @@ let print_anyway c =
 let top_goal_print ~doc c oldp newp =
   try
     let proof_changed = not (Option.equal cproof oldp newp) in
-    let print_goals = proof_changed && Vernacstate.Proof_global.there_are_pending_proofs () ||
+    let print_goals = proof_changed (* && Vernacstate.Proof_global.there_are_pending_proofs () *) ||
                       print_anyway c in
     if not !Flags.quiet && print_goals then begin
-      let dproof = Stm.get_prev_proof ~doc (Stm.get_current_state ~doc) in
+      (* let dproof = Stm.get_prev_proof ~doc (Stm.get_current_state ~doc) in *)
+      let dproof = None in
       Printer.print_and_diff dproof newp
     end
   with
@@ -371,6 +370,8 @@ let exit_on_error =
   declare_bool_option_and_ref ~depr:false ~name:"coqtop-exit-on-error" ~key:["Coqtop";"Exit";"On";"Error"]
     ~value:false
 
+let stm_edit_at ~doc:_ _ = 0, `NewTip
+
 let rec vernac_loop ~state =
   let open CAst in
   let open Vernac.State in
@@ -384,8 +385,8 @@ let rec vernac_loop ~state =
     let input = top_buffer.tokens in
     match read_sentence ~state input with
     | Some (VernacBacktrack(bid,_,_)) ->
-      let bid = Stateid.of_int bid in
-      let doc, res = Stm.edit_at ~doc:state.doc bid in
+      let bid = bid in
+      let doc, res = stm_edit_at ~doc:state.doc bid in
       assert (res = `NewTip);
       let state = { state with doc; sid = bid } in
       vernac_loop ~state
@@ -433,7 +434,7 @@ let rec loop ~state =
       loop ~state
 
 (* Default toplevel loop *)
-let warning s = Flags.(with_option warn Feedback.msg_warning (strbrk s))
+(* let warning s = Flags.(with_option warn Feedback.msg_warning (strbrk s)) *)
 
 let drop_args = ref None
 let loop ~opts ~state =
@@ -442,10 +443,6 @@ let loop ~opts ~state =
   print_emacs := opts.print_emacs;
   (* We initialize the console only if we run the toploop_run *)
   let tl_feed = Feedback.add_feeder coqloop_feed in
-  if Dumpglob.dump () then begin
-    Flags.if_verbose warning "Dumpglob cannot be used in interactive mode.";
-    Dumpglob.noglob ()
-  end;
   let _ = loop ~state in
   (* Initialise and launch the Ocaml toplevel *)
   Coqinit.init_ocaml_path();

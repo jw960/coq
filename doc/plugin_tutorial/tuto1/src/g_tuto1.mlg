@@ -34,7 +34,7 @@ open Stdarg
  * Some of these cases would be ambiguous if we used "What's" for each of
  * these. For example, all of these are terms. We purposely disambiguate.
  *)
-VERNAC COMMAND EXTEND WhatIsThis CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND WhatIsThis
 | [ "What's" constr(e) ] ->
    {
      let env = Global.env () in (* we'll explain later *)
@@ -55,7 +55,7 @@ END
  * This command demonstrates basic combinators built into the DSL here.
  * You can generalize this for constr_list, constr_opt, int_list, and so on.
  *)
-VERNAC COMMAND EXTEND WhatAreThese CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND WhatAreThese
 | [ "What" "is" int_list(l) "a" "list" "of" ] ->
    {
      let print l = str "[" ++ Pp.prlist_with_sep (fun () -> str ";") Pp.int l ++ str "]" in
@@ -111,7 +111,7 @@ END
  * thread state in a plugin, and it's easier to see that if it's in the
  * top-level file itself.
  *)
-VERNAC COMMAND EXTEND Intern CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND Intern
 | [ "Intern" constr(e) ] ->
    {
      let env = Global.env () in (* use this; never use empty *)
@@ -146,7 +146,7 @@ END
  * Note since we are now defining a term, we must classify this
  * as a side-effect (CLASSIFIED AS SIDEFF).
  *)
-VERNAC COMMAND EXTEND MyDefine CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND MyDefine
 | #[ poly = Attributes.polymorphic ] [ "MyDefine" ident(i) ":=" constr(e) ] ->
    {
      let env = Global.env () in
@@ -168,7 +168,7 @@ END
  * Simple_print contains simple_body_access, which shows how to look up
  * a global reference.
  *)
-VERNAC COMMAND EXTEND ExamplePrint CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND ExamplePrint
 | [ "MyPrint" reference(r) ] ->
    {
      let env = Global.env () in
@@ -194,7 +194,7 @@ END
  * Inside of simple_body_access, note that it uses Global.env (),
  * which refreshes the environment before looking up the term.
  *)
-VERNAC COMMAND EXTEND DefineLookup CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND DefineLookup
 | #[ poly = Attributes.polymorphic ] [ "DefineLookup" ident(i) ":=" constr(e) ] ->
    {
      let env = Global.env () in
@@ -218,7 +218,7 @@ END
  * The bodies and explanations of the differences are in simple_check.ml.
  *)
 
-VERNAC COMMAND EXTEND Check1 CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND Check1
 | [ "Check1" constr(e) ] ->
    {
      let env = Global.env () in
@@ -229,7 +229,7 @@ VERNAC COMMAND EXTEND Check1 CLASSIFIED AS QUERY
    }
 END
 
-VERNAC COMMAND EXTEND Check2 CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND Check2
 | [ "Check2" constr(e) ] ->
    {
      let env = Global.env () in
@@ -247,7 +247,7 @@ END
  * constraints in the state under which the two terms are
  * convertible.
  *)
-VERNAC COMMAND EXTEND Convertible CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND Convertible
 | [ "Convertible" constr(e1) constr(e2) ] ->
    {
      let env = Global.env () in
@@ -283,7 +283,7 @@ END
  * and state within a proof, as opposed to the global environment
  * and state. This is important within tactics.
  *)
-VERNAC COMMAND EXTEND ExploreProof CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND ExploreProof
 | ![ proof_query ] [ "ExploreProof" ] ->
   { fun ~pstate ->
     let sigma, env = Pfedit.get_current_context pstate in

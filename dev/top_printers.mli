@@ -13,8 +13,6 @@
 val pp : Pp.t -> unit
 val pP : Pp.t -> unit (* with surrounding box *)
 
-val ppfuture : 'a Future.computation -> unit
-
 val ppid : Names.Id.t -> unit
 val pplab : Names.Label.t -> unit
 val ppmbid : Names.MBId.t -> unit
@@ -145,7 +143,7 @@ val ppuniverse_level_subst : Univ.universe_level_subst -> unit
 val ppevar_universe_context : UState.t -> unit
 val ppconstraints : Univ.Constraint.t -> unit
 val ppuniverseconstraints : UnivProblem.Set.t -> unit
-val ppuniverse_context_future : Univ.UContext.t Future.computation -> unit
+val ppuniverse_context_future : Univ.UContext.t Lazy.t -> unit
 val ppuniverses : UGraph.t -> unit
 
 val ppnamedcontextval : Environ.named_context_val -> unit

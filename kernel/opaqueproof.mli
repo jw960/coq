@@ -21,7 +21,7 @@ open Mod_subst
     When it is [turn_indirect] the data is relocated to an opaque table
     and the [opaque] is turned into an index. *)
 
-type proofterm = (constr * Univ.ContextSet.t) Future.computation
+type proofterm = (constr * Univ.ContextSet.t) Lazy.t
 type opaquetab
 type opaque
 
@@ -55,15 +55,10 @@ type indirect_accessor = {
     indirect opaque accessor given as an argument. *)
 val force_proof : indirect_accessor -> opaquetab -> opaque -> constr
 val force_constraints : indirect_accessor -> opaquetab -> opaque -> Univ.ContextSet.t
-val get_direct_constraints : opaque -> Univ.ContextSet.t Future.computation
+val get_direct_constraints : opaque -> Univ.ContextSet.t Lazy.t
 
 val subst_opaque : substitution -> opaque -> opaque
 
-val discharge_direct_opaque :
-  cooking_info -> opaque -> opaque
+val discharge_direct_opaque : cooking_info -> opaque -> opaque
 
-val join_opaque : ?except:Future.UUIDSet.t -> opaquetab -> opaque -> unit
-
-val dump : ?except:Future.UUIDSet.t -> opaquetab ->
-  (cooking_info list * int * Constr.t option) array *
-  int Future.UUIDMap.t
+val join_opaque : opaquetab -> opaque -> unit

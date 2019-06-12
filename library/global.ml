@@ -20,7 +20,7 @@ module GlobalSafeEnv : sig
 
   val safe_env : unit -> Safe_typing.safe_environment
   val set_safe_env : Safe_typing.safe_environment -> unit
-  val join_safe_environment : ?except:Future.UUIDSet.t -> unit -> unit
+  val join_safe_environment : unit -> unit
   val is_joined_environment : unit -> bool
   val global_env_summary_tag : Safe_typing.safe_environment Summary.Dyn.tag
 
@@ -28,8 +28,8 @@ end = struct
 
 let global_env = ref Safe_typing.empty_environment
 
-let join_safe_environment ?except () =
-  global_env := Safe_typing.join_safe_environment ?except !global_env
+let join_safe_environment () =
+  global_env := Safe_typing.join_safe_environment !global_env
 
 let is_joined_environment () =
   Safe_typing.is_joined_environment !global_env
@@ -42,12 +42,7 @@ let global_env_summary_tag =
       unfreeze_function = (fun fr -> global_env := fr);
       init_function = (fun () -> global_env := Safe_typing.empty_environment) }
 
-let assert_not_parsing () =
-  if !Flags.we_are_parsing then
-    CErrors.anomaly (
-      Pp.strbrk"The global environment cannot be accessed during parsing.")
-
-let safe_env () = assert_not_parsing(); !global_env
+let safe_env () = !global_env
 
 let set_safe_env e = global_env := e
 
@@ -56,8 +51,7 @@ end
 let global_env_summary_tag = GlobalSafeEnv.global_env_summary_tag
 
 let safe_env = GlobalSafeEnv.safe_env
-let join_safe_environment ?except () =
-  GlobalSafeEnv.join_safe_environment ?except ()
+let join_safe_environment () = GlobalSafeEnv.join_safe_environment ()
 let is_joined_environment = GlobalSafeEnv.is_joined_environment
 
 let env () = Safe_typing.env_of_safe_env (safe_env ())
@@ -158,8 +152,8 @@ let mind_of_delta_kn kn =
 (** Operations on libraries *)
 
 let start_library dir = globalize (Safe_typing.start_library dir)
-let export ?except ~output_native_objects s =
-  Safe_typing.export ?except ~output_native_objects (safe_env ()) s
+let export ~output_native_objects s =
+  Safe_typing.export ~output_native_objects (safe_env ()) s
 let import c u d = globalize (Safe_typing.import c u d)
 
 

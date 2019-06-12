@@ -72,7 +72,7 @@ let declare_fun f_id kind ?univs value =
     ConstRef(declare_constant f_id (DefinitionEntry ce, kind));;
 
 let defined lemma =
-  Lemmas.save_lemma_proved ?proof:None ~lemma ~opaque:Proof_global.Transparent ~idopt:None
+  Lemmas.save_lemma_proved ~lemma ~opaque:Proof_global.Transparent ~idopt:None
 
 let def_of_const t =
    match (Constr.kind t) with
@@ -1367,7 +1367,7 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name (gls_type
 	       )
       		 g)
     in
-    Lemmas.save_lemma_proved ?proof:None ~lemma ~opaque:opacity ~idopt:None
+    Lemmas.save_lemma_proved ~lemma ~opaque:opacity ~idopt:None
   in
   let lemma = Lemmas.start_lemma
     na
@@ -1487,7 +1487,7 @@ let com_eqn sign uctx nb_arg eq_name functional_ref f_ref terminate_ref equation
 	       }
 	  )
        )) lemma in
-    let _ = Flags.silently (fun () -> Lemmas.save_lemma_proved ?proof:None ~lemma ~opaque:opacity ~idopt:None) () in
+    let _ = Flags.silently (fun () -> Lemmas.save_lemma_proved ~lemma ~opaque:opacity ~idopt:None) () in
     ()
 (*      Pp.msgnl (fun _ _ -> str "eqn finished"); *)
 

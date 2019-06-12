@@ -18,7 +18,7 @@ open Stdarg
 
 }
 
-VERNAC COMMAND EXTEND StringNotation CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND StringNotation
   | #[ locality = Attributes.locality; ] [ "String" "Notation" reference(ty) reference(f) reference(g) ":"
       ident(sc) ] ->
     { vernac_string_notation (Locality.make_module_locality locality) ty f g (Id.to_string sc) }

@@ -148,16 +148,27 @@ let private_poly_univs =
   in
   fun () -> !b
 
+let lazy_chain v f = Lazy.from_fun (fun () -> Lazy.force v |> f)
+let lazy_map2 f x y =
+  List.map2 (fun l x -> f (Lazy.from_val l) x) (Lazy.force x) y
+
+(*   ('a computation -> 'b -> 'c) ->
+ *      'a list computation -> 'b list -> 'c list *)
+
+let lazy_split2 v =
+  Lazy.from_fun (fun () -> let v = Lazy.force v in fst v),
+  Lazy.from_fun (fun () -> let v = Lazy.force v in snd v)
+
 let close_proof ~opaque ~keep_body_ucst_separate ?feedback_id ~now
-                (fpl : closed_proof_output Future.computation) ps =
+                (fpl : closed_proof_output Lazy.t) ps =
   let { section_vars; proof; universe_decl; strength } = ps in
   let Proof.{ name; poly; entry; initial_euctx } = Proof.data proof in
   let opaque = match opaque with Opaque -> true | Transparent -> false in
   let constrain_variables ctx =
     UState.constrain_variables (fst (UState.context_set initial_euctx)) ctx
   in
-  let fpl, univs = Future.split2 fpl in
-  let universes = if poly || now then Future.force univs else initial_euctx in
+  let fpl, univs = lazy_split2 fpl in
+  let universes = if poly || now then Lazy.force univs else initial_euctx in
   (* Because of dependent subgoals at the beginning of proofs, we could
      have existential variables in the initial types of goals, we need to
      normalise them for the kernel. *)
@@ -208,19 +219,19 @@ let close_proof ~opaque ~keep_body_ucst_separate ?feedback_id ~now
           let univs = UState.check_univ_decl ~poly ctx universe_decl in
           (univs, typ), ((body, Univ.ContextSet.empty), eff)
       in 
-       fun t p -> Future.split2 (Future.chain p (make_body t))
+       fun t p -> lazy_split2 (lazy_chain p (make_body t))
     else
       fun t p ->
         (* Already checked the univ_decl for the type universes when starting the proof. *)
         let univctx = UState.univ_entry ~poly:false universes in
         let t = nf t in
-        Future.from_val (univctx, t),
-        Future.chain p (fun (pt,eff) ->
+        Lazy.from_val (univctx, t),
+        lazy_chain p (fun (pt,eff) ->
           (* Deferred proof, we already checked the universe declaration with
              the initial universes, ensure that the final universes respect
              the declaration as well. If the declaration is non-extensible,
              this will prevent the body from adding universes and constraints. *)
-          let univs = Future.force univs in
+          let univs = Lazy.force univs in
           let univs = constrain_variables univs in
           let used_univs = Univ.LSet.union
               (Vars.universes_of_constr t)
@@ -233,7 +244,7 @@ let close_proof ~opaque ~keep_body_ucst_separate ?feedback_id ~now
   let entry_fn p (_, t) =
     let t = EConstr.Unsafe.to_constr t in
     let univstyp, body = make_body t p in
-    let univs, typ = Future.force univstyp in
+    let univs, typ = Lazy.force univstyp in
     {Entries.
       const_entry_body = body;
       const_entry_secctx = section_vars;
@@ -243,7 +254,7 @@ let close_proof ~opaque ~keep_body_ucst_separate ?feedback_id ~now
       const_entry_opaque = opaque;
       const_entry_universes = univs; }
   in
-  let entries = Future.map2 entry_fn fpl Proofview.(initial_goals entry) in
+  let entries = lazy_map2 entry_fn fpl Proofview.(initial_goals entry) in
   { id = name; entries = entries; persistence = strength;
     universes }
 
@@ -279,9 +290,9 @@ let return_proof ?(allow_partial=false) ps =
 let close_future_proof ~opaque ~feedback_id ps proof =
   close_proof ~opaque ~keep_body_ucst_separate:true ~feedback_id ~now:false proof ps
 
-let close_proof ~opaque ~keep_body_ucst_separate fix_exn ps =
+let close_proof ~opaque ~keep_body_ucst_separate ps =
   close_proof ~opaque ~keep_body_ucst_separate ~now:true
-    (Future.from_val ~fix_exn (return_proof ps)) ps
+    (Lazy.from_val (return_proof ps)) ps
 
 let update_global_env =
   map_proof (fun p ->

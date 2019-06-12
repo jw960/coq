@@ -180,34 +180,20 @@ let is_proof_termination_interactively_checked recsl =
   | _,((_,Some { CAst.v = CStructRec _ },_,_,_),_)
   | _,((_,None,_,_,_),_) -> false) recsl
 
-let classify_as_Fixpoint recsl =
- Vernac_classifier.classify_vernac
-    (Vernacexpr.(CAst.make @@ VernacExpr([], VernacFixpoint(Decl_kinds.NoDischarge, List.map snd recsl))))
-
-let classify_funind recsl =
-  match classify_as_Fixpoint recsl with
-  | Vernacextend.VtSideff ids, _
-    when is_proof_termination_interactively_checked recsl ->
-      Vernacextend.(VtStartProof (GuaranteesOpacity, ids), VtLater)
-  | x -> x
-
-let is_interactive recsl =
-  match classify_funind recsl with
-  | Vernacextend.VtStartProof _, _ -> true
-  | _ -> false
+let is_interactive recsl = is_proof_termination_interactively_checked recsl
 
 }
 
 VERNAC COMMAND EXTEND Function STATE CUSTOM
 | ["Function" ne_function_rec_definition_loc_list_sep(recsl,"with")]
-    => { classify_funind recsl }
-    -> {
-         if is_interactive recsl then
-           Vernacextend.VtOpenProof (fun () ->
-             do_generate_principle_interactive (List.map snd recsl))
-         else
-           Vernacextend.VtDefault (fun () ->
-             do_generate_principle (List.map snd recsl)) }
+  -> {
+    if is_interactive recsl then
+      Vernacextend.VtOpenProof (fun () ->
+          do_generate_principle_interactive (List.map snd recsl))
+    else
+      Vernacextend.VtDefault (fun () ->
+          do_generate_principle (List.map snd recsl))
+  }
 END
 
 {
@@ -243,7 +229,6 @@ let warning_error names e =
 
 VERNAC COMMAND EXTEND NewFunctionalScheme
 | ["Functional" "Scheme" ne_fun_scheme_arg_list_sep(fas,"with") ]
-   => { Vernacextend.(VtSideff(List.map pi1 fas), VtLater) }
    ->
     { begin
         try
@@ -275,12 +260,11 @@ END
 
 VERNAC COMMAND EXTEND NewFunctionalCase
 | ["Functional" "Case" fun_scheme_arg(fas) ]
-  => { Vernacextend.(VtSideff[pi1 fas], VtLater) }
   -> { Functional_principles_types.build_case_scheme fas }
 END
 
 (***** debug only ***)
-VERNAC COMMAND EXTEND GenerateGraph CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND GenerateGraph
 | ["Generate" "graph" "for" reference(c)] ->
   { make_graph (Smartlocate.global_with_alias c) }
 END

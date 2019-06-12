@@ -27,7 +27,6 @@ open Pcoq.Prim
 open Pcoq.Constr
 open Pvernac.Vernac_
 open Pltac
-open Vernacextend
 
 let wit_hyp = wit_var
 
@@ -179,7 +178,7 @@ TACTIC EXTEND setoid_rewrite
       { cl_rewrite_clause c o (occurrences_of occ) (Some id) }
 END
 
-VERNAC COMMAND EXTEND AddRelation CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND AddRelation
   | #[ atts = rewrite_attributes; ] [ "Add" "Relation" constr(a) constr(aeq) "reflexivity" "proved" "by" constr(lemma1)
         "symmetry" "proved" "by" constr(lemma2) "as" ident(n) ] ->
       { declare_relation atts a aeq n (Some lemma1) (Some lemma2) None }
@@ -191,7 +190,7 @@ VERNAC COMMAND EXTEND AddRelation CLASSIFIED AS SIDEFF
       { declare_relation atts a aeq n None None None }
 END
 
-VERNAC COMMAND EXTEND AddRelation2 CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND AddRelation2
   | #[ atts = rewrite_attributes; ] [ "Add" "Relation" constr(a) constr(aeq) "symmetry" "proved" "by" constr(lemma2)
       "as" ident(n) ] ->
       { declare_relation atts a aeq n None (Some lemma2) None }
@@ -199,7 +198,7 @@ VERNAC COMMAND EXTEND AddRelation2 CLASSIFIED AS SIDEFF
       { declare_relation atts a aeq n None (Some lemma2) (Some lemma3) }
 END
 
-VERNAC COMMAND EXTEND AddRelation3 CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND AddRelation3
   | #[ atts = rewrite_attributes; ] [ "Add" "Relation" constr(a) constr(aeq) "reflexivity" "proved" "by" constr(lemma1)
       "transitivity" "proved" "by" constr(lemma3) "as" ident(n) ] ->
       { declare_relation atts a aeq n (Some lemma1) None (Some lemma3) }
@@ -233,7 +232,7 @@ GRAMMAR EXTEND Gram
     [ [ b = Pcoq.Constr.binders -> { b } ] ];
 END
 
-VERNAC COMMAND EXTEND AddParametricRelation CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND AddParametricRelation
   | #[ atts = rewrite_attributes; ] [ "Add" "Parametric" "Relation" binders(b) ":" constr(a) constr(aeq)
         "reflexivity" "proved" "by" constr(lemma1)
         "symmetry" "proved" "by" constr(lemma2) "as" ident(n) ] ->
@@ -246,7 +245,7 @@ VERNAC COMMAND EXTEND AddParametricRelation CLASSIFIED AS SIDEFF
       { declare_relation atts ~binders:b a aeq n None None None }
 END
 
-VERNAC COMMAND EXTEND AddParametricRelation2 CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND AddParametricRelation2
   | #[ atts = rewrite_attributes; ] [ "Add" "Parametric" "Relation" binders(b) ":" constr(a) constr(aeq) "symmetry" "proved" "by" constr(lemma2)
       "as" ident(n) ] ->
       { declare_relation atts ~binders:b a aeq n None (Some lemma2) None }
@@ -254,7 +253,7 @@ VERNAC COMMAND EXTEND AddParametricRelation2 CLASSIFIED AS SIDEFF
       { declare_relation atts ~binders:b a aeq n None (Some lemma2) (Some lemma3) }
 END
 
-VERNAC COMMAND EXTEND AddParametricRelation3 CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND AddParametricRelation3
   | #[ atts = rewrite_attributes; ] [ "Add" "Parametric" "Relation" binders(b) ":" constr(a) constr(aeq) "reflexivity" "proved" "by" constr(lemma1)
       "transitivity" "proved" "by" constr(lemma3) "as" ident(n) ] ->
       { declare_relation atts ~binders:b a aeq n (Some lemma1) None (Some lemma3) }
@@ -267,7 +266,7 @@ VERNAC COMMAND EXTEND AddParametricRelation3 CLASSIFIED AS SIDEFF
       { declare_relation atts ~binders:b a aeq n None None (Some lemma3) }
 END
 
-VERNAC COMMAND EXTEND AddSetoid1 CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND AddSetoid1
   | #[ atts = rewrite_attributes; ] [ "Add" "Setoid" constr(a) constr(aeq) constr(t) "as" ident(n) ] ->
      {
          add_setoid atts [] a aeq t n
@@ -277,19 +276,15 @@ VERNAC COMMAND EXTEND AddSetoid1 CLASSIFIED AS SIDEFF
          add_setoid atts binders a aeq t n
      }
   | #[ atts = rewrite_attributes; ] ![ open_proof ] [ "Add" "Morphism" constr(m) ":" ident(n) ]
-    => { VtStartProof(GuaranteesOpacity, [n]), VtLater }
     -> { if Lib.is_modtype () then
            CErrors.user_err Pp.(str "Add Morphism cannot be used in a module type. Use Parameter Morphism instead.");
          add_morphism_interactive atts m n }
   | #[ atts = rewrite_attributes; ] [ "Declare" "Morphism" constr(m) ":" ident(n) ]
-    => { VtSideff([n]), VtLater }
     -> { add_morphism_as_parameter atts m n }
   | #[ atts = rewrite_attributes; ] ![ open_proof ] [ "Add" "Morphism" constr(m) "with" "signature" lconstr(s) "as" ident(n) ]
-    => { VtStartProof(GuaranteesOpacity,[n]), VtLater }
     -> { add_morphism atts [] m s n }
   | #[ atts = rewrite_attributes; ] ![ open_proof ] [ "Add" "Parametric" "Morphism" binders(binders) ":" constr(m)
         "with" "signature" lconstr(s) "as" ident(n) ]
-    => { VtStartProof(GuaranteesOpacity,[n]), VtLater }
     -> { add_morphism atts binders m s n }
 END
 
@@ -307,7 +302,7 @@ TACTIC EXTEND setoid_transitivity
 | [ "setoid_etransitivity" ] -> { setoid_transitivity None }
 END
 
-VERNAC COMMAND EXTEND PrintRewriteHintDb CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND PrintRewriteHintDb
 | [ "Print" "Rewrite" "HintDb" preident(s) ] ->
   { Feedback.msg_notice (Autorewrite.print_rewrite_hintdb s) }
 END

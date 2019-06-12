@@ -16,7 +16,7 @@ let tuto_warn = CWarnings.create ~name:"name" ~category:"category"
  * This defines a command that prints HelloWorld.
  * Note that Feedback.msg_notice can be used to print messages.
  *)
-VERNAC COMMAND EXTEND HelloWorld CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND HelloWorld
 | [ "HelloWorld" ] -> { Feedback.msg_notice (strbrk Tuto0_main.message) }
 END
 
@@ -36,7 +36,7 @@ END
  * tuto_warn is defined at the top-level, before the command runs,
  * which is standard.
  *)
-VERNAC COMMAND EXTEND HelloWarning CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND HelloWarning
 | [ "HelloWarning" ] ->
    {
      tuto_warn ()
@@ -60,7 +60,7 @@ END
  * This defines a command that prints HelloWorld inside of an error.
  * Note that CErrors.user_err can be used to raise errors to the user.
  *)
-VERNAC COMMAND EXTEND HelloError CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND HelloError
 | [ "HelloError" ] -> { CErrors.user_err (str Tuto0_main.message) }
 END
 

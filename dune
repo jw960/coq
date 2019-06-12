@@ -41,7 +41,7 @@
 ; Use summary.log as the target
 (alias
  (name runtest)
- (package coqide-server)
+ (package coq)
  (deps test-suite/summary.log))
 
 ; (dirs (:standard _build_ci))

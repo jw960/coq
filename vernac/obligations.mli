@@ -13,11 +13,6 @@ open Constr
 open Evd
 open Names
 
-(* This is a hack to make it possible for Obligations to craft a Qed
- * behind the scenes.  The fix_exn the Stm attaches to the Future proof
- * is not available here, so we provide a side channel to get it *)
-val stm_get_fix_exn : (unit -> Exninfo.iexn -> Exninfo.iexn) Hook.t
-
 val check_evars : env -> evar_map -> unit
 
 val evar_dependencies : evar_map -> Evar.t -> Evar.Set.t

@@ -44,13 +44,8 @@ val import_module : bool -> qualid list -> unit
 (** End the compilation of a library and save it to a ".vo" file.
     [output_native_objects]: when producing vo objects, also compile the native-code version. *)
 val save_library_to :
-  ?todo:(((Future.UUID.t,'document) Stateid.request * bool) list * 'counters) ->
   output_native_objects:bool ->
   DirPath.t -> string -> Opaqueproof.opaquetab -> unit
-
-val load_library_todo
-  :  CUnix.physical_path
-  -> seg_sum * seg_lib * seg_univ * 'tasks * seg_proofs
 
 val save_library_raw : string -> seg_sum -> seg_lib -> seg_univ -> seg_proofs -> unit
 

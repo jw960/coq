@@ -39,7 +39,7 @@ type feedback_content =
 
 type feedback = {
   doc_id   : doc_id;            (* The document being concerned *)
-  span_id  : Stateid.t;
+  span_id  : int;
   route    : route_id;
   contents : feedback_content;
 }
@@ -56,7 +56,7 @@ let add_feeder =
 let del_feeder fid = Hashtbl.remove feeders fid
 
 let default_route = 0
-let span_id    = ref Stateid.dummy
+let span_id    = ref 0
 let doc_id     = ref 0
 let feedback_route = ref default_route
 

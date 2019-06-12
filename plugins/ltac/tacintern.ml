@@ -401,22 +401,6 @@ let intern_typed_pattern_or_ref_with_occurrences ist (l,p) =
   | Inr c ->
       Inr (snd (intern_typed_pattern ist ~as_type:false ~ltacvars:ist.ltacvars c)))
 
-(* This seems fairly hacky, but it's the first way I've found to get proper
-   globalization of [unfold].  --adamc *)
-let dump_glob_red_expr = function
-  | Unfold occs -> List.iter (fun (_, r) ->
-    try
-      Dumpglob.add_glob ?loc:r.loc
-	(Smartlocate.smart_global r)
-    with e when CErrors.noncritical e -> ()) occs
-  | Cbv grf | Lazy grf ->
-    List.iter (fun r ->
-      try
-        Dumpglob.add_glob ?loc:r.loc
-	  (Smartlocate.smart_global r)
-      with e when CErrors.noncritical e -> ()) grf.rConst
-  | _ -> ()
-
 let intern_red_expr ist = function
   | Unfold l -> Unfold (List.map (intern_unfold ist) l)
   | Fold l -> Fold (List.map (intern_constr ist) l)
@@ -549,8 +533,7 @@ let rec intern_atomic lf ist x =
                Option.map (intern_constr_with_bindings ist) el))
   (* Conversion *)
   | TacReduce (r,cl) ->
-      dump_glob_red_expr r;
-      TacReduce (intern_red_expr ist r, clause_app (intern_hyp_location ist) cl)
+    TacReduce (intern_red_expr ist r, clause_app (intern_hyp_location ist) cl)
   | TacChange (check,None,c,cl) ->
       let is_onhyps = match cl.onhyps with
       | None | Some [] -> true

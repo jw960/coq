@@ -33,7 +33,7 @@ VERNAC ARGUMENT EXTEND numnotoption
 | [ "(" "abstract" "after" bigint(n) ")" ] -> { Abstract n }
 END
 
-VERNAC COMMAND EXTEND NumeralNotation CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND NumeralNotation
   | #[ locality = Attributes.locality; ] [ "Numeral" "Notation" reference(ty) reference(f) reference(g) ":"
       ident(sc) numnotoption(o) ] ->
 

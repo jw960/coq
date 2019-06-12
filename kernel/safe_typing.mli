@@ -61,8 +61,7 @@ val is_curmod_library : safe_environment -> bool
 
 (* safe_environment has functional data affected by lazy computations,
  * thus this function returns a new safe_environment *)
-val join_safe_environment :
-  ?except:Future.UUIDSet.t -> safe_environment -> safe_environment
+val join_safe_environment : safe_environment -> safe_environment
 
 val is_joined_environment : safe_environment -> bool
 (** {6 Enriching a safe environment } *)
@@ -183,10 +182,10 @@ val get_library_native_symbols : safe_environment -> DirPath.t -> Nativecode.sym
 
 val start_library : DirPath.t -> ModPath.t safe_transformer
 
-val export :
-  ?except:Future.UUIDSet.t -> output_native_objects:bool ->
-  safe_environment -> DirPath.t ->
-    ModPath.t * compiled_library * native_library
+val export
+  : output_native_objects:bool
+  -> safe_environment -> DirPath.t
+  -> ModPath.t * compiled_library * native_library
 
 (* Constraints are non empty iff the file is a vi2vo *)
 val import : compiled_library -> Univ.ContextSet.t -> vodigest ->

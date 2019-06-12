@@ -13,11 +13,9 @@ open Names
 open Constr
 open Univ
 
-type univ_unique_id = int
-(* Generator of levels *)
-let new_univ_id, set_remote_new_univ_id =
-  RemoteCounter.new_counter ~name:"Universes" 0 ~incr:((+) 1)
-    ~build:(fun n -> n)
+let new_univ_id =
+  let c = ref 0 in
+  fun () -> incr c; !c
 
 let new_univ_global () =
   Univ.Level.UGlobal.make (Global.current_dirpath ()) (new_univ_id ())

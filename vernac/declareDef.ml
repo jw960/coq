@@ -15,7 +15,6 @@ open Globnames
 open Impargs
 
 let declare_definition ident (local, p, k) ?hook_data ce pl imps =
-  let fix_exn = Future.fix_exn_of ce.const_entry_body in
   let gr = match local with
   | Discharge ->
       let _ = declare_variable ident (Lib.cwd(), SectionLocalDef ce, IsDefinition k) in
@@ -32,7 +31,7 @@ let declare_definition ident (local, p, k) ?hook_data ce pl imps =
     match hook_data with
     | None -> ()
     | Some (hook, uctx, extra_defs) ->
-      Lemmas.call_hook ~fix_exn ~hook uctx extra_defs local gr
+      Lemmas.call_hook ~hook uctx extra_defs local gr
   end;
   gr
 

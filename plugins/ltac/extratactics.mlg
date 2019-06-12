@@ -32,7 +32,6 @@ open Tactypes
 open Tactics
 open Proofview.Notations
 open Attributes
-open Vernacextend
 
 let wit_hyp = wit_var
 
@@ -336,11 +335,9 @@ let add_rewrite_hint ~poly bases ort t lcsr =
   let add_hints base = add_rew_rules base eqs in
   List.iter add_hints bases
 
-let classify_hint _ = VtSideff [], VtLater
-
 }
 
-VERNAC COMMAND EXTEND HintRewrite CLASSIFIED BY { classify_hint }
+VERNAC COMMAND EXTEND HintRewrite
 | #[ polymorphic; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) ":" preident_list(bl) ] ->
   { add_rewrite_hint ~poly:polymorphic bl o None l }
 | #[ polymorphic; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) "using" tactic(t)
@@ -422,8 +419,6 @@ END
 open Inv
 open Leminv
 
-let seff id = VtSideff [id], VtLater
-
 }
 
 (*VERNAC ARGUMENT EXTEND sort_family
@@ -434,36 +429,32 @@ END*)
 
 VERNAC COMMAND EXTEND DeriveInversionClear
 | #[ polymorphic; ] [ "Derive" "Inversion_clear" ident(na) "with" constr(c) "Sort" sort_family(s) ]
-  => { seff na }
   -> {
       add_inversion_lemma_exn ~poly:polymorphic na c s false inv_clear_tac }
 
-| #[ polymorphic; ] [ "Derive" "Inversion_clear" ident(na) "with" constr(c) ] => { seff na }
+| #[ polymorphic; ] [ "Derive" "Inversion_clear" ident(na) "with" constr(c) ]
   -> {
       add_inversion_lemma_exn ~poly:polymorphic na c Sorts.InProp false inv_clear_tac }
 END
 
 VERNAC COMMAND EXTEND DeriveInversion
 | #[ polymorphic; ] [ "Derive" "Inversion" ident(na) "with" constr(c) "Sort" sort_family(s) ]
-  => { seff na }
   -> {
       add_inversion_lemma_exn ~poly:polymorphic na c s false inv_tac }
 
-| #[ polymorphic; ] [ "Derive" "Inversion" ident(na) "with" constr(c) ] => { seff na }
+| #[ polymorphic; ] [ "Derive" "Inversion" ident(na) "with" constr(c) ]
   -> {
       add_inversion_lemma_exn ~poly:polymorphic na c Sorts.InProp false inv_tac }
 END
 
 VERNAC COMMAND EXTEND DeriveDependentInversion
 | #[ polymorphic; ] [ "Derive" "Dependent" "Inversion" ident(na) "with" constr(c) "Sort" sort_family(s) ]
-  => { seff na }
   -> {
       add_inversion_lemma_exn ~poly:polymorphic na c s true dinv_tac }
 END
 
 VERNAC COMMAND EXTEND DeriveDependentInversionClear
 | #[ polymorphic; ] [ "Derive" "Dependent" "Inversion_clear" ident(na) "with" constr(c) "Sort" sort_family(s) ]
-  => { seff na }
   -> {
       add_inversion_lemma_exn ~poly:polymorphic na c s true dinv_clear_tac }
 END
@@ -581,12 +572,12 @@ TACTIC EXTEND stepr
 | ["stepr" constr(c) ] -> { step false c (Proofview.tclUNIT ()) }
 END
 
-VERNAC COMMAND EXTEND AddStepl CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND AddStepl
 | [ "Declare" "Left" "Step" constr(t) ] ->
     { add_transitivity_lemma true t }
 END
 
-VERNAC COMMAND EXTEND AddStepr CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND AddStepr
 | [ "Declare" "Right" "Step" constr(t) ] ->
     { add_transitivity_lemma false t }
 END
@@ -933,7 +924,6 @@ END
    mode. *)
 VERNAC COMMAND EXTEND GrabEvars STATE proof
 | [ "Grab" "Existential" "Variables" ]
-  => { classify_as_proofstep }
   -> { fun ~pstate -> Proof_global.map_proof (fun p -> Proof.V82.grab_evars p) pstate }
 END
 
@@ -965,7 +955,6 @@ END
 (* Command to add every unshelved variables to the focus *)
 VERNAC COMMAND EXTEND Unshelve STATE proof
 | [ "Unshelve" ]
-  => { classify_as_proofstep }
   -> { fun ~pstate -> Proof_global.map_proof (fun p  -> Proof.unshelve p) pstate  }
 END
 
@@ -1095,7 +1084,7 @@ END
 
 (** library/keys *)
 
-VERNAC COMMAND EXTEND Declare_keys CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND Declare_keys
 | [ "Declare" "Equivalent" "Keys" constr(c) constr(c') ] -> {
   let get_key c =
     let env = Global.env () in
@@ -1111,15 +1100,15 @@ VERNAC COMMAND EXTEND Declare_keys CLASSIFIED AS SIDEFF
     | _ -> () }
 END
 
-VERNAC COMMAND EXTEND Print_keys CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND Print_keys
 | [ "Print" "Equivalent" "Keys" ] -> { Feedback.msg_info (Keys.pr_keys Printer.pr_global) }
 END
 
 
 VERNAC COMMAND EXTEND OptimizeProof
-| ![ proof ] [ "Optimize" "Proof" ] => { classify_as_proofstep } ->
+| ![ proof ] [ "Optimize" "Proof" ] ->
   { fun ~pstate -> Proof_global.compact_the_proof pstate }
-| [ "Optimize" "Heap" ] => { classify_as_proofstep } ->
+| [ "Optimize" "Heap" ] ->
   { Gc.compact () }
 END
 

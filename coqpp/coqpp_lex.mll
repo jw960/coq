@@ -102,7 +102,6 @@ rule extend = parse
 | "DECLARE" { DECLARE }
 | "PLUGIN" { PLUGIN }
 | "DEPRECATED" { DEPRECATED }
-| "CLASSIFIED" { CLASSIFIED }
 | "STATE" { STATE }
 | "PRINTED" { PRINTED }
 | "TYPED" { TYPED }

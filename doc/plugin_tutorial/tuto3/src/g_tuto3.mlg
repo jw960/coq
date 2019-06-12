@@ -11,7 +11,7 @@ open Stdarg
 
 }
 
-VERNAC COMMAND EXTEND ShowTypeConstruction CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND ShowTypeConstruction
 | [ "Tuto3_1" ] ->
   { let env = Global.env () in
     let sigma = Evd.from_env env in
@@ -23,7 +23,7 @@ VERNAC COMMAND EXTEND ShowTypeConstruction CLASSIFIED AS QUERY
       (Printer.pr_econstr_env env sigma new_type_2) }
 END
 
-VERNAC COMMAND EXTEND ShowOneConstruction CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND ShowOneConstruction
 | [ "Tuto3_2" ] -> { example_sort_app_lambda () }
 END
 
@@ -35,12 +35,12 @@ END
 (* More advanced examples, where automatic proof happens but
    no tactic is being called explicitly.  The first one uses
    type classes. *)
-VERNAC COMMAND EXTEND TriggerClasses CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND TriggerClasses
 | [ "Tuto3_3" int(n) ] -> { example_classes n }
 END
 
 (* The second one uses canonical structures. *)
-VERNAC COMMAND EXTEND TriggerCanonical CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND TriggerCanonical
 | [ "Tuto3_4" int(n) ] -> { example_canonical n }
 END
 

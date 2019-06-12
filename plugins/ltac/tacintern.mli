@@ -61,7 +61,6 @@ val print_ltac : Libnames.qualid -> Pp.t
 (** Reduction expressions *)
 
 val intern_red_expr : glob_sign -> raw_red_expr -> glob_red_expr
-val dump_glob_red_expr : raw_red_expr -> unit
 
 (* Hooks *)
 val strict_check : bool ref

@@ -23,8 +23,6 @@ open Util
 
 module NamedDecl = Context.Named.Declaration
 
-let get_fix_exn, stm_get_fix_exn = Hook.make ()
-
 let succfix (depth, fixrels) =
   (succ depth, List.map succ fixrels)
 
@@ -460,7 +458,6 @@ let declare_definition prg =
   let nf = UnivSubst.nf_evars_and_universes_opt_subst (fun x -> None)
     (UState.subst prg.prg_ctx) in
   let opaque = prg.prg_opaque in
-  let fix_exn = Hook.get get_fix_exn () in
   let typ = nf typ in
   let body = nf body in
   let obls = List.map (fun (id, (_, c)) -> (id, nf c)) varsubst in
@@ -469,7 +466,7 @@ let declare_definition prg =
       (Vars.universes_of_constr body) in
   let uctx = UState.restrict prg.prg_ctx uvars in
   let univs = UState.check_univ_decl ~poly:(pi2 prg.prg_kind) uctx prg.prg_univdecl in
-  let ce = definition_entry ~fix_exn ~opaque ~types:typ ~univs body in
+  let ce = definition_entry ~opaque ~types:typ ~univs body in
   let () = progmap_remove prg in
   let ubinders = UState.universe_binders uctx in
   let hook_data = Option.map (fun hook -> hook, uctx, obls) prg.prg_hook in
@@ -551,14 +548,13 @@ let declare_mutual_definition l =
   in
   (* Declare the recursive definitions *)
   let univs = UState.univ_entry ~poly first.prg_ctx in
-  let fix_exn = Hook.get get_fix_exn () in
   let kns = List.map4 (DeclareDef.declare_fix ~opaque (local, poly, kind) UnivNames.empty_binders univs)
     fixnames fixdecls fixtypes fiximps in
     (* Declare notations *)
     List.iter (Metasyntax.add_notation_interpretation (Global.env())) first.prg_notations;
     Declare.recursive_message (fixkind != IsCoFixpoint) indexes fixnames;
     let gr = List.hd kns in
-    Lemmas.call_hook ?hook:first.prg_hook ~fix_exn first.prg_ctx obls local gr;
+    Lemmas.call_hook ?hook:first.prg_hook first.prg_ctx obls local gr;
     List.iter progmap_remove l; gr
 
 let decompose_lam_prod c ty =
@@ -634,7 +630,7 @@ let declare_obligation prg obl body ty uctx =
       in
       let body = ((body,Univ.ContextSet.empty),Safe_typing.empty_private_constants) in
       let ce =
-        { const_entry_body = Future.from_val ~fix_exn:(fun x -> x) body;
+        { const_entry_body = Lazy.from_val body;
           const_entry_secctx = None;
 	  const_entry_type = ty;
           const_entry_universes = uctx;
@@ -822,7 +818,7 @@ let solve_by_tac ?loc name evi t poly ctx =
       Pfedit.build_constant_by_tactic
         id ~goal_kind:(goal_kind poly) ctx evi.evar_hyps evi.evar_concl t in
     let env = Global.env () in
-    let body = Future.force entry.const_entry_body in
+    let body = Lazy.force entry.const_entry_body in
     let body = Safe_typing.inline_private_constants env body in
     let ctx' = Evd.merge_context_set ~sideff:true Evd.univ_rigid (Evd.from_ctx ctx') (snd body) in
     Inductiveops.control_only_guard env ctx' (EConstr.of_constr (fst body));
@@ -848,7 +844,7 @@ let obligation_terminator ?hook name num guard auto pf =
   | Proved (opq, id, { entries=[entry]; universes=uctx } ) -> begin
     let env = Global.env () in
     let ty = entry.Entries.const_entry_type in
-    let body = Future.force entry.const_entry_body in
+    let body = Lazy.force entry.const_entry_body in
     let (body, cstr) = Safe_typing.inline_private_constants env body in
     let sigma = Evd.from_ctx uctx in
     let sigma = Evd.merge_context_set ~sideff:true Evd.univ_rigid sigma cstr in

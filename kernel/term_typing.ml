@@ -124,7 +124,7 @@ let infer_declaration (type a) ~(trust : a trust) env (dcl : a constant_entry) =
       let { const_entry_body = body; const_entry_feedback = feedback_id; _ } = c in
       let tyj = Typeops.infer_type env typ in
       let proofterm =
-        Future.chain body (fun ((body,uctx),side_eff) ->
+        Lazy.from_fun (fun () -> Lazy.force body |> (fun ((body,uctx),side_eff) ->
           (* don't redeclare universes which are declared for the type *)
           let uctx = Univ.ContextSet.diff uctx univs in
           let j, uctx = match trust with
@@ -145,7 +145,7 @@ let infer_declaration (type a) ~(trust : a trust) env (dcl : a constant_entry) =
           in
           let c = j.uj_val in
           feedback_completion_typecheck feedback_id;
-          c, uctx) in
+          c, uctx)) in
       let def = OpaqueDef proofterm in
       {
         Cooking.cook_body = def;
@@ -169,7 +169,7 @@ let infer_declaration (type a) ~(trust : a trust) env (dcl : a constant_entry) =
       let sbst, auctx = Univ.abstract_universes nas uctx in
       let usubst = Univ.make_instance_subst sbst in
       let (def, private_univs) =
-        let (body, ctx), side_eff = Future.join body in
+        let (body, ctx), side_eff = Lazy.force body in
         let body, ctx = match trust with
         | Pure -> body, ctx
         | SideEffects handle ->
@@ -185,7 +185,7 @@ let infer_declaration (type a) ~(trust : a trust) env (dcl : a constant_entry) =
         let def = Vars.subst_univs_level_constr usubst j.uj_val in
         def, private_univs
       in
-      let def = OpaqueDef (Future.from_val (def, Univ.ContextSet.empty)) in
+      let def = OpaqueDef (Lazy.from_val (def, Univ.ContextSet.empty)) in
       let typ = Vars.subst_univs_level_constr usubst tj.utj_val in
         feedback_completion_typecheck feedback_id;
       {
@@ -207,7 +207,7 @@ let infer_declaration (type a) ~(trust : a trust) env (dcl : a constant_entry) =
       let () = assert (not c.const_entry_opaque) in
       let body, ctx = match trust with
       | Pure ->
-        let (body, ctx), () = Future.join body in
+        let (body, ctx), () = Lazy.force body in
         body, ctx
       | SideEffects _ -> assert false
       in
@@ -250,17 +250,6 @@ let infer_declaration (type a) ~(trust : a trust) env (dcl : a constant_entry) =
         cook_context = c.const_entry_secctx;
       }
 
-let record_aux env s_ty s_bo =
-  let in_ty = keep_hyps env s_ty in
-  let v =
-    String.concat " "
-      (CList.map_filter (fun decl ->
-          let id = NamedDecl.get_id decl in
-          if List.exists (NamedDecl.get_id %> Id.equal id) in_ty then None
-          else Some (Id.to_string id))
-        (keep_hyps env s_bo)) in
-  Aux_file.record_in_aux "context_used" v
-
 let build_constant_declaration env result =
   let open Cooking in
   let typ = result.cook_type in
@@ -300,15 +289,12 @@ let build_constant_declaration env result =
         | Undef _ | Primitive _ -> Id.Set.empty
         | Def cs -> global_vars_set env (Mod_subst.force_constr cs)
         | OpaqueDef lc ->
-            let (lc, _) = Future.force lc in
+            let (lc, _) = Lazy.force lc in
             let vars = global_vars_set env lc in
-            if !Flags.record_aux_file then record_aux env ids_typ vars;
             vars
         in
         keep_hyps env (Id.Set.union ids_typ ids_def), def
     | None ->
-        if !Flags.record_aux_file then
-          record_aux env Id.Set.empty Id.Set.empty;
         [], def (* Empty section context: no need to check *)
     | Some declared ->
         (* We use the declared set and chain a check of correctness *)
@@ -322,7 +308,7 @@ let build_constant_declaration env result =
             check declared inferred;
             x
         | OpaqueDef lc -> (* In this case we can postpone the check *)
-          let iter k cu = Future.chain cu (fun (c, _ as p) -> k c; p) in
+          let iter k cu = Lazy.from_fun (fun () -> Lazy.force cu |> (fun (c, _ as p) -> k c; p)) in
           let kont c =
             let ids_typ = global_vars_set env typ in
             let ids_def = global_vars_set env c in
@@ -375,7 +361,7 @@ let translate_recipe env _kn r =
 
 let translate_local_def env _id centry =
   let open Cooking in
-  let body = Future.from_val ((centry.secdef_body, Univ.ContextSet.empty), ()) in
+  let body = Lazy.from_val ((centry.secdef_body, Univ.ContextSet.empty), ()) in
   let centry = {
     const_entry_body = body;
     const_entry_secctx = centry.secdef_secctx;
@@ -387,16 +373,6 @@ let translate_local_def env _id centry =
   } in
   let decl = infer_declaration ~trust:Pure env (DefinitionEntry centry) in
   let typ = decl.cook_type in
-  if Option.is_empty decl.cook_context && !Flags.record_aux_file then begin
-    match decl.cook_body with
-    | Undef _ -> ()
-    | Primitive _ -> ()
-    | Def _ -> ()
-    | OpaqueDef lc ->
-       let ids_typ = global_vars_set env typ in
-       let ids_def = global_vars_set env (fst (Future.force lc)) in
-       record_aux env ids_typ ids_def
-  end;
   let () = match decl.cook_universes with
   | Monomorphic ctx -> assert (Univ.ContextSet.is_empty ctx)
   | Polymorphic _ -> assert false
@@ -404,7 +380,7 @@ let translate_local_def env _id centry =
   let c = match decl.cook_body with
   | Def c -> Mod_subst.force_constr c
   | OpaqueDef o ->
-    let (p, cst) = Future.force o in
+    let (p, cst) = Lazy.force o in
     (** Let definitions are ensured to have no extra constraints coming from
         the body by virtue of the typing of [Entries.section_def_entry]. *)
     let () = assert (Univ.ContextSet.is_empty cst) in

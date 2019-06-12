@@ -12,8 +12,8 @@
 module State : sig
 
   type t = {
-    doc : Stm.doc;
-    sid : Stateid.t;
+    doc : int;
+    sid : int;
     proof : Proof.t option;
     time : bool;
   }

@@ -99,8 +99,8 @@ val get_library_native_symbols : library_name -> Nativecode.symbols
 val start_library : library_name -> unit
 
 val end_library :
-  ?except:Future.UUIDSet.t -> output_native_objects:bool -> library_name ->
-    Safe_typing.compiled_library * library_objects * Safe_typing.native_library
+  output_native_objects:bool -> library_name ->
+  Safe_typing.compiled_library * library_objects * Safe_typing.native_library
 
 (** append a function to be executed at end_library *)
 val append_end_library_hook : (unit -> unit) -> unit

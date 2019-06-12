@@ -31,23 +31,12 @@
 
 (** Command-line flags  *)
 
-(** Set by coqtop to tell the kernel to output to the aux file; will
-    be eventually removed by cleanups such as PR#1103 *)
-val record_aux_file : bool ref
-
-(** Async-related flags *)
-val async_proofs_worker_id : string ref
-val async_proofs_is_worker : unit -> bool
-
 (** Debug flags *)
 val debug : bool ref
 val in_debugger : bool ref
 val in_toplevel : bool ref
 
 val profile : bool
-
-(* development flag to detect race conditions, it should go away. *)
-val we_are_parsing : bool ref
 
 (* Set Printing All flag. For some reason it is a global flag *)
 val raw_print : bool ref

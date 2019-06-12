@@ -881,19 +881,11 @@ PRINTED BY { pr_ltac2expr }
 | [ tac2expr(e) ] -> { e }
 END
 
-{
-
-let classify_ltac2 = function
-| StrSyn _ -> Vernacextend.(VtSideff [], VtNow)
-| StrMut _ | StrVal _ | StrPrm _  | StrTyp _ -> Vernacextend.classify_as_sideeff
-
-}
-
 VERNAC COMMAND EXTEND VernacDeclareTactic2Definition
-| #[ local = locality ] [ "Ltac2" ltac2_entry(e) ] => { classify_ltac2 e } -> {
+| #[ local = locality ] [ "Ltac2" ltac2_entry(e) ] -> {
   Tac2entries.register_struct ?local e
   }
-| ![proof_opt_query] [ "Ltac2" "Eval" ltac2_expr(e) ] => { Vernacextend.classify_as_sideeff } -> {
+| ![proof_opt_query] [ "Ltac2" "Eval" ltac2_expr(e) ] -> {
   fun ~pstate -> Tac2entries.perform_eval ~pstate e
   }
 END
@@ -903,13 +895,11 @@ END
 let _ = Pvernac.register_proof_mode "Ltac2" tac2mode
 
 open G_ltac
-open Vernacextend
 
 }
 
 VERNAC { tac2mode } EXTEND VernacLtac2
-| ![proof] [ ltac2_expr(t) ltac_use_default(default) ] =>
-    { classify_as_proofstep } -> {
+| ![proof] [ ltac2_expr(t) ltac_use_default(default) ] -> {
 (*     let g = Option.default (Proof_global.get_default_goal_selector ()) g in *)
   fun ~pstate -> Tac2entries.call ~pstate ~default t }
 END
@@ -920,6 +910,6 @@ open Stdarg
 
 }
 
-VERNAC COMMAND EXTEND Ltac2Print CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND Ltac2Print
 | [ "Print" "Ltac2" reference(tac) ] -> { Tac2entries.print_ltac tac }
 END

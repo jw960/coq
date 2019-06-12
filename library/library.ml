@@ -522,22 +522,6 @@ let import_module export modl =
   in aux [] modl
 
 (************************************************************************)
-(*s Initializing the compilation of a library. *)
-
-let load_library_todo f =
-  let ch = raw_intern_library f in
-  let (s0 : seg_sum), _, _ = System.marshal_in_segment f ch in
-  let (s1 : seg_lib), _, _ = System.marshal_in_segment f ch in
-  let (s2 : seg_univ option), _, _ = System.marshal_in_segment f ch in
-  let tasks, _, _ = System.marshal_in_segment f ch in
-  let (s4 : seg_proofs), _, _ = System.marshal_in_segment f ch in
-  close_in ch;
-  if tasks = None then user_err ~hdr:"restart" (str"not a .vio file");
-  if s2 = None then user_err ~hdr:"restart" (str"not a .vio file");
-  if snd (Option.get s2) then user_err ~hdr:"restart" (str"not a .vio file");
-  s0, s1, Option.get s2, Option.get tasks, s4
-
-(************************************************************************)
 (*s [save_library dir] ends library [dir] and save it to the disk. *)
 
 let current_deps () =
@@ -566,31 +550,11 @@ let error_recursively_dependent_library dir =
 (* Security weakness: file might have been changed on disk between
    writing the content and computing the checksum... *)
 
-let save_library_to ?todo ~output_native_objects dir f otab =
-  let except = match todo with
-    | None ->
-        (* XXX *)
-        (* assert(!Flags.compilation_mode = Flags.BuildVo); *)
-        assert(Filename.check_suffix f ".vo");
-        Future.UUIDSet.empty
-    | Some (l,_) ->
-        assert(Filename.check_suffix f ".vio");
-        List.fold_left (fun e (r,_) -> Future.UUIDSet.add r.Stateid.uuid e)
-          Future.UUIDSet.empty l in
-  let cenv, seg, ast = Declaremods.end_library ~output_native_objects ~except dir in
-  let opaque_table, f2t_map = Opaqueproof.dump ~except otab in
-  let tasks, utab =
-    match todo with
-    | None -> None, None
-    | Some (tasks, rcbackup) ->
-        let tasks =
-          List.map Stateid.(fun (r,b) ->
-            try { r with uuid = Future.UUIDMap.find r.uuid f2t_map }, b
-            with Not_found -> assert b; { r with uuid = -1 }, b)
-          tasks in
-        Some (tasks,rcbackup),
-        Some (Univ.ContextSet.empty,false)
-  in
+let save_library_to ~output_native_objects dir f otab =
+  let cenv, seg, ast = Declaremods.end_library ~output_native_objects dir in
+  (* let opaque_table, f2t_map = Opaqueproof.dump otab in *)
+  let opaque_table = [||] in
+  let tasks, utab = None, None in
   let sd = {
     md_name = dir;
     md_deps = Array.of_list (current_deps ());

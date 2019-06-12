@@ -1,8 +1,0 @@
-PKG unix laglgtk3 lablgtk3-sourceview3 
-
-S utils
-B utils
-S protocol
-B protocol
-
-REC

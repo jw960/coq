@@ -68,15 +68,15 @@ TACTIC EXTEND finish_timing
 | [ "finish_timing" "(" string(prefix) ")" string_opt(s) ] -> { tclFINISH_TIMING ~prefix s }
 END
 
-VERNAC COMMAND EXTEND ResetLtacProfiling CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND ResetLtacProfiling
 | [ "Reset" "Ltac" "Profile" ] -> { reset_profile () }
 END
 
-VERNAC COMMAND EXTEND ShowLtacProfile CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND ShowLtacProfile
 | [ "Show" "Ltac" "Profile" ] -> { print_results ~cutoff:!Flags.profile_ltac_cutoff }
 | [ "Show" "Ltac" "Profile" "CutOff" int(n) ] -> { print_results ~cutoff:(float_of_int n) }
 END
 
-VERNAC COMMAND EXTEND ShowLtacProfileTactic CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND ShowLtacProfileTactic
 | [ "Show" "Ltac" "Profile" string(s) ] -> { print_results_tactic s }
 END

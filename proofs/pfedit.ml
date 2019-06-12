@@ -124,7 +124,7 @@ let build_constant_by_tactic id ctx sign ?(goal_kind = Global ImportDefaultBehav
   try
     let pf, status = by tac pf in
     let open Proof_global in
-    let { entries; universes } = close_proof ~opaque:Transparent ~keep_body_ucst_separate:false (fun x -> x) pf in
+    let { entries; universes } = close_proof ~opaque:Transparent ~keep_body_ucst_separate:false pf in
     match entries with
     | [entry] ->
       let univs = UState.demote_seff_univs entry universes in
@@ -141,7 +141,7 @@ let build_by_tactic ?(side_eff=true) env sigma ?(poly=false) typ tac =
   let gk = Global ImportDefaultBehavior, poly, Proof Theorem in
   let ce, status, univs =
     build_constant_by_tactic id sigma sign ~goal_kind:gk typ tac in
-  let body = Future.force ce.const_entry_body in
+  let body = Lazy.force ce.const_entry_body in
   let (cb, ctx) =
     if side_eff then Safe_typing.inline_private_constants env body
     else fst body

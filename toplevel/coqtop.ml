@@ -203,7 +203,6 @@ let init_toplevel ~help ~init custom_init arglist =
 
   (* If we have been spawned by the Spawn module, this has to be done
    * early since the master waits us to connect back *)
-  Spawned.init_channels ();
   Envars.set_coqlib ~fail:(fun msg -> CErrors.user_err Pp.(str msg));
   if opts.print_where then begin
     print_endline (Envars.coqlib ());
@@ -239,7 +238,7 @@ let init_toplevel ~help ~init custom_init arglist =
   inputstate opts;
 
   (* This state will be shared by all the documents *)
-  Stm.init_core ();
+  (* Stm.init_core (); *)
 
   (* Coq init process, phase 3: Stm initialization, backtracking state.
 
@@ -258,22 +257,17 @@ type custom_toplevel =
   }
 
 
+let stm_new_doc _ _ = 0, 0
 let init_toploop opts =
   let iload_path = build_load_path opts in
   let require_libs = require_libs opts in
-  let stm_options = opts.stm_flags in
   let open Vernac.State in
-  let doc, sid =
-    Stm.(new_doc
-           { doc_type = Interactive opts.toplevel_name;
-             iload_path; require_libs; stm_options;
-           }) in
+  let doc, sid = stm_new_doc iload_path require_libs in
   let state = { doc; sid; proof = None; time = opts.time } in
   Ccompile.load_init_vernaculars opts ~state, opts
 
 let coqtop_init ~opts extra =
   init_color opts;
-  CoqworkmgrApi.(init !async_proofs_worker_priority);
   Flags.if_verbose print_header ();
   opts, extra
 

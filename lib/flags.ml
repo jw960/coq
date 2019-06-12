@@ -41,11 +41,6 @@ let with_options ol f x =
     let () = List.iter2 (:=) ol vl in
     Exninfo.iraise reraise
 
-let record_aux_file = ref false
-
-let async_proofs_worker_id = ref "master"
-let async_proofs_is_worker () = !async_proofs_worker_id <> "master"
-
 let debug = ref false
 
 let in_debugger = ref false
@@ -54,8 +49,6 @@ let in_toplevel = ref false
 let profile = false
 
 let raw_print = ref false
-
-let we_are_parsing = ref false
 
 (* Compatibility mode *)
 

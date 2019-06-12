@@ -14,9 +14,9 @@ open Context.Named.Declaration
 
 let map_const_entry_body (f:constr->constr) (x:Safe_typing.private_constants Entries.const_entry_body)
     : Safe_typing.private_constants Entries.const_entry_body =
-  Future.chain x begin fun ((b,ctx),fx) ->
+  Lazy.from_fun (fun () -> Lazy.force x |> begin fun ((b,ctx),fx) ->
     (f b , ctx) , fx
-  end
+  end)
 
 (** [start_deriving f suchthat lemma] starts a proof of [suchthat]
     (which can contain references to [f]) in the context extended by

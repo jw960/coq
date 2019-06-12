@@ -1527,8 +1527,8 @@ let add_syntax_extension local ({CAst.loc;v=df},mods) = let open SynData in
 (* Notations with only interpretation *)
 
 let add_notation_interpretation env ({CAst.loc;v=df},c,sc) =
-  let df' = add_notation_interpretation_core false df env c sc false false None in
-  Dumpglob.dump_notation (loc,df') sc true
+  let _df' = add_notation_interpretation_core false df env c sc false false None in
+  ()
 
 let set_notation_for_interpretation env impls ({CAst.v=df},c,sc) =
   (try ignore
@@ -1540,7 +1540,7 @@ let set_notation_for_interpretation env impls ({CAst.v=df},c,sc) =
 (* Main entry point *)
 
 let add_notation local env c ({CAst.loc;v=df},modifiers) sc =
-  let df' =
+  let _df' =
    if no_syntax_modifiers modifiers then
     (* No syntax data: try to rely on a previously declared rule *)
     let onlyparse = is_only_parsing modifiers in
@@ -1554,7 +1554,7 @@ let add_notation local env c ({CAst.loc;v=df},modifiers) sc =
     (* Declare both syntax and interpretation *)
     add_notation_in_scope local df env c modifiers sc
   in
-  Dumpglob.dump_notation (loc,df') sc true
+  ()
 
 let add_notation_extra_printing_rule df k v =
   let notk = 

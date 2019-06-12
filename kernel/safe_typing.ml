@@ -125,7 +125,7 @@ type safe_environment =
     modlabels : Label.Set.t;
     objlabels : Label.Set.t;
     univ : Univ.ContextSet.t;
-    future_cst : Univ.ContextSet.t Future.computation list;
+    future_cst : Univ.ContextSet.t Lazy.t list;
     engagement : engagement option;
     required : vodigest DPMap.t;
     loads : (ModPath.t * module_body) list;
@@ -310,7 +310,7 @@ let env_of_senv = env_of_safe_env
 
 type constraints_addition =
   | Now of bool * Univ.ContextSet.t
-  | Later of Univ.ContextSet.t Future.computation
+  | Later of Univ.ContextSet.t Lazy.t
 
 let add_constraints cst senv =
   match cst with
@@ -329,12 +329,10 @@ let push_context_set poly ctx = add_constraints (Now (poly,ctx))
 let is_curmod_library senv =
   match senv.modvariant with LIBRARY -> true | _ -> false
 
-let join_safe_environment ?(except=Future.UUIDSet.empty) e =
-  Modops.join_structure except (Environ.opaque_tables e.env) e.revstruct;
+let join_safe_environment e =
+  Modops.join_structure (Environ.opaque_tables e.env) e.revstruct;
   List.fold_left
-    (fun e fc ->
-       if Future.UUIDSet.mem (Future.uuid fc) except then e
-       else add_constraints (Now (false, Future.join fc)) e)
+    (fun e fc -> add_constraints (Now (false, Lazy.force fc)) e)
     {e with future_cst = []} e.future_cst
 
 let is_joined_environment e = List.is_empty e.future_cst 
@@ -544,10 +542,10 @@ let add_constant_aux ~in_section senv (kn, cb) =
   let delayed_cst = match cb.const_body with
   | OpaqueDef o when not (Declareops.constant_is_polymorphic cb) ->
     let fc = Opaqueproof.get_direct_constraints o in
-    begin match Future.peek_val fc with
-    | None -> [Later fc]
-    | Some c -> [Now (false, c)]
-    end
+    if Lazy.is_val fc then
+      [Now (false, Lazy.force fc)]
+    else
+      [Later fc]
   | Undef _ | Def _ | Primitive _ | OpaqueDef _ -> []
   in
   (* This is the only place where we hashcons the contents of a constant body *)
@@ -690,7 +688,7 @@ let constant_entry_of_side_effect eff =
     | Def b -> Mod_subst.force_constr b
     | _ -> assert false in
   DefinitionEntry {
-    const_entry_body = Future.from_val ((p, Univ.ContextSet.empty), ());
+    const_entry_body = Lazy.from_val ((p, Univ.ContextSet.empty), ());
     const_entry_secctx = None;
     const_entry_feedback = None;
     const_entry_type = Some cb.const_type;
@@ -728,7 +726,7 @@ let export_side_effects mb env (b_ctx, eff) =
                let ce = constant_entry_of_side_effect eff in
                let cb = Term_typing.translate_constant Term_typing.Pure env kn ce in
                let map cu =
-                let (c, u) = Future.force cu in
+                let (c, u) = Lazy.force cu in
                 let () = assert (Univ.ContextSet.is_empty u) in
                 c
                in
@@ -750,7 +748,7 @@ let n_univs cb = match cb.const_universes with
 
 let export_private_constants ~in_section ce senv =
   let exported, ce = export_side_effects senv.revstruct senv.env ce in
-  let map (kn, cb, _) = (kn, map_constant (fun p -> Opaqueproof.create ~univs:(n_univs cb) (Future.from_val (p, Univ.ContextSet.empty))) cb) in
+  let map (kn, cb, _) = (kn, map_constant (fun p -> Opaqueproof.create ~univs:(n_univs cb) (Lazy.from_val (p, Univ.ContextSet.empty))) cb) in
   let bodies = List.map map exported in
   let exported = List.map (fun (kn, _, r) -> (kn, r)) exported in
   let senv = List.fold_left (add_constant_aux ~in_section) senv bodies in
@@ -793,7 +791,7 @@ let add_constant ?role ~in_section l decl senv =
     | (Primitive _ | Undef _) -> assert false
     | Def c -> (Def c, cb.const_universes)
     | OpaqueDef o ->
-      let (b, ctx) = Future.force o in
+      let (b, ctx) = Lazy.force o in
       match cb.const_universes with
       | Monomorphic ctx' ->
         OpaqueDef b, Monomorphic (Univ.ContextSet.union ctx ctx')
@@ -950,7 +948,7 @@ let build_module_body params restype senv =
 let allow_delayed_constants = ref false
 
 let propagate_senv newdef newenv newresolver senv oldsenv =
-  let now_cst, later_cst = List.partition Future.is_val senv.future_cst in
+  let now_cst, later_cst = List.partition Lazy.is_val senv.future_cst in
   (* This asserts that after Paral-ITP, standard vo compilation is behaving
    * exctly as before: the same universe constraints are added to modules *)
   if not !allow_delayed_constants && later_cst <> [] then
@@ -963,7 +961,7 @@ let propagate_senv newdef newenv newresolver senv oldsenv =
     modlabels = Label.Set.add (fst newdef) oldsenv.modlabels;
     univ =
       List.fold_left (fun acc cst ->
-        Univ.ContextSet.union acc (Future.force cst))
+        Univ.ContextSet.union acc (Lazy.force cst))
       (Univ.ContextSet.union senv.univ oldsenv.univ)
       now_cst;
     future_cst = later_cst @ oldsenv.future_cst;
@@ -1104,9 +1102,9 @@ let start_library dir senv =
     modvariant = LIBRARY;
     required = senv.required }
 
-let export ?except ~output_native_objects senv dir =
+let export ~output_native_objects senv dir =
   let senv =
-    try join_safe_environment ?except senv
+    try join_safe_environment senv
     with e ->
       let e = CErrors.push e in
       CErrors.user_err ~hdr:"export" (CErrors.iprint e)

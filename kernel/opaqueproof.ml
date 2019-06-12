@@ -25,7 +25,7 @@ type indirect_accessor = {
   access_discharge : cooking_info list -> int -> constr -> constr;
 }
 
-type proofterm = (constr * Univ.ContextSet.t) Future.computation
+type proofterm = (constr * Univ.ContextSet.t) Lazy.t
 type universes = int
 type opaque =
   | Indirect of substitution list * DirPath.t * int (* subst, lib, index *)
@@ -62,7 +62,7 @@ let turn_indirect dp o tab = match o with
         let u = Univ.hcons_universe_context_set u in
         (c, u)
       in
-      let cu = Future.chain cu hcons in
+      let cu = Lazy.from_fun (fun () -> hcons (Lazy.force cu)) in
       let id = tab.opaque_len in
       let opaque_val = Int.Map.add id (nunivs, d,cu) tab.opaque_val in
       let opaque_dir =
@@ -82,29 +82,25 @@ let discharge_direct_opaque ci = function
   | Direct (n, d, cu) ->
       Direct (n, ci :: d, cu)
 
-let join except cu = match except with
-| None -> ignore (Future.join cu)
-| Some except ->
-  if Future.UUIDSet.mem (Future.uuid cu) except then ()
-  else ignore (Future.join cu)
+let join cu = Lazy.force cu
 
-let join_opaque ?except { opaque_val = prfs; opaque_dir = odp; _ } = function
-  | Direct (_,_,cu) -> join except cu
+let join_opaque { opaque_val = prfs; opaque_dir = odp; _ } = function
+  | Direct (_,_,cu) -> ignore(join cu)
   | Indirect (_,dp,i) ->
-      if DirPath.equal dp odp then
-        let (_, _, fp) = Int.Map.find i prfs in
-        join except fp
+    if DirPath.equal dp odp then
+      let (_, _, fp) = Int.Map.find i prfs in
+      ignore(join fp)
 
 let force_proof access { opaque_val = prfs; opaque_dir = odp; _ } = function
   | Direct (n, d, cu) ->
-    let (c, _) = Future.force cu in
+    let (c, _) = Lazy.force cu in
     access.access_discharge d n c
   | Indirect (l,dp,i) ->
       let c =
         if DirPath.equal dp odp
         then
           let (n, d, cu) = Int.Map.find i prfs in
-          let (c, _) = Future.force cu in
+          let (c, _) = Lazy.force cu in
           access.access_discharge d n c
         else match access.access_proof dp i with
         | None -> not_here ()
@@ -114,36 +110,14 @@ let force_proof access { opaque_val = prfs; opaque_dir = odp; _ } = function
 
 let force_constraints _access { opaque_val = prfs; opaque_dir = odp; _ } = function
   | Direct (_,_,cu) ->
-    snd(Future.force cu)
+    snd(Lazy.force cu)
   | Indirect (_,dp,i) ->
       if DirPath.equal dp odp
       then
         let (_, _, cu) = Int.Map.find i prfs in
-        snd (Future.force cu)
+        snd (Lazy.force cu)
       else Univ.ContextSet.empty
 
 let get_direct_constraints = function
 | Indirect _ -> CErrors.anomaly (Pp.str "Not a direct opaque.")
-| Direct (_, _, cu) -> Future.chain cu snd
-
-module FMap = Future.UUIDMap
-
-let dump ?(except = Future.UUIDSet.empty) { opaque_val = otab; opaque_len = n; _ } =
-  let opaque_table = Array.make n ([], 0, None) in
-  let f2t_map = ref FMap.empty in
-  let iter n (univs, d, cu) =
-    let uid = Future.uuid cu in
-    let () = f2t_map := FMap.add (Future.uuid cu) n !f2t_map in
-    let c =
-      if Future.is_val cu then
-        let (c, _) = Future.force cu in
-        Some c
-      else if Future.UUIDSet.mem uid except then None
-      else
-        CErrors.anomaly
-          Pp.(str"Proof object "++int n++str" is not checked nor to be checked")
-    in
-    opaque_table.(n) <- (d, univs, c)
-  in
-  let () = Int.Map.iter iter otab in
-  opaque_table, !f2t_map
+| Direct (_, _, cu) -> Lazy.from_fun (fun () -> snd (Lazy.force cu))

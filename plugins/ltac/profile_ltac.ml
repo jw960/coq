@@ -375,7 +375,7 @@ let get_local_profiling_results () = List.hd Local.(!stack)
    on as we will have to simulate going back on the document on our
    own. *)
 module DData = struct
-    type t = Feedback.doc_id * Stateid.t
+    type t = Feedback.doc_id * int
     let compare x y = Pervasives.compare x y
 end
 
@@ -426,8 +426,8 @@ let print_results_filter ~cutoff ~filter =
   (* The STM doesn't provide yet a proper document query and traversal
      API, thus we need to re-check if some states are current anymore
      (due to backtracking) using the `state_of_id` API. *)
-  let valid (did,id) _ = Stm.(state_of_id ~doc:(get_doc did) id) <> `Expired in
-  data := SM.filter valid !data;
+  (* let valid (did,id) _ = Stm.(state_of_id ~doc:(get_doc did) id) <> `Expired in *)
+  (* data := SM.filter valid !data; *)
   let results =
     SM.fold (fun _ -> merge_roots ~disjoint:true) !data (empty_treenode root) in
   let results = merge_roots results Local.(CList.last !stack) in

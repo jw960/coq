@@ -45,13 +45,18 @@ let vernac_echo ?loc in_chan = let open Loc in
 module State = struct
 
   type t = {
-    doc : Stm.doc;
-    sid : Stateid.t;
+    doc : int;
+    sid : int;
     proof : Proof.t option;
     time : bool;
   }
 
 end
+
+let stm_add ~doc:_ ~ontop:_ _ _ = 0, 0, `NewTip
+let stm_observe ~doc _ = doc, None
+let stm_edit_at ~doc:_ _ = ()
+let stm_parse_sentence ~doc:_ ~entry:_ _ _ = None
 
 let interp_vernac ~check ~interactive ~state ({CAst.loc;_} as com) =
   let open State in
@@ -62,20 +67,19 @@ let interp_vernac ~check ~interactive ~state ({CAst.loc;_} as com) =
         then begin
           CAst.make ?loc @@ VernacTime(state.time,com)
         end else com in
-      let doc, nsid, ntip = Stm.add ~doc:state.doc ~ontop:state.sid (not !Flags.quiet) com in
+      let doc, nsid, ntip = stm_add ~doc:state.doc ~ontop:state.sid (not !Flags.quiet) com in
 
       (* Main STM interaction *)
       if ntip <> `NewTip then
         anomaly (str "vernac.ml: We got an unfocus operation on the toplevel!");
 
       (* Force the command  *)
-      let ndoc = if check then Stm.observe ~doc nsid else doc in
-      let new_proof = Vernacstate.Proof_global.give_me_the_proof_opt () [@ocaml.warning "-3"] in
+      let ndoc, new_proof = if check then stm_observe ~doc nsid else doc, None in
       { state with doc = ndoc; sid = nsid; proof = new_proof; }
     with reraise ->
       (* XXX: In non-interactive mode edit_at seems to do very weird
          things, so we better avoid it while we investigate *)
-      if interactive then ignore(Stm.edit_at ~doc:state.doc state.sid);
+      if interactive then ignore(stm_edit_at ~doc:state.doc state.sid);
       let (reraise, info) = CErrors.push reraise in
       let info = begin
         match Loc.get_loc info with
@@ -98,7 +102,7 @@ let load_vernac_core ~echo ~check ~interactive ~state file =
   (* ids = For beautify, list of parsed sids *)
   let rec loop state ids =
     match
-      Stm.parse_sentence
+      stm_parse_sentence
         ~doc:state.doc ~entry:Pvernac.main_entry state.sid in_pa
     with
     | None ->
@@ -126,54 +130,9 @@ let process_expr ~state loc_ast =
   interp_vernac ~interactive:true ~check:true ~state loc_ast
 
 (******************************************************************************)
-(* Beautify-specific code                                                     *)
-(******************************************************************************)
-
-(* vernac parses the given stream, executes interpfun on the syntax tree it
- * parses, and is verbose on "primitives" commands if verbosely is true *)
-let beautify_suffix = ".beautified"
-
-let set_formatter_translator ch =
-  let out s b e = output_substring ch s b e in
-  let ft = Format.make_formatter out (fun () -> flush ch) in
-  Format.pp_set_max_boxes ft max_int;
-  ft
-
-let pr_new_syntax ?loc ft_beautify ocom =
-  let loc = Option.cata Loc.unloc (0,0) loc in
-  let before = comment (Pputils.extract_comments (fst loc)) in
-  let com = Option.cata Ppvernac.pr_vernac (mt ()) ocom in
-  let after = comment (Pputils.extract_comments (snd loc)) in
-  if !Flags.beautify_file then
-    (Pp.pp_with ft_beautify (hov 0 (before ++ com ++ after));
-     Format.pp_print_flush ft_beautify ())
-  else
-    Feedback.msg_info (hov 4 (str"New Syntax:" ++ fnl() ++ (hov 0 com)))
-
-(* load_vernac with beautify *)
-let beautify_pass ~doc ~comments ~ids ~filename =
-  let ft_beautify, close_beautify =
-    if !Flags.beautify_file then
-      let chan_beautify = open_out (filename^beautify_suffix) in
-      set_formatter_translator chan_beautify, fun () -> close_out chan_beautify;
-    else
-      !Topfmt.std_ft, fun () -> ()
-  in
-  (* The interface to the comment printer is imperative, so we first
-     set the comments, then we call print. This has to be done for
-     each file. *)
-  Pputils.beautify_comments := comments;
-  List.iter (fun id -> pr_new_syntax ft_beautify (Stm.get_ast ~doc id)) ids;
-
-  (* Is this called so comments at EOF are printed? *)
-  pr_new_syntax ~loc:(Loc.make_loc (max_int,max_int)) ft_beautify None;
-  close_beautify ()
-
 (* Main driver for file loading. For now, we only do one beautify
    pass. *)
 let load_vernac ~echo ~check ~interactive ~state filename =
   let ostate, ids, comments = load_vernac_core ~echo ~check ~interactive ~state filename in
-  (* Pass for beautify *)
-  if !Flags.beautify then beautify_pass ~doc:ostate.State.doc ~comments ~ids:List.(rev ids) ~filename;
   (* End pass *)
   ostate

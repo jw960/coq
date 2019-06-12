@@ -201,10 +201,6 @@ let polymorphic_base =
   | Some b -> return b
   | None -> return (is_universe_polymorphism())
 
-let polymorphic_nowarn =
-  universe_transform ~warn_unqualified:false >>
-  qualify_attribute ukey polymorphic_base
-
 let template =
   universe_transform ~warn_unqualified:true >>
   qualify_attribute ukey (bool_attribute ~name:"Template" ~on:"template" ~off:"notemplate")

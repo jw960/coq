@@ -49,7 +49,7 @@ type feedback_content =
 
 type feedback = {
   doc_id   : doc_id;            (* The document being concerned *)
-  span_id  : Stateid.t;         (* The document part concerned *)
+  span_id  : int;               (* The document part concerned *)
   route    : route_id;          (* Extra routing info *)
   contents : feedback_content;  (* The payload *)
 }
@@ -69,10 +69,10 @@ val del_feeder : int -> unit
 (** [feedback ?did ?sid ?route fb] produces feedback [fb], with
     [route] and [did, sid] set appropiatedly, if absent, it will use
     the defaults set by [set_id_for_feedback] *)
-val feedback : ?did:doc_id -> ?id:Stateid.t -> ?route:route_id -> feedback_content -> unit
+val feedback : ?did:doc_id -> ?id:int -> ?route:route_id -> feedback_content -> unit
 
 (** [set_id_for_feedback route id] Set the defaults for feedback *)
-val set_id_for_feedback : ?route:route_id -> doc_id -> Stateid.t -> unit
+val set_id_for_feedback : ?route:route_id -> doc_id -> int -> unit
 
 (** {6 output functions}
 

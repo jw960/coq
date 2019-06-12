@@ -31,10 +31,6 @@ let _ = Goptions.set_bool_option_value ["Printing";"Matching"] false
 (* std_ppcmds *)
 let pp   x = Pp.pp_with !Topfmt.std_ft x
 
-(** Future printer *)
-
-let ppfuture kx = pp (Future.print (fun _ -> str "_") kx)
-
 (* name printers *)
 let ppid id = pp (Id.print id)
 let pplab l = pp (Label.print l)
@@ -60,11 +56,8 @@ let prrecarg = function
 let ppwf_paths x = pp (Rtree.pp_tree prrecarg x)
 
 let get_current_context () =
-  try Vernacstate.Proof_global.get_current_context ()
-  with Vernacstate.Proof_global.NoCurrentProof ->
-    let env = Global.env() in
-    Evd.from_env env, env
-  [@@ocaml.warning "-3"]
+  let env = Global.env() in
+  Evd.from_env env, env
 
 (* term printers *)
 let envpp pp = let sigma,env = get_current_context () in pp env sigma
@@ -227,7 +220,7 @@ let ppevar_universe_context l = pp (Termops.pr_evar_universe_context l)
 let ppconstraints c = pp (pr_constraints Level.pr c)
 let ppuniverseconstraints c = pp (UnivProblem.Set.pr c)
 let ppuniverse_context_future c = 
-  let ctx = Future.force c in
+  let ctx = Lazy.force c in
     ppuniverse_context ctx
 let ppuniverses u = pp (UGraph.pr_universes Level.pr u)
 let ppnamedcontextval e =
@@ -533,8 +526,7 @@ let _ =
   let ty_constr = Extend.TUentry (get_arg_tag Stdarg.wit_constr) in
   let cmd_sig = TyTerminal("PrintConstr", TyNonTerminal(ty_constr, TyNil)) in
   let cmd_fn c ~atts = VtDefault (fun () -> in_current_context econstr_display c) in
-  let cmd_class _ = VtQuery,VtNow in
-  let cmd : ty_ml = TyML (false, cmd_sig, cmd_fn, Some cmd_class) in
+  let cmd : ty_ml = TyML (false, cmd_sig, cmd_fn) in
   vernac_extend ~command:"PrintConstr" [cmd]
 
 let _ =
@@ -542,8 +534,7 @@ let _ =
   let ty_constr = Extend.TUentry (get_arg_tag Stdarg.wit_constr) in
   let cmd_sig = TyTerminal("PrintPureConstr", TyNonTerminal(ty_constr, TyNil)) in
   let cmd_fn c ~atts = VtDefault (fun () -> in_current_context print_pure_econstr c) in
-  let cmd_class _ = VtQuery,VtNow in
-  let cmd : ty_ml = TyML (false, cmd_sig, cmd_fn, Some cmd_class) in
+  let cmd : ty_ml = TyML (false, cmd_sig, cmd_fn) in
   vernac_extend ~command:"PrintPureConstr" [cmd]
 
 (* Setting printer of unbound global reference *)

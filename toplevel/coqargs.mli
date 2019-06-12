@@ -26,8 +26,6 @@ type t = {
   vo_includes : Loadpath.coq_path list;
   vo_requires : (string * string option * bool option) list;
 
-  toplevel_name : Stm.interactive_top;
-
   load_vernacular_list : (string * bool) list;
   batch : bool;
 
@@ -42,7 +40,6 @@ type t = {
 
   set_options : (Goptions.option_name * option_command) list;
 
-  stm_flags   : Stm.AsyncOpts.stm_opt;
   debug       : bool;
   diffs_set   : bool;
   time        : bool;

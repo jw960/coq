@@ -76,12 +76,11 @@ let shrink_entry sign const =
   | Some t -> t
   in
   (* The body has been forced by the call to [build_constant_by_tactic] *)
-  let () = assert (Future.is_over const.const_entry_body) in
-  let ((body, uctx), eff) = Future.force const.const_entry_body in
+  let ((body, uctx), eff) = Lazy.force const.const_entry_body in
   let (body, typ, ctx) = decompose (List.length sign) body typ [] in
   let (body, typ, args) = shrink ctx sign body typ [] in
   let const = { const with
-    const_entry_body = Future.from_val ((body, uctx), eff);
+    const_entry_body = Lazy.from_val ((body, uctx), eff);
     const_entry_type = Some typ;
   } in
   (const, args)
@@ -167,7 +166,7 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
     (* We mimic what the kernel does, that is ensuring that no additional
        constraints appear in the body of polymorphic constants. Ideally this
        should be enforced statically. *)
-    let (_, body_uctx), _ = Future.force const.Entries.const_entry_body in
+    let (_, body_uctx), _ = Lazy.force const.Entries.const_entry_body in
     let () = assert (Univ.ContextSet.is_empty body_uctx) in
     EInstance.make (Univ.UContext.instance ctx)
   in
@@ -175,7 +174,7 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
   let evd = Evd.set_universe_context evd ectx in
   let open Safe_typing in
   let effs = concat_private eff
-    Entries.(snd (Future.force const.const_entry_body)) in
+    Entries.(snd (Lazy.force const.const_entry_body)) in
   let solve =
     Proofview.tclEFFECTS effs <*>
     tacK lem args

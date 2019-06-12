@@ -169,7 +169,7 @@ let declare_one_prenex_implicit locality f =
 
 }
 
-VERNAC COMMAND EXTEND Ssrpreneximplicits CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND Ssrpreneximplicits
   | #[ locality = Attributes.locality; ] [ "Prenex" "Implicits" ne_global_list(fl) ]
   -> {
          let locality = Locality.make_section_locality locality in
@@ -470,7 +470,7 @@ let ssrdisplaysearch gr env t =
 
 }
 
-VERNAC COMMAND EXTEND SsrSearchPattern CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND SsrSearchPattern
 | [ "Search" ssr_search_arg(a) ssr_modlocs(mr) ] ->
   { let hpat = interp_search_arg a in
     let in_mod = interp_modloc mr in
@@ -565,7 +565,7 @@ let print_view_hints env sigma kind l =
 
 }
 
-VERNAC COMMAND EXTEND PrintView CLASSIFIED AS QUERY
+VERNAC COMMAND EXTEND PrintView
 | [ "Print" "Hint" "View" ssrviewpos(i) ] ->
   {
     let env = Global.env () in
@@ -588,7 +588,7 @@ let glob_view_hints lvh =
 
 }
 
-VERNAC COMMAND EXTEND HintView CLASSIFIED AS SIDEFF
+VERNAC COMMAND EXTEND HintView
   |  [ "Hint" "View" ssrviewposspc(n) ne_ssrhintref_list(lvh) ] ->
      { let hints = glob_view_hints lvh in
        match n with

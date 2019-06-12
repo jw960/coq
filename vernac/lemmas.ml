@@ -38,11 +38,10 @@ type declaration_hook = hook_type
 
 let mk_hook hook = hook
 
-let call_hook ?hook ?fix_exn uctx trans l c =
+let call_hook ?hook uctx trans l c =
   try Option.iter (fun hook -> hook uctx trans l c) hook
   with e when CErrors.noncritical e ->
     let e = CErrors.push e in
-    let e = Option.cata (fun fix -> fix e) e fix_exn in
     iraise e
 
 (* Support for terminators and proofs with an associated constant
@@ -103,7 +102,7 @@ let adjust_guardness_conditions const = function
   (* Try all combinations... not optimal *)
      let env = Global.env() in
      { const with const_entry_body =
-        Future.chain const.const_entry_body
+        Lazy.from_fun (fun () -> Lazy.force const.const_entry_body |>
         (fun ((body, ctx), eff) ->
           match Constr.kind body with
           | Fix ((nv,0),(_,_,fixdefs as fixdecls)) ->
@@ -117,7 +116,7 @@ let adjust_guardness_conditions const = function
                 search_guard env
                   possible_indexes fixdecls in
 		(mkFix ((indexes,0),fixdecls), ctx), eff
-          | _ -> (body, ctx), eff) }
+          | _ -> (body, ctx), eff) )}
 
 let find_mutually_recursive_statements sigma thms =
     let n = List.length thms in
@@ -209,34 +208,22 @@ let look_for_possibly_mutual_statements sigma = function
 (* Saving a goal *)
 
 let save ?export_seff id const uctx do_guard (locality,poly,kind) hook universes =
-  let fix_exn = Future.fix_exn_of const.Entries.const_entry_body in
-  try
-    let const = adjust_guardness_conditions const do_guard in
-    let k = Kindops.logical_kind_of_goal_kind kind in
-    let should_suggest = const.const_entry_opaque && Option.is_empty const.const_entry_secctx in
-    let r = match locality with
-      | Discharge ->
-          let c = SectionLocalDef const in
-          let _ = declare_variable id (Lib.cwd(), c, k) in
-          let () = if should_suggest
-            then Proof_using.suggest_variable (Global.env ()) id
-          in
-          VarRef id
-      | Global local ->
-          let kn =
-           declare_constant ?export_seff id ~local (DefinitionEntry const, k) in
-          let () = if should_suggest
-            then Proof_using.suggest_constant (Global.env ()) kn
-          in
-          let gr = ConstRef kn in
-          Declare.declare_univ_binders gr (UState.universe_binders uctx);
-          gr
-    in
-    definition_message id;
-    call_hook ?hook universes [] locality r
-  with e when CErrors.noncritical e ->
-    let e = CErrors.push e in
-    iraise (fix_exn e)
+  let const = adjust_guardness_conditions const do_guard in
+  let k = Kindops.logical_kind_of_goal_kind kind in
+  let r = match locality with
+    | Discharge ->
+      let c = SectionLocalDef const in
+      let _ = declare_variable id (Lib.cwd(), c, k) in
+      VarRef id
+    | Global local ->
+      let kn =
+        declare_constant ?export_seff id ~local (DefinitionEntry const, k) in
+      let gr = ConstRef kn in
+      Declare.declare_univ_binders gr (UState.universe_binders uctx);
+      gr
+  in
+  definition_message id;
+  call_hook ?hook universes [] locality r
 
 let default_thm_id = Id.of_string "Unnamed_thm"
 
@@ -501,62 +488,41 @@ let () =
       optread  = (fun () -> !keep_admitted_vars);
       optwrite = (fun b -> keep_admitted_vars := b) }
 
-let save_lemma_admitted ?proof ~(lemma : t) =
+let save_lemma_admitted ~(lemma : t) =
   let pe =
-    let open Proof_global in
-    match proof with
-    | Some ({ id; entries; persistence = k; universes }, _) ->
-      if List.length entries <> 1 then
-        user_err Pp.(str "Admitted does not support multiple statements");
-      let { const_entry_secctx; const_entry_type } = List.hd entries in
-      if const_entry_type = None then
-        user_err Pp.(str "Admitted requires an explicit statement");
-      let typ = Option.get const_entry_type in
-      let ctx = UState.univ_entry ~poly:(pi2 k) universes in
-      let sec_vars = if !keep_admitted_vars then const_entry_secctx else None in
-      Admitted(id, k, (sec_vars, (typ, ctx), None), universes)
-    | None ->
-      let pftree = Proof_global.get_proof lemma.proof in
-      let gk = Proof_global.get_persistence lemma.proof in
-      let Proof.{ name; poly; entry } = Proof.data pftree in
-      let typ = match Proofview.initial_goals entry with
-        | [typ] -> snd typ
-        | _ ->
-          CErrors.anomaly
-            ~label:"Lemmas.save_proof" (Pp.str "more than one statement.")
-      in
-      let typ = EConstr.Unsafe.to_constr typ in
-      let universes = Proof.((data pftree).initial_euctx) in
-      (* This will warn if the proof is complete *)
-      let pproofs, _univs =
-        Proof_global.return_proof ~allow_partial:true lemma.proof in
-      let sec_vars =
-        if not !keep_admitted_vars then None
-        else match Proof_global.get_used_variables lemma.proof, pproofs with
-          | Some _ as x, _ -> x
-          | None, (pproof, _) :: _ ->
-            let env = Global.env () in
-            let ids_typ = Environ.global_vars_set env typ in
-            let ids_def = Environ.global_vars_set env pproof in
-            Some (Environ.keep_hyps env (Id.Set.union ids_typ ids_def))
-          | _ -> None in
-      let decl = Proof_global.get_universe_decl lemma.proof in
-      let ctx = UState.check_univ_decl ~poly universes decl in
-      Admitted(name,gk,(sec_vars, (typ, ctx), None), universes)
+    let pftree = Proof_global.get_proof lemma.proof in
+    let gk = Proof_global.get_persistence lemma.proof in
+    let Proof.{ name; poly; entry } = Proof.data pftree in
+    let typ = match Proofview.initial_goals entry with
+      | [typ] -> snd typ
+      | _ ->
+        CErrors.anomaly
+          ~label:"Lemmas.save_proof" (Pp.str "more than one statement.")
+    in
+    let typ = EConstr.Unsafe.to_constr typ in
+    let universes = Proof.((data pftree).initial_euctx) in
+    (* This will warn if the proof is complete *)
+    let pproofs, _univs =
+      Proof_global.return_proof ~allow_partial:true lemma.proof in
+    let sec_vars =
+      if not !keep_admitted_vars then None
+      else match Proof_global.get_used_variables lemma.proof, pproofs with
+        | Some _ as x, _ -> x
+        | None, (pproof, _) :: _ ->
+          let env = Global.env () in
+          let ids_typ = Environ.global_vars_set env typ in
+          let ids_def = Environ.global_vars_set env pproof in
+          Some (Environ.keep_hyps env (Id.Set.union ids_typ ids_def))
+        | _ -> None in
+    let decl = Proof_global.get_universe_decl lemma.proof in
+    let ctx = UState.check_univ_decl ~poly universes decl in
+    Admitted(name,gk,(sec_vars, (typ, ctx), None), universes)
   in
   CEphemeron.get lemma.terminator pe
 
-let save_lemma_proved ?proof ?lemma ~opaque ~idopt =
-  (* Invariant (uh) *)
-  if Option.is_empty lemma && Option.is_empty proof then
-    user_err (str "No focused proof (No proof-editing in progress).");
+let save_lemma_proved ~lemma ~opaque ~idopt =
   let (proof_obj,terminator) =
-    match proof with
-    | None ->
-      (* XXX: The close_proof and proof state API should be refactored
-         so it is possible to insert proofs properly into the state *)
-      let { proof; terminator } = Option.get lemma in
-      Proof_global.close_proof ~opaque ~keep_body_ucst_separate:false (fun x -> x) proof, terminator
-    | Some proof -> proof
+    let { proof; terminator } = lemma in
+    Proof_global.close_proof ~opaque ~keep_body_ucst_separate:false proof, terminator
   in
   CEphemeron.get terminator (Proved (opaque,idopt,proof_obj))
