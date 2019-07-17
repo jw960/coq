@@ -362,13 +362,13 @@ let treat_case forbid_new_ids to_intros finalize_tac nb_lam e infos : tactic =
     let rev_ids = pf_get_new_ids (List.rev ids) g in
     let new_b = substl (List.map mkVar rev_ids) b in
     observe_tclTHENLIST (fun _ _ -> str "treat_case1")
-      [
-        h_intros (List.rev rev_ids);
-        Proofview.V82.of_tactic (intro_using teq_id);
-        onLastHypId (fun heq ->
-          observe_tclTHENLIST (fun _ _ -> str "treat_case2")[
-            Proofview.V82.of_tactic (clear to_intros);
-            h_intros to_intros;
+      [ Proofview.V82.of_tactic (h_intros (List.rev rev_ids))
+      ; Proofview.V82.of_tactic (intro_using teq_id)
+      ; onLastHypId (fun heq ->
+          observe_tclTHENLIST (fun _ _ -> str "treat_case2")
+            [ Proofview.V82.of_tactic (clear to_intros)
+            ; Proofview.V82.of_tactic (h_intros to_intros)
+            ;
             (fun g' ->
               let ty_teq = pf_unsafe_type_of g' (mkVar heq) in
               let teq_lhs,teq_rhs =
@@ -532,19 +532,20 @@ let rec destruct_bounds_aux infos (bound,hyple,rechyps) lbounds g =
                                Proofview.V82.of_tactic default_full_auto];
                    observe_tclTHENLIST (fun _ _ -> str "destruct_bounds_aux2")[
                      observe_tac (fun _ _ -> str "clearing k ") (Proofview.V82.of_tactic (clear [id]));
-                     h_intros [k;h';def];
+                     Proofview.V82.of_tactic (h_intros [k;h';def]);
                      observe_tac (fun _ _ -> str "simple_iter") (Proofview.V82.of_tactic (simpl_iter Locusops.onConcl));
                      observe_tac (fun _ _ -> str "unfold functional")
                        (Proofview.V82.of_tactic (unfold_in_concl[(Locus.OnlyOccurrences [1],
                                          evaluable_of_global_reference infos.func)]));
                      (
                        observe_tclTHENLIST (fun _ _ -> str "test")[
-                         list_rewrite true
-                           (List.fold_right
-                              (fun e acc -> (mkVar e,true)::acc)
-                              infos.eqs
-                              (List.map (fun e -> (e,true)) rechyps)
-                           );
+                         Proofview.V82.of_tactic
+                           (list_rewrite true
+                              (List.fold_right
+                                 (fun e acc -> (mkVar e,true)::acc)
+                                 infos.eqs
+                                 (List.map (fun e -> (e,true)) rechyps)))
+                         ;
                       (* list_rewrite true *)
                       (*   (List.map (fun e -> (mkVar e,true)) infos.eqs) *)
                       (*   ; *)
@@ -764,14 +765,14 @@ let terminate_app_rec (f,args) expr_info continuation_tac _ g =
               [
                 observe_tac (fun _ _ -> str "assumption") (Proofview.V82.of_tactic assumption);
                 observe_tclTHENLIST (fun _ _ -> str "terminate_app_rec5")
-                  [
-                    tclTRY(list_rewrite true
-                             (List.map
-                                (fun e -> mkVar e,true)
-                                expr_info.eqs
-                             )
-                    );
-                    Proofview.V82.of_tactic @@
+                  [ tclTRY (
+                      Proofview.V82.of_tactic
+                        (list_rewrite true
+                           (List.map
+                              (fun e -> mkVar e,true)
+                              expr_info.eqs
+                           )))
+                  ; Proofview.V82.of_tactic @@
                     tclUSER expr_info.concl_tac true
                       (Some (
                       expr_info.ih::expr_info.acc_id::
@@ -889,7 +890,7 @@ let make_rewrite expr_info l hp max =
              (Proofview.V82.of_tactic (unfold_in_concl[(Locus.OnlyOccurrences [1],
                                evaluable_of_global_reference expr_info.func)]));
 
-           (list_rewrite true
+           Proofview.V82.of_tactic (list_rewrite true
               (List.map (fun e -> mkVar e,true) expr_info.eqs));
            (observe_tac (fun _ _ -> str "h_reflexivity")
                         (Proofview.V82.of_tactic intros_reflexivity)
@@ -1065,7 +1066,7 @@ let termination_proof_header is_mes input_type ids args_id relation
           )
       in
       tclTHEN
-        (h_intros args_id)
+        (Proofview.V82.of_tactic (h_intros args_id))
         (tclTHENS
            (observe_tac
               (fun _ _ -> str "first assert")
@@ -1105,7 +1106,7 @@ let termination_proof_header is_mes input_type ids args_id relation
                      ))
                ;
                 observe_tac (fun _ _ -> str "fix") (Proofview.V82.of_tactic (fix hrec (nargs+1)));
-                h_intros args_id;
+                Proofview.V82.of_tactic (h_intros args_id);
                 Proofview.V82.of_tactic (Simple.intro wf_rec_arg);
                 observe_tac (fun _ _ -> str "tac") (tac wf_rec_arg hrec wf_rec_arg acc_inv)
                ]
@@ -1409,7 +1410,7 @@ let start_equation (f:GlobRef.t) (term_f:GlobRef.t)
   let nargs = nb_prod (project g) (EConstr.of_constr (type_of_const sigma terminate_constr)) in
   let x = n_x_id ids nargs in
   observe_tac (fun _ _ -> str "start_equation") (observe_tclTHENLIST (fun _ _ -> str "start_equation") [
-    h_intros x;
+    Proofview.V82.of_tactic (h_intros x);
     Proofview.V82.of_tactic (unfold_in_concl [(Locus.AllOccurrences, evaluable_of_global_reference f)]);
     observe_tac (fun _ _ -> str "simplest_case")
       (Proofview.V82.of_tactic (simplest_case (mkApp (terminate_constr,

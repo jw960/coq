@@ -191,7 +191,7 @@ let build_functional_principle (evd:Evd.evar_map ref) interactive_proof old_prin
   in
   (*       let _tim1 = System.get_time ()  in *)
   let map (c, u) = EConstr.mkConstU (c, EConstr.EInstance.make u) in
-  let lemma,_ = Lemmas.by (Proofview.V82.tactic (proof_tac (Array.map map funs) mutr_nparams)) lemma in
+  let lemma,_ = Lemmas.by (proof_tac (Array.map map funs) mutr_nparams) lemma in
   (*       let _tim2 =  System.get_time ()  in *)
   (*    begin *)
   (*      let dur1 = System.time_difference tim1 tim2 in *)
@@ -295,9 +295,8 @@ let generate_functional_principle (evd: Evd.evar_map ref)
     raise (Defining_principle e)
 
 let generate_principle (evd:Evd.evar_map ref) pconstants on_error
-    is_general do_built fix_rec_l recdefs interactive_proof
-    (continue_proof : int -> Names.Constant.t array -> EConstr.constr array -> int ->
-     Tacmach.tactic) : unit =
+    is_general do_built fix_rec_l recdefs  interactive_proof
+    (continue_proof : int -> Names.Constant.t array -> EConstr.constr array -> int -> unit Proofview.tactic) : unit =
   let names = List.map (function { Vernacexpr.fname = {CAst.v=name} } -> name) fix_rec_l in
   let fun_bodies = List.map2 prepare_body fix_rec_l recdefs in
   let funs_args = List.map fst fun_bodies in
@@ -406,7 +405,7 @@ let register_struct is_rec fixpoint_exprl =
 
 let generate_correction_proof_wf f_ref tcc_lemma_ref
     is_mes functional_ref eq_ref rec_arg_num rec_arg_type nb_args relation
-    (_: int) (_:Names.Constant.t array) (_:EConstr.constr array) (_:int) : Tacmach.tactic =
+    (_: int) (_:Names.Constant.t array) (_:EConstr.constr array) (_:int) =
   Functional_principles_proofs.prove_principle_for_gen
     (f_ref,functional_ref,eq_ref)
     tcc_lemma_ref is_mes  rec_arg_num rec_arg_type relation
@@ -1501,9 +1500,7 @@ let derive_inversion fix_names =
   with e when CErrors.noncritical e ->
     warn_funind_cannot_build_inversion e
 
-let register_wf interactive_proof ?(is_mes=false) fname rec_impls wf_rel_expr wf_arg using_lemmas args ret_type body
-    pre_hook
-  =
+let register_wf interactive_proof ?(is_mes=false) fname rec_impls wf_rel_expr wf_arg using_lemmas args ret_type body pre_hook =
   let type_of_f = Constrexpr_ops.mkCProdN args ret_type in
   let rec_arg_num =
     let names =

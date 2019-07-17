@@ -306,7 +306,6 @@ let find_or_none id =
 let find_Function_infos f =
   Cmap_env.find f !from_function
 
-
 let find_Function_of_graph ind =
   Indmap.find ind !from_graph
 
@@ -348,7 +347,7 @@ let pr_table env sigma = pr_table env sigma !from_function
 (*********************************)
 (* Debugging *)
 let functional_induction_rewrite_dependent_proofs = ref true
-let function_debug = ref false
+let function_debug = ref true
 open Goptions
 
 let functional_induction_rewrite_dependent_proofs_sig =
@@ -479,8 +478,7 @@ let jmeq_refl () =
       Coqlib.lib_ref "core.JMeq.refl"
   with e when CErrors.noncritical e -> raise (ToShow e)
 
-let h_intros l =
-  tclMAP (fun x -> Proofview.V82.of_tactic (Tactics.Simple.intro x)) l
+let h_intros l = Tacticals.New.tclMAP Tactics.Simple.intro l
 
 let h_id = Id.of_string "h"
 let hrec_id = Id.of_string "hrec"
@@ -506,10 +504,11 @@ let evaluable_of_global_reference r = (* Tacred.evaluable_of_global_reference (G
     | _ -> assert false;;
 
 let list_rewrite (rev:bool) (eqs: (EConstr.constr*bool) list) =
+  let open Tacticals.New in
   tclREPEAT
     (List.fold_right
-       (fun (eq,b) i -> tclORELSE (Proofview.V82.of_tactic ((if b then Equality.rewriteLR else Equality.rewriteRL) eq)) i)
-       (if rev then (List.rev eqs) else eqs) (tclFAIL 0 (mt())));;
+       (fun (eq,b) i -> tclORELSE ((if b then Equality.rewriteLR else Equality.rewriteRL) eq) i)
+       (if rev then (List.rev eqs) else eqs) (tclFAIL 0 (mt())))
 
 let decompose_lam_n sigma n =
   if n < 0 then CErrors.user_err Pp.(str "decompose_lam_n: integer parameter must be positive");
