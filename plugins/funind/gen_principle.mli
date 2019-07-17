@@ -20,3 +20,9 @@ val do_generate_principle
   -> unit
 
 val make_graph : Names.GlobRef.t -> unit
+
+(* Can be thrown by build_{,case}_scheme *)
+exception No_graph_found
+
+val build_scheme : (Names.Id.t * Libnames.qualid * Sorts.family) list -> unit
+val build_case_scheme : (Names.Id.t * Libnames.qualid * Sorts.family) -> unit
