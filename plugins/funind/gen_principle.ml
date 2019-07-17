@@ -172,9 +172,9 @@ let prepare_body ((name,_,args,types,_),_) rt =
   let fun_args,rt' = chop_rlambda_n n rt in
   (fun_args,rt')
 
-let build_functional_principle (evd:Evd.evar_map ref) interactive_proof old_princ_type sorts funs i proof_tac hook =
+let build_functional_principle (sigma : Evd.evar_map) interactive_proof old_princ_type sorts funs i proof_tac hook =
   (* First we get the type of the old graph principle *)
-  let mutr_nparams = (Tactics.compute_elim_sig !evd (EConstr.of_constr old_princ_type)).Tactics.nparams in
+  let mutr_nparams = (Tactics.compute_elim_sig sigma (EConstr.of_constr old_princ_type)).Tactics.nparams in
   (*   let time1 = System.get_time ()  in *)
   let new_principle_type =
     Functional_principles_types.compute_new_princ_type_from_rel
@@ -187,14 +187,13 @@ let build_functional_principle (evd:Evd.evar_map ref) interactive_proof old_prin
   let new_princ_name =
     Namegen.next_ident_away_in_goal (Id.of_string "___________princ_________") Id.Set.empty
   in
-  let sigma, _ = Typing.type_of ~refresh:true (Global.env ()) !evd (EConstr.of_constr new_principle_type) in
-  evd := sigma;
+  let sigma, _ = Typing.type_of ~refresh:true (Global.env ()) sigma (EConstr.of_constr new_principle_type) in
   let hook = DeclareDef.Hook.make (hook new_principle_type) in
   let lemma =
     Lemmas.start_lemma
       ~name:new_princ_name
       ~poly:false
-      !evd
+      sigma
       (EConstr.of_constr new_principle_type)
   in
   (*       let _tim1 = System.get_time ()  in *)
@@ -291,7 +290,7 @@ let generate_functional_principle (evd: Evd.evar_map ref)
       register_with_sort Sorts.InSet
   in
   let id,entry,hook =
-    build_functional_principle evd interactive_proof old_princ_type new_sorts funs i
+    build_functional_principle sigma interactive_proof old_princ_type new_sorts funs i
     proof_tac hook
   in
   (* Pr  1278 :
@@ -302,7 +301,7 @@ let generate_functional_principle (evd: Evd.evar_map ref)
   with e when CErrors.noncritical e ->
     raise (Defining_principle e)
 
-let generate_principle (evd:Evd.evar_map ref) pconstants on_error
+let generate_principle (sigma : Evd.evar_map) pconstants on_error
     is_general do_built (fix_rec_l:(Vernacexpr.fixpoint_expr * Vernacexpr.decl_notation list) list) recdefs  interactive_proof
     (continue_proof : int -> Names.Constant.t array -> EConstr.constr array -> int ->
      Tacmach.tactic) : unit =
@@ -312,7 +311,7 @@ let generate_principle (evd:Evd.evar_map ref) pconstants on_error
   let funs_types =  List.map (function ((_,_,_,types,_),_) -> types) fix_rec_l in
   try
     (* We then register the Inductive graphs of the functions  *)
-    Glob_term_to_relation.build_inductive !evd pconstants funs_args funs_types recdefs;
+    Glob_term_to_relation.build_inductive sigma pconstants funs_args funs_types recdefs;
     if do_built
     then
       begin
@@ -431,18 +430,14 @@ let generate_correction_proof_wf f_ref tcc_lemma_ref
    res = fv \rightarrow graph\ x_1\ldots x_n\ res\] decomposed as the context and the conclusion
 *)
 
-let generate_type evd g_to_f f graph i =
+let generate_type sigma g_to_f f graph i =
   let open Context.Rel.Declaration in
   let open EConstr in
   let open EConstr.Vars in
   (*i we deduce the number of arguments of the function and its returned type from the graph i*)
-  let evd',graph =
-    Evd.fresh_global  (Global.env ()) !evd  (GlobRef.IndRef (fst (destInd !evd graph)))
-  in
-  evd:=evd';
-  let sigma, graph_arity = Typing.type_of (Global.env ()) !evd graph in
-  evd := sigma;
-  let ctxt,_ = decompose_prod_assum !evd graph_arity in
+  let sigma, graph = Evd.fresh_global (Global.env ()) sigma (GlobRef.IndRef (fst (destInd sigma graph))) in
+  let sigma, graph_arity = Typing.type_of (Global.env ()) sigma graph in
+  let ctxt,_ = decompose_prod_assum sigma graph_arity in
   let fun_ctxt,res_type =
     match ctxt with
     | [] | [_] -> CErrors.anomaly (Pp.str "Not a valid context.")
@@ -489,7 +484,7 @@ let generate_type evd g_to_f f graph i =
     LocalDef (Context.make_annot (Name fv_id) Sorts.Relevant, mkApp (f,args_as_rels), res_type) :: fun_ctxt
   in
   (*i and we can return the solution depending on which lemma type we are defining i*)
-  if g_to_f
+  sigma, if g_to_f
   then LocalAssum (Context.make_annot Anonymous Sorts.Relevant,graph_applied)::pre_ctxt,(lift 1 res_eq_f_of_args),graph
   else LocalAssum (Context.make_annot Anonymous Sorts.Relevant,res_eq_f_of_args)::pre_ctxt,(lift 1 graph_applied),graph
 
@@ -498,8 +493,8 @@ let generate_type evd g_to_f f graph i =
 
    WARNING: while convertible, [type_of body] and [type] can be non equal
 *)
-let find_induction_principle evd f =
-  let f_as_constant,u =  match EConstr.kind !evd f with
+let find_induction_principle sigma f =
+  let f_as_constant,u =  match EConstr.kind sigma f with
     | Constr.Const c' -> c'
     | _ -> CErrors.user_err Pp.(str "Must be used with a function")
   in
@@ -507,10 +502,9 @@ let find_induction_principle evd f =
   match infos.rect_lemma with
   | None -> raise Not_found
   | Some rect_lemma ->
-    let evd',rect_lemma = Evd.fresh_global  (Global.env ()) !evd  (GlobRef.ConstRef rect_lemma) in
-    let evd',typ = Typing.type_of ~refresh:true (Global.env ()) evd' rect_lemma in
-    evd:=evd';
-    rect_lemma,typ
+    let sigma,rect_lemma = Evd.fresh_global  (Global.env ()) sigma (GlobRef.ConstRef rect_lemma) in
+    let sigma,typ = Typing.type_of ~refresh:true (Global.env ()) sigma rect_lemma in
+    sigma, (rect_lemma,typ)
 
 (* [prove_fun_correct funs_constr graphs_constr schemes lemmas_types_infos i ]
    is the tactic used to prove correctness lemma.
@@ -1113,48 +1107,45 @@ let derive_correctness make_scheme (funs: Constr.pconstant list) (graphs:inducti
   funind_purify
     (fun () ->
        let env = Global.env () in
-       let evd = ref (Evd.from_env env) in
+       let sigma = Evd.from_env env in
        let graphs_constr = Array.map mkInd graphs in
-       let lemmas_types_infos =
-         Util.Array.map2_i
-           (fun i f_constr graph ->
+       let sigma, lemmas_types_infos =
+         Util.Array.fold_left2_map_i
+           (fun i sigma f_constr graph ->
               (* let const_of_f,u = destConst f_constr in *)
-              let (type_of_lemma_ctxt,type_of_lemma_concl,graph) =
-                generate_type evd false f_constr graph i
-              in
+              let sigma, (type_of_lemma_ctxt,type_of_lemma_concl,graph) =
+                generate_type sigma false f_constr graph i in
               let type_info = (type_of_lemma_ctxt,type_of_lemma_concl) in
               graphs_constr.(i) <- graph;
               let type_of_lemma = EConstr.it_mkProd_or_LetIn type_of_lemma_concl type_of_lemma_ctxt in
-              let sigma, _ = Typing.type_of (Global.env ()) !evd type_of_lemma in
-              evd := sigma;
-              let type_of_lemma = Reductionops.nf_zeta (Global.env ()) !evd type_of_lemma in
-              observe Pp.(str "type_of_lemma := " ++ Printer.pr_leconstr_env (Global.env ()) !evd type_of_lemma);
-              type_of_lemma,type_info
-           )
+              let sigma, _ = Typing.type_of (Global.env ()) sigma type_of_lemma in
+              let type_of_lemma = Reductionops.nf_zeta (Global.env ()) sigma type_of_lemma in
+              observe Pp.(str "type_of_lemma := " ++ Printer.pr_leconstr_env (Global.env ()) sigma type_of_lemma);
+              sigma, (type_of_lemma,type_info)
+           ) sigma
            funs_constr
            graphs_constr
        in
-       let schemes =
+       let sigma, schemes =
          (* The functional induction schemes are computed and not saved if there is more that one function
             if the block contains only one function we can safely reuse [f_rect]
          *)
          try
            if not (Int.equal (Array.length funs_constr) 1) then raise Not_found;
-           [| find_induction_principle evd funs_constr.(0) |]
+           let sigma, ip = find_induction_principle sigma funs_constr.(0) in
+           sigma, [| ip |]
          with Not_found ->
-           (
-
-             Array.of_list
-               (List.map
-                  (fun entry ->
-                     (EConstr.of_constr (fst (fst(Future.force entry.Proof_global.proof_entry_body))), EConstr.of_constr (Option.get entry.Proof_global.proof_entry_type ))
-                  )
-                  (make_scheme evd (Array.map_to_list (fun const -> const,Sorts.InType) funs))
-               )
-           )
+           sigma, Array.of_list
+             (List.map
+                (fun entry ->
+                   (EConstr.of_constr (fst (fst(Future.force entry.Proof_global.proof_entry_body))),
+                    EConstr.of_constr (Option.get entry.Proof_global.proof_entry_type ))
+                )
+                (make_scheme sigma (Array.map_to_list (fun const -> const,Sorts.InType) funs))
+             )
        in
        let proving_tac =
-         prove_fun_correct !evd funs_constr graphs_constr schemes lemmas_types_infos
+         prove_fun_correct sigma funs_constr graphs_constr schemes lemmas_types_infos
        in
        Array.iteri
          (fun i f_as_constant ->
@@ -1171,7 +1162,7 @@ let derive_correctness make_scheme (funs: Constr.pconstant list) (graphs:inducti
                 ~name:lem_id
                 ~poly:false
                 ~info
-                !evd
+                sigma
                 typ in
             let lemma = fst @@ Lemmas.by
                 (Proofview.V82.tactic (proving_tac i)) lemma in
@@ -1179,38 +1170,37 @@ let derive_correctness make_scheme (funs: Constr.pconstant list) (graphs:inducti
             let finfo = find_Function_infos (fst f_as_constant) in
             (* let lem_cst = fst (destConst (Constrintern.global_reference lem_id)) in *)
             let _,lem_cst_constr = Evd.fresh_global
-                (Global.env ()) !evd (Constrintern.locate_reference (Libnames.qualid_of_ident lem_id)) in
-            let (lem_cst,_) = EConstr.destConst !evd lem_cst_constr in
+                (Global.env ()) sigma (Constrintern.locate_reference (Libnames.qualid_of_ident lem_id)) in
+            let (lem_cst,_) = EConstr.destConst sigma lem_cst_constr in
             update_Function {finfo with correctness_lemma = Some lem_cst};
 
          )
          funs;
-       let lemmas_types_infos =
-         Util.Array.map2_i
-           (fun i f_constr graph ->
-              let (type_of_lemma_ctxt,type_of_lemma_concl,graph)   =
-                generate_type evd true f_constr graph i
-              in
+       let sigma, lemmas_types_infos =
+         Util.Array.fold_left2_map_i
+           (fun i sigma f_constr graph ->
+              let sigma, (type_of_lemma_ctxt,type_of_lemma_concl,graph) =
+                generate_type sigma true f_constr graph i in
               let type_info = (type_of_lemma_ctxt,type_of_lemma_concl) in
               graphs_constr.(i) <- graph;
               let type_of_lemma =
                 EConstr.it_mkProd_or_LetIn type_of_lemma_concl type_of_lemma_ctxt
               in
-              let type_of_lemma = Reductionops.nf_zeta env !evd type_of_lemma in
-              observe Pp.(str "type_of_lemma := " ++ Printer.pr_leconstr_env env !evd type_of_lemma);
-              type_of_lemma,type_info
-           )
+              let type_of_lemma = Reductionops.nf_zeta env sigma type_of_lemma in
+              observe Pp.(str "type_of_lemma := " ++ Printer.pr_leconstr_env env sigma type_of_lemma);
+              sigma, (type_of_lemma,type_info)
+           ) sigma
            funs_constr
            graphs_constr
        in
 
-       let (kn,_) as graph_ind,u  = (destInd !evd graphs_constr.(0)) in
+       let (kn,_) as graph_ind,u  = (destInd sigma graphs_constr.(0)) in
        let mib,mip = Global.lookup_inductive graph_ind in
        let sigma, scheme =
-         (Indrec.build_mutual_induction_scheme (Global.env ()) !evd
+         (Indrec.build_mutual_induction_scheme (Global.env ()) sigma
             (Array.to_list
                (Array.mapi
-                  (fun i _ -> ((kn,i), EInstance.kind !evd u),true, Sorts.InType)
+                  (fun i _ -> ((kn,i), EInstance.kind sigma u),true, Sorts.InType)
                   mib.Declarations.mind_packets
                )
             )
@@ -1239,9 +1229,10 @@ let derive_correctness make_scheme (funs: Constr.pconstant list) (graphs:inducti
                                                         (proving_tac i))) lemma) in
             let () = Lemmas.save_lemma_proved ~lemma ~opaque:Proof_global.Transparent ~idopt:None in
             let finfo = find_Function_infos (fst f_as_constant) in
+            (* XXX: Sigma was ignored here *)
             let _,lem_cst_constr = Evd.fresh_global
-                (Global.env ()) !evd (Constrintern.locate_reference (Libnames.qualid_of_ident lem_id)) in
-            let (lem_cst,_) = destConst !evd lem_cst_constr in
+                (Global.env ()) sigma (Constrintern.locate_reference (Libnames.qualid_of_ident lem_id)) in
+            let (lem_cst,_) = destConst sigma lem_cst_constr in
             update_Function {finfo with completeness_lemma = Some lem_cst}
          )
          funs)
@@ -1331,7 +1322,7 @@ let get_funs_constant mp =
     in
     l_const
 
-let make_scheme evd (fas : (Constr.pconstant * Sorts.family) list) : Evd.side_effects Proof_global.proof_entry list =
+let make_scheme sigma (fas : (Constr.pconstant * Sorts.family) list) : Evd.side_effects Proof_global.proof_entry list =
   let exception Found_type of int in
   let env = Global.env () in
   let funs = List.map fst fas in
@@ -1359,20 +1350,15 @@ let make_scheme evd (fas : (Constr.pconstant * Sorts.family) list) : Evd.side_ef
       )
       funs_indexes
   in
-  let sigma, schemes =
-    Indrec.build_mutual_induction_scheme env !evd ind_list
-  in
-  let _ = evd := sigma in
+  let sigma, schemes = Indrec.build_mutual_induction_scheme env sigma ind_list in
   let l_schemes =
     List.map (EConstr.of_constr %> Typing.unsafe_type_of env sigma %> EConstr.Unsafe.to_constr) schemes
   in
   let i = ref (-1) in
-  let sorts =
-    List.rev_map (fun (_,x) ->
-        let sigma, fs = Evd.fresh_sort_in_family !evd x in
-        evd := sigma; fs
-      )
-      fas
+  let sigma, sorts =
+    CList.fold_left_map (fun sigma (_,x) ->
+        Evd.fresh_sort_in_family sigma x
+      ) sigma fas
   in
   (* We create the first principle by tactic *)
   let first_type,other_princ_types =
@@ -1382,12 +1368,12 @@ let make_scheme evd (fas : (Constr.pconstant * Sorts.family) list) : Evd.side_ef
   in
   let _,const,_ =
     try
-      build_functional_principle evd false
+      build_functional_principle sigma false
         first_type
         (Array.of_list sorts)
         this_block_funs
         0
-        (Functional_principles_proofs.prove_princ_for_struct evd false 0 (Array.of_list (List.map fst funs)))
+        (Functional_principles_proofs.prove_princ_for_struct sigma false 0 (Array.of_list (List.map fst funs)))
         (fun _ _ -> ())
     with e when CErrors.noncritical e ->
       raise (Defining_principle e)
@@ -1443,13 +1429,13 @@ let make_scheme evd (fas : (Constr.pconstant * Sorts.family) list) : Evd.side_ef
                 *)
              let _,const,_ =
                build_functional_principle
-                 evd
+                 sigma
                  false
                  (List.nth other_princ_types (!i - 1))
                  (Array.of_list sorts)
                  this_block_funs
                  !i
-                 (Functional_principles_proofs.prove_princ_for_struct evd false !i (Array.of_list (List.map fst funs)))
+                 (Functional_principles_proofs.prove_princ_for_struct sigma false !i (Array.of_list (List.map fst funs)))
                  (fun _ _ -> ())
              in
              const
@@ -1469,19 +1455,19 @@ let make_scheme evd (fas : (Constr.pconstant * Sorts.family) list) : Evd.side_ef
 
 let derive_inversion fix_names =
   try
-    let evd' = Evd.from_env (Global.env ()) in
+    let sigma = Evd.from_env (Global.env ()) in
     (* we first transform the fix_names identifier into their corresponding constant *)
     let evd',fix_names_as_constant =
       List.fold_right
-        (fun id (evd,l) ->
-           let evd,c =
+        (fun id (sigma,l) ->
+           let sigma, c =
              Evd.fresh_global
-               (Global.env ()) evd (Constrintern.locate_reference (Libnames.qualid_of_ident id)) in
-           let (cst, u) = EConstr.destConst evd c in
-           evd, (cst, EConstr.EInstance.kind evd u) :: l
+               (Global.env ()) sigma (Constrintern.locate_reference (Libnames.qualid_of_ident id)) in
+           let (cst, u) = EConstr.destConst sigma c in
+           sigma, (cst, EConstr.EInstance.kind sigma u) :: l
         )
         fix_names
-        (evd',[])
+        (sigma,[])
     in
     (*
        Then we check that the graphs have been defined
@@ -1490,18 +1476,18 @@ let derive_inversion fix_names =
     *)
     List.iter (fun c -> ignore (find_Function_infos (fst c))) fix_names_as_constant ;
     try
-      let evd', lind =
+      let sigma, lind =
         List.fold_right
-          (fun id (evd,l) ->
-             let evd,id =
+          (fun id (sigma,l) ->
+             let sigma,id =
                Evd.fresh_global
-                 (Global.env ()) evd
+                 (Global.env ()) sigma
                  (Constrintern.locate_reference (Libnames.qualid_of_ident (mk_rel_id id)))
              in
-             evd,(fst (EConstr.destInd evd id))::l
+             sigma, (fst (EConstr.destInd sigma id))::l
           )
           fix_names
-          (evd',[])
+          (sigma, [])
       in
       derive_correctness
         make_scheme
@@ -1645,7 +1631,7 @@ let do_generate_principle_aux pconstants on_error register_built interactive_pro
       let using_lemmas = [] in
       let pre_hook pconstants =
         generate_principle
-          (ref (Evd.from_env (Global.env ())))
+          (Evd.from_env (Global.env ()))
           pconstants
           on_error
           true
@@ -1672,7 +1658,7 @@ let do_generate_principle_aux pconstants on_error register_built interactive_pro
           CErrors.user_err ~hdr:"Function" Pp.(str "Body of Function must be given") in
       let pre_hook pconstants =
         generate_principle
-          (ref (Evd.from_env (Global.env ())))
+          (Evd.from_env (Global.env ()))
           pconstants
           on_error
           true
@@ -1701,14 +1687,13 @@ let do_generate_principle_aux pconstants on_error register_built interactive_pro
       (* ok all the expressions are structural *)
       let recdefs,rec_impls = build_newrecursive fixpoint_exprl in
       let is_rec = List.exists (is_rec fix_names) recdefs in
-      let lemma,evd,pconstants =
+      let lemma,sigma,pconstants =
         if register_built
         then register_struct is_rec fixpoint_exprl
         else None, Evd.from_env (Global.env ()), pconstants
       in
-      let evd = ref evd in
       generate_principle
-        (ref !evd)
+        sigma
         pconstants
         on_error
         false
@@ -1716,7 +1701,7 @@ let do_generate_principle_aux pconstants on_error register_built interactive_pro
         fixpoint_exprl
         recdefs
         interactive_proof
-        (Functional_principles_proofs.prove_princ_for_struct evd interactive_proof);
+        (Functional_principles_proofs.prove_princ_for_struct sigma interactive_proof);
       if register_built then
         begin derive_inversion fix_names; end;
       lemma, true
@@ -1984,9 +1969,9 @@ let do_generate_principle fixl : unit =
 
 
 let build_scheme fas =
-  let evd = (ref (Evd.from_env (Global.env ()))) in
-  let pconstants = (List.map
-         (fun (_,f,sort) ->
+  let sigma = Evd.from_env (Global.env ()) in
+  let sigma, pconstants = (List.fold_left_map
+         (fun sigma (_,f,sort) ->
             let f_as_constant =
               try
                 Smartlocate.global_with_alias f
@@ -1994,22 +1979,17 @@ let build_scheme fas =
                 CErrors.user_err ~hdr:"FunInd.build_scheme"
                   Pp.(str "Cannot find " ++ Libnames.pr_qualid f)
             in
-            let evd',f = Evd.fresh_global (Global.env ()) !evd f_as_constant in
-            let _ = evd := evd' in
-            let sigma, _ = Typing.type_of ~refresh:true (Global.env ()) !evd f in
-            evd := sigma;
+            let evd',f = Evd.fresh_global (Global.env ()) sigma f_as_constant in
+            let sigma, _ = Typing.type_of ~refresh:true (Global.env ()) sigma f in
             let c, u =
-              try EConstr.destConst !evd f
+              try EConstr.destConst sigma f
               with Constr.DestKO ->
-                CErrors.user_err Pp.(Printer.pr_econstr_env (Global.env ()) !evd f ++spc () ++ str "should be the named of a globally defined function")
+                CErrors.user_err Pp.(Printer.pr_econstr_env (Global.env ()) sigma f ++spc () ++ str "should be the named of a globally defined function")
             in
-            (c, EConstr.EInstance.kind !evd u), sort
-         )
-         fas
-                   ) in
-  let bodies_types =
-    make_scheme evd pconstants
-  in
+            sigma, ((c, EConstr.EInstance.kind sigma u), sort)
+         ) sigma fas) in
+
+  let bodies_types = make_scheme sigma pconstants in
 
   List.iter2
     (fun (princ_id,_,_) def_entry ->
@@ -2077,6 +2057,6 @@ let build_case_scheme fa =
       (Some princ_name)
       this_block_funs
       0
-      (Functional_principles_proofs.prove_princ_for_struct (ref (Evd.from_env (Global.env ()))) false 0 [|funs|])
+      (Functional_principles_proofs.prove_princ_for_struct (Evd.from_env (Global.env ())) false 0 [|funs|])
   in
   ()

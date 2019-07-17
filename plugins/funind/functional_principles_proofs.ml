@@ -938,56 +938,55 @@ let generate_equation_lemma evd fnames f fun_num nb_params nb_args rec_args_num 
   let () = Lemmas.save_lemma_proved ~lemma ~opaque:Proof_global.Transparent ~idopt:None in
   evd
 
-let do_replace (evd:Evd.evar_map ref) params rec_arg_num rev_args_id f fun_num all_funs g =
-  let equation_lemma =
+let do_replace (sigma : Evd.evar_map) params rec_arg_num rev_args_id f fun_num all_funs g =
+  let sigma, equation_lemma =
     try
-      let finfos = find_Function_infos (fst (destConst !evd f)) (*FIXME*) in
-      mkConst (Option.get finfos.equation_lemma)
+      let finfos = find_Function_infos (fst (destConst sigma f)) (*FIXME*) in
+      sigma, mkConst (Option.get finfos.equation_lemma)
     with (Not_found | Option.IsNone as e) ->
-      let f_id = Label.to_id (Constant.label (fst (destConst !evd f))) in
+      let f_id = Label.to_id (Constant.label (fst (destConst sigma f))) in
       (*i The next call to mk_equation_id is valid since we will construct the lemma
         Ensures by: obvious
         i*)
       let equation_lemma_id = (mk_equation_id f_id) in
-      evd := generate_equation_lemma !evd all_funs  f fun_num (List.length params) (List.length rev_args_id) rec_arg_num;
+      let sigma = generate_equation_lemma sigma all_funs  f fun_num (List.length params) (List.length rev_args_id) rec_arg_num in
       let _ =
         match e with
           | Option.IsNone ->
-              let finfos = find_Function_infos (fst (destConst !evd f)) in
-              update_Function
-                {finfos with
-                   equation_lemma = Some (match Nametab.locate (qualid_of_ident equation_lemma_id) with
-                                              GlobRef.ConstRef c -> c
-                                            | _ -> CErrors.anomaly (Pp.str "Not a constant.")
-                                         )
-                }
+            let finfos = find_Function_infos (fst (destConst sigma f)) in
+            update_Function
+              { finfos with
+                equation_lemma = Some (match Nametab.locate (qualid_of_ident equation_lemma_id) with
+                    | GlobRef.ConstRef c -> c
+                    | _ -> CErrors.anomaly (Pp.str "Not a constant.")
+                 )
+              }
           | _ -> ()
       in
       (* let res = Constrintern.construct_reference (pf_hyps g) equation_lemma_id in *)
-      let evd',res =
+      let sigma, res =
         Evd.fresh_global
-          (Global.env ()) !evd
+          (Global.env ()) sigma
           (Constrintern.locate_reference (qualid_of_ident equation_lemma_id))
       in
-      evd:=evd';
-      let sigma, _ = Typing.type_of ~refresh:true (Global.env ()) !evd res in
-      evd := sigma;
-      res
+      let sigma, _ = Typing.type_of ~refresh:true (Global.env ()) sigma res in
+      sigma, res
   in
   let nb_intro_to_do = nb_prod (project g) (pf_concl g) in
-    tclTHEN
-      (tclDO nb_intro_to_do (Proofview.V82.of_tactic intro))
-      (
-        fun g' ->
-          let just_introduced = nLastDecls nb_intro_to_do g' in
-          let open Context.Named.Declaration in
-          let just_introduced_id = List.map get_id just_introduced in
-          tclTHEN (Proofview.V82.of_tactic (Equality.rewriteLR equation_lemma))
-                  (revert just_introduced_id) g'
-      )
-      g
+  sigma,
+  tclTHEN
+    (tclDO nb_intro_to_do (Proofview.V82.of_tactic intro))
+    (
+      fun g' ->
+        let just_introduced = nLastDecls nb_intro_to_do g' in
+        let open Context.Named.Declaration in
+        let just_introduced_id = List.map get_id just_introduced in
+        tclTHEN (Proofview.V82.of_tactic (Equality.rewriteLR equation_lemma))
+          (revert just_introduced_id) g'
+    )
+    g
 
-let prove_princ_for_struct (evd:Evd.evar_map ref) interactive_proof fun_num fnames all_funs _nparams : tactic =
+let prove_princ_for_struct (sigma : Evd.evar_map) interactive_proof fun_num fnames all_funs _nparams : tactic =
   fun g ->
   let princ_type = pf_concl g in
   (* Pp.msgnl (str "princ_type " ++ Printer.pr_lconstr princ_type); *)
@@ -1063,7 +1062,7 @@ let prove_princ_for_struct (evd:Evd.evar_map ref) interactive_proof fun_num fnam
                princ_params
             );
     observe (str "fbody_with_full_params := " ++
-               pr_leconstr_env (Global.env ()) !evd fbody_with_full_params
+               pr_leconstr_env (Global.env ()) sigma fbody_with_full_params
             );
     let all_funs_with_full_params =
       Array.map (fun f -> applist(f, List.rev_map var_of_decl full_params)) all_funs
@@ -1210,7 +1209,7 @@ let prove_princ_for_struct (evd:Evd.evar_map ref) interactive_proof fun_num fnam
                  tclTHENLIST
                    [
                      observe_tac "do_replace"
-                       (do_replace evd
+                       (do_replace sigma
                           full_params
                           (fix_info.idx + List.length princ_params)
                           (args_id@(List.map (RelDecl.get_name %> Nameops.Name.get_id) princ_params))
