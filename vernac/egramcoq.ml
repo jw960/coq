@@ -317,51 +317,53 @@ let is_binder_level from e = match e with
 | _ -> false
 
 let make_sep_rules = function
-  | [tk] -> Atoken tk
+  | [tk] ->
+    Pcoq.GExtend.s_token tk
   | tkl ->
-  let rec mkrule : 'a Tok.p list -> 'a rules = function
-  | [] -> Rules (Stop, fun _ -> (* dropped anyway: *) "")
-  | tkn :: rem ->
-    let Rules (r, f) = mkrule rem in
-    let r = NextNoRec (r, Atoken tkn) in
-    Rules (r, fun _ -> f)
-  in
-  let r = mkrule (List.rev tkl) in
-  Arules [r]
+    let rec mkrule : 'a Tok.p list -> 'a rules = function
+      | [] ->
+        Rules (Stop, fun _ -> (* dropped anyway: *) "")
+      | tkn :: rem ->
+        let Rules (r, f) = mkrule rem in
+        let r = NextNoRec (r, Pcoq.GExtend.s_token tkn) in
+        Rules (r, fun _ -> f)
+    in
+    let r = mkrule (List.rev tkl) in
+    Pcoq.GExtend.s_rules [r]
 
 type ('s, 'a) mayrec_symbol =
 | MayRecNo : ('s, norec, 'a) symbol -> ('s, 'a) mayrec_symbol
 | MayRecMay : ('s, mayrec, 'a) symbol -> ('s, 'a) mayrec_symbol
 
 let symbol_of_target : type s. _ -> _ -> _ -> _ -> s target -> (s, s) mayrec_symbol = fun custom p assoc from forpat ->
-  if custom = InConstrEntry && is_binder_level from p then MayRecNo (Aentryl (target_entry InConstrEntry forpat, "200"))
-  else if is_self from p then MayRecMay Aself
+  if custom = InConstrEntry && is_binder_level from p then MayRecNo (Pcoq.GExtend.s_nterml (target_entry InConstrEntry forpat) "200")
+  else if is_self from p then MayRecMay Pcoq.GExtend.s_self
   else
     let g = target_entry custom forpat in
     let lev = adjust_level assoc from p in
     begin match lev with
-    | None -> MayRecNo (Aentry g)
-    | Some None -> MayRecMay Anext
-    | Some (Some (lev, cur)) -> MayRecNo (Aentryl (g, string_of_int lev))
+    | None -> MayRecNo (Pcoq.GExtend.s_nterm g)
+    | Some None -> MayRecMay Pcoq.GExtend.s_next
+    | Some (Some (lev, cur)) -> MayRecNo (Pcoq.GExtend.s_nterml g (string_of_int lev))
     end
 
 let symbol_of_entry : type s r. _ -> _ -> (s, r) entry -> (s, r) mayrec_symbol = fun assoc from typ -> match typ with
 | TTConstr (s, p, forpat) -> symbol_of_target s p assoc from forpat
 | TTConstrList (typ', [], forpat) ->
   begin match symbol_of_target InConstrEntry typ' assoc from forpat with
-  | MayRecNo s -> MayRecNo (Alist1 s)
-  | MayRecMay s -> MayRecMay (Alist1 s) end
+  | MayRecNo s -> MayRecNo (Pcoq.GExtend.s_list1 s)
+  | MayRecMay s -> MayRecMay (Pcoq.GExtend.s_list1 s) end
 | TTConstrList (typ', tkl, forpat) ->
   begin match symbol_of_target InConstrEntry typ' assoc from forpat with
-  | MayRecNo s -> MayRecNo (Alist1sep (s, make_sep_rules tkl))
-  | MayRecMay s -> MayRecMay (Alist1sep (s, make_sep_rules tkl)) end
-| TTPattern p -> MayRecNo (Aentryl (Constr.pattern, string_of_int p))
-| TTClosedBinderList [] -> MayRecNo (Alist1 (Aentry Constr.binder))
-| TTClosedBinderList tkl -> MayRecNo (Alist1sep (Aentry Constr.binder, make_sep_rules tkl))
-| TTName -> MayRecNo (Aentry Prim.name)
-| TTOpenBinderList -> MayRecNo (Aentry Constr.open_binders)
-| TTBigint -> MayRecNo (Aentry Prim.bigint)
-| TTReference -> MayRecNo (Aentry Constr.global)
+  | MayRecNo s -> MayRecNo (Pcoq.GExtend.s_list1sep s (make_sep_rules tkl))
+  | MayRecMay s -> MayRecMay (Pcoq.GExtend.s_list1sep s (make_sep_rules tkl)) end
+| TTPattern p -> MayRecNo (Pcoq.GExtend.s_nterml Constr.pattern (string_of_int p))
+| TTClosedBinderList [] -> MayRecNo (Pcoq.GExtend.s_list1 (Pcoq.GExtend.s_nterm Constr.binder))
+| TTClosedBinderList tkl -> MayRecNo (Pcoq.GExtend.s_list1sep (Pcoq.GExtend.s_nterm Constr.binder) (make_sep_rules tkl))
+| TTName -> MayRecNo (Pcoq.GExtend.s_nterm Prim.name)
+| TTOpenBinderList -> MayRecNo (Pcoq.GExtend.s_nterm Constr.open_binders)
+| TTBigint -> MayRecNo (Pcoq.GExtend.s_nterm Prim.bigint)
+| TTReference -> MayRecNo (Pcoq.GExtend.s_nterm Constr.global)
 
 let interp_entry forpat e = match e with
 | ETProdName -> TTAny TTName
@@ -453,16 +455,16 @@ let rec ty_eval : type s a. (s, a, Loc.t -> s) ty_rule -> s gen_eval -> s env ->
     ty_eval rem f { env with constrs; constrlists; } 
 
 type ('s, 'a, 'r) mayrec_rule =
-| MayRecRNo : ('s, Extend.norec, 'a, 'r) Extend.rule -> ('s, 'a, 'r) mayrec_rule
-| MayRecRMay : ('s, Extend.mayrec, 'a, 'r) Extend.rule -> ('s, 'a, 'r) mayrec_rule
+| MayRecRNo : ('s, norec, 'a, 'r) rule -> ('s, 'a, 'r) mayrec_rule
+| MayRecRMay : ('s, mayrec, 'a, 'r) rule -> ('s, 'a, 'r) mayrec_rule
 
 let rec ty_erase : type s a r. (s, a, r) ty_rule -> (s, a, r) mayrec_rule = function
 | TyStop -> MayRecRNo Stop
 | TyMark (_, _, _, r) -> ty_erase r
 | TyNext (rem, TyTerm tok) ->
    begin match ty_erase rem with
-   | MayRecRNo rem -> MayRecRMay (Next (rem, Atoken tok))
-   | MayRecRMay rem -> MayRecRMay (Next (rem, Atoken tok)) end
+   | MayRecRNo rem -> MayRecRMay (Next (rem, Pcoq.GExtend.s_token tok))
+   | MayRecRMay rem -> MayRecRMay (Next (rem, Pcoq.GExtend.s_token tok)) end
 | TyNext (rem, TyNonTerm (_, _, s, _)) ->
    begin match ty_erase rem, s with
    | MayRecRNo rem, MayRecNo s -> MayRecRMay (Next (rem, s))
@@ -505,7 +507,12 @@ let rec pure_sublevels' custom assoc from forpat level = function
    let rem = pure_sublevels' custom assoc from forpat level rem in
    let push where p rem =
      match symbol_of_target custom p assoc from forpat with
-     | MayRecNo (Aentryl (_,i)) when level <> Some (int_of_string i) -> (where,int_of_string i) :: rem
+     | MayRecNo sym ->
+       (match Pcoq.GExtend.level_of_nonterm sym with
+        | None -> rem
+        | Some i ->
+          let i = int_of_string i in
+          if level <> Some i then (where, i) :: rem else rem)
      | _ -> rem in
    (match e with
    | ETProdPattern i -> push InConstrEntry (NumLevel i,InternalProd) rem

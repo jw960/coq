@@ -131,6 +131,55 @@ end
 
 (** Binding general entry keys to symbol *)
 
+type norec = Gramlib.Grammar.ty_norec
+type mayrec = Gramlib.Grammar.ty_mayrec
+
+type ('self, 'trec, 'a) symbol =
+| Atoken : 'c Tok.p -> ('self, norec, 'c) symbol
+| Alist1 : ('self, 'trec, 'a) symbol -> ('self, 'trec, 'a list) symbol
+| Alist1sep : ('self, 'trec, 'a) symbol * ('self, norec, _) symbol
+              -> ('self, 'trec, 'a list) symbol
+| Alist0 : ('self, 'trec, 'a) symbol -> ('self, 'trec, 'a list) symbol
+| Alist0sep : ('self, 'trec, 'a) symbol * ('self, norec, _) symbol
+              -> ('self, 'trec, 'a list) symbol
+| Aopt : ('self, 'trec, 'a) symbol -> ('self, 'trec, 'a option) symbol
+| Aself : ('self, mayrec, 'self) symbol
+| Anext : ('self, mayrec, 'self) symbol
+| Aentry : 'a entry -> ('self, norec, 'a) symbol
+| Aentryl : 'a entry * string -> ('self, norec, 'a) symbol
+| Arules : 'a rules list -> ('self, norec, 'a) symbol
+
+and ('self, 'trec, _, 'r) rule =
+| Stop : ('self, norec, 'r, 'r) rule
+| Next : ('self, _, 'a, 'r) rule * ('self, _, 'b) symbol -> ('self, mayrec, 'b -> 'a, 'r) rule
+| NextNoRec : ('self, norec, 'a, 'r) rule * ('self, norec, 'b) symbol -> ('self, norec, 'b -> 'a, 'r) rule
+
+and 'a rules =
+| Rules : (_, norec, 'act, Loc.t -> 'a) rule * 'act -> 'a rules
+
+type 'a production_rule =
+| Rule : ('a, _, 'act, Loc.t -> 'a) rule * 'act -> 'a production_rule
+
+module GExtend = struct
+
+  let s_token tok = Atoken tok
+  let s_list0 e = Alist0 e
+  let s_list0sep e s = Alist0sep (e, s)
+  let s_list1 e = Alist1 e
+  let s_list1sep e s = Alist1sep (e,s)
+  let s_opt e = Aopt e
+  let s_self = Aself
+  let s_next = Anext
+  let s_nterm e = Aentry e
+  let s_nterml e s = Aentryl (e,s)
+  let s_rules r = Arules r
+
+  let level_of_nonterm = function
+    | Aentryl (_,l) -> Some l
+    | _ -> None
+
+end
+
 let rec symbol_of_prod_entry_key : type s tr a. (s, tr, a) symbol -> (s, tr, a) G.ty_symbol =
 function
 | Atoken t -> G.s_token t
@@ -159,7 +208,7 @@ function
   let warning msg = Feedback.msg_warning Pp.(str msg) in
   G.s_rules ~warning:(Some warning) (List.map symbol_of_rules rs)
 
-and symbol_of_rule : type s tr a r. (s, tr, a, Loc.t -> r) Extend.rule -> (s, tr, a, Loc.t -> r) G.ty_rule = function
+and symbol_of_rule : type s tr a r. (s, tr, a, Loc.t -> r) rule -> (s, tr, a, Loc.t -> r) G.ty_rule = function
 | Stop ->
   G.r_stop
 | Next (r, s) ->
@@ -171,7 +220,7 @@ and symbol_of_rule : type s tr a r. (s, tr, a, Loc.t -> r) Extend.rule -> (s, tr
   let s = symbol_of_prod_entry_key s in
   G.r_next_norec r s
 
-and symbol_of_rules : type a. a Extend.rules -> a G.ty_rules = function
+and symbol_of_rules : type a. a rules -> a G.ty_rules = function
 | Rules (r, act) ->
   let symb = symbol_of_rule r in
   G.rules (symb,act)
@@ -179,7 +228,7 @@ and symbol_of_rules : type a. a Extend.rules -> a G.ty_rules = function
 (** FIXME: This is a hack around a deficient camlp5 API *)
 type 'a any_production = AnyProduction : ('a, 'tr, 'f, Loc.t -> 'a) G.ty_rule * 'f -> 'a any_production
 
-let of_coq_production_rule : type a. a Extend.production_rule -> a any_production = function
+let of_coq_production_rule : type a. a production_rule -> a any_production = function
 | Rule (toks, act) ->
   AnyProduction (symbol_of_rule toks, act)
 

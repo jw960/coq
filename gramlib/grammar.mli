@@ -73,12 +73,17 @@ module type S =
       sig
         val clear_entry : 'a Entry.e -> unit
       end
+
     val safe_extend : warning:(string -> unit) option ->
       'a Entry.e -> Gramext.position option ->
         (string option * Gramext.g_assoc option * 'a ty_production list)
           list ->
         unit
     val safe_delete_rule : 'a Entry.e -> ('a, _, 'f, 'r) ty_rule -> unit
+
+    (* Used in custom entries, should tweak? *)
+    val level_of_nonterm : ('a,ty_norec,'c) ty_symbol -> string option
+
   end
    (** Signature type of the functor [Grammar.GMake]. The types and
        functions are almost the same than in generic interface, but:
