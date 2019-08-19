@@ -134,141 +134,43 @@ end
 type norec = Gramlib.Grammar.ty_norec
 type mayrec = Gramlib.Grammar.ty_mayrec
 
-type ('self, 'trec, 'a) symbol =
-| Atoken : 'c Tok.p -> ('self, norec, 'c) symbol
-| Alist1 : ('self, 'trec, 'a) symbol -> ('self, 'trec, 'a list) symbol
-| Alist1sep : ('self, 'trec, 'a) symbol * ('self, norec, _) symbol
-              -> ('self, 'trec, 'a list) symbol
-| Alist0 : ('self, 'trec, 'a) symbol -> ('self, 'trec, 'a list) symbol
-| Alist0sep : ('self, 'trec, 'a) symbol * ('self, norec, _) symbol
-              -> ('self, 'trec, 'a list) symbol
-| Aopt : ('self, 'trec, 'a) symbol -> ('self, 'trec, 'a option) symbol
-| Aself : ('self, mayrec, 'self) symbol
-| Anext : ('self, mayrec, 'self) symbol
-| Aentry : 'a entry -> ('self, norec, 'a) symbol
-| Aentryl : 'a entry * string -> ('self, norec, 'a) symbol
-| Arules : 'a rules list -> ('self, norec, 'a) symbol
-
-and ('self, 'trec, _, 'r) rule =
-| Stop : ('self, norec, 'r, 'r) rule
-| Next : ('self, _, 'a, 'r) rule * ('self, _, 'b) symbol -> ('self, mayrec, 'b -> 'a, 'r) rule
-| NextNoRec : ('self, norec, 'a, 'r) rule * ('self, norec, 'b) symbol -> ('self, norec, 'b -> 'a, 'r) rule
-
-and 'a rules =
-| Rules : (_, norec, 'act, Loc.t -> 'a) rule * 'act -> 'a rules
-
-type 'a production_rule =
-| Rule : ('a, _, 'act, Loc.t -> 'a) rule * 'act -> 'a production_rule
+type ('self, 'trec, 'a) symbol = ('self, 'trec, 'a) G.ty_symbol
+type ('self, 'trec, 'a, 'r) rule = ('self, 'trec, 'a, 'r) G.ty_rule
+type 'a rules = 'a G.ty_rules
+type 'a production_rule = 'a G.ty_production
 
 module GExtend = struct
 
-  let s_token tok = Atoken tok
-  let s_list0 e = Alist0 e
-  let s_list0sep e s = Alist0sep (e, s)
-  let s_list1 e = Alist1 e
-  let s_list1sep e s = Alist1sep (e,s)
-  let s_opt e = Aopt e
-  let s_self = Aself
-  let s_next = Anext
-  let s_nterm e = Aentry e
-  let s_nterml e s = Aentryl (e,s)
-  let s_rules r = Arules r
+  let s_token = G.s_token
+  let s_list0 = G.s_list0
+  let s_list0sep e s = G.s_list0sep e s false
+  let s_list1 = G.s_list1
+  let s_list1sep e s = G.s_list1sep e s false
+  let s_opt = G.s_opt
+  let s_self = G.s_self
+  let s_next = G.s_next
+  let s_nterm = G.s_nterm
+  let s_nterml = G.s_nterml
+  let s_rules rs =
+    let warning = Some (fun msg -> Feedback.msg_warning (Pp.str msg)) in
+    G.s_rules ~warning rs
 
-  let r_stop = Stop
-  let r_next p n = Next(p,n)
-  let r_next_norec p n = NextNoRec(p,n)
+  let r_stop = G.r_stop
+  let r_next = G.r_next
+  let r_next_norec = G.r_next_norec
 
-  let rules (r,act) = Rules (r,act)
-  let production (r,act) = Rule (r,act)
+  let rules = G.rules
+  let production = G.production
 
-  let level_of_nonterm = function
-    | Aentryl (_,l) -> Some l
-    | _ -> None
+  let level_of_nonterm = G.level_of_nonterm
 
 end
-
-let rec symbol_of_prod_entry_key : type s tr a. (s, tr, a) symbol -> (s, tr, a) G.ty_symbol =
-function
-| Atoken t -> G.s_token t
-| Alist1 s ->
-  let s = symbol_of_prod_entry_key s in
-  G.s_list1 s
-| Alist1sep (s,sep) ->
-  let s = symbol_of_prod_entry_key s in
-  let sep = symbol_of_prod_entry_key sep in
-  G.s_list1sep s sep false
-| Alist0 s ->
-  let s = symbol_of_prod_entry_key s in
-  G.s_list0 s
-| Alist0sep (s,sep) ->
-  let s = symbol_of_prod_entry_key s in
-  let sep = symbol_of_prod_entry_key sep in
-  G.s_list0sep s sep false
-| Aopt s ->
-  let s = symbol_of_prod_entry_key s in
-  G.s_opt s
-| Aself -> G.s_self
-| Anext -> G.s_next
-| Aentry e -> G.s_nterm e
-| Aentryl (e, n) -> G.s_nterml e n
-| Arules rs ->
-  let warning msg = Feedback.msg_warning Pp.(str msg) in
-  G.s_rules ~warning:(Some warning) (List.map symbol_of_rules rs)
-
-and symbol_of_rule : type s tr a r. (s, tr, a, Loc.t -> r) rule -> (s, tr, a, Loc.t -> r) G.ty_rule = function
-| Stop ->
-  G.r_stop
-| Next (r, s) ->
-  let r = symbol_of_rule r in
-  let s = symbol_of_prod_entry_key s in
-  G.r_next r s
-| NextNoRec (r, s) ->
-  let r = symbol_of_rule r in
-  let s = symbol_of_prod_entry_key s in
-  G.r_next_norec r s
-
-and symbol_of_rules : type a. a rules -> a G.ty_rules = function
-| Rules (r, act) ->
-  let symb = symbol_of_rule r in
-  G.rules (symb,act)
-
-(** FIXME: This is a hack around a deficient camlp5 API *)
-type 'a any_production = AnyProduction : ('a, 'tr, 'f, Loc.t -> 'a) G.ty_rule * 'f -> 'a any_production
-
-let of_coq_production_rule : type a. a production_rule -> a any_production = function
-| Rule (toks, act) ->
-  AnyProduction (symbol_of_rule toks, act)
-
-let of_coq_single_extend_statement (lvl, assoc, rule) =
-  (lvl, assoc, List.map of_coq_production_rule rule)
-
-let of_coq_extend_statement (pos, st) =
-  (pos, List.map of_coq_single_extend_statement st)
-
-let fix_extend_statement (pos, st) =
-  let fix_single_extend_statement (lvl, assoc, rules) =
-    let fix_production_rule (AnyProduction (s, act)) = G.production (s, act) in
-    (lvl, assoc, List.map fix_production_rule rules)
-  in
-  (pos, List.map fix_single_extend_statement st)
 
 (** Type of reinitialization data *)
 type gram_reinit = Gramlib.Gramext.g_assoc * Gramlib.Gramext.position
 
-type 'a single_extend_statement =
-  string option *
-  (* Level *)
-  Gramlib.Gramext.g_assoc option *
-  (* Associativity *)
-  'a production_rule list
-  (* Symbol list with the interpretation function *)
-
-type 'a extend_statement =
-  Gramlib.Gramext.position option *
-  'a single_extend_statement list
-
 type extend_rule =
-| ExtendRule : 'a G.Entry.e * gram_reinit option * 'a extend_statement -> extend_rule
+| ExtendRule : 'a G.Entry.e * gram_reinit option * 'a G.extend_statement -> extend_rule
 
 module EntryCommand = Dyn.Make ()
 module EntryData = struct type _ t = Ex : 'b G.Entry.e String.Map.t -> ('a * 'b) t end
@@ -287,11 +189,10 @@ let camlp5_entries = ref EntryDataMap.empty
 
 (** Deletion *)
 
-let grammar_delete e reinit (pos,rls) =
+let grammar_delete e reinit { G.pos; data } =
   List.iter
-    (fun (n,ass,lev) ->
-      List.iter (fun (AnyProduction (pil,_)) -> G.safe_delete_rule e pil) (List.rev lev))
-    (List.rev rls);
+    (fun (_n,_ass,lev) -> List.iter (G.safe_delete_rule e) (List.rev lev))
+    (List.rev data);
   match reinit with
   | Some (a,ext) ->
     let lev = match pos with
@@ -299,23 +200,28 @@ let grammar_delete e reinit (pos,rls) =
     | _ -> assert false
     in
     let warning msg = Feedback.msg_warning Pp.(str msg) in
-    (G.safe_extend ~warning:(Some warning) e) (Some ext) [Some lev,Some a,[]]
+    let ext = { G.pos = Some ext; data = [Some lev,Some a,[]] } in
+    G.safe_extend ~warning:(Some warning) e ext
   | None -> ()
 
 (** Extension *)
 
+type 'a single_extend_statement = 'a G.single_extend_statement
+
+type 'a extend_statement = 'a G.extend_statement =
+  { pos : Gramlib.Gramext.position option
+  ; data : 'a single_extend_statement list
+  }
+
 let grammar_extend e reinit ext =
-  let ext = of_coq_extend_statement ext in
   let undo () = grammar_delete e reinit ext in
-  let pos, ext = fix_extend_statement ext in
-  let redo () = G.safe_extend ~warning:None e pos ext in
+  let redo () = G.safe_extend ~warning:None e ext in
   camlp5_state := ByEXTEND (undo, redo) :: !camlp5_state;
   redo ()
 
 let grammar_extend_sync e reinit ext =
   camlp5_state := ByGrammar (ExtendRule (e, reinit, ext)) :: !camlp5_state;
-  let pos, ext = fix_extend_statement (of_coq_extend_statement ext) in
-  G.safe_extend ~warning:None e pos ext
+  G.safe_extend ~warning:None e ext
 
 (** The apparent parser of Coq; encapsulate G to keep track
     of the extensions. *)
@@ -335,7 +241,7 @@ let rec remove_grammars n =
     match !camlp5_state with
        | [] -> anomaly ~label:"Pcoq.remove_grammars" (Pp.str "too many rules to remove.")
        | ByGrammar (ExtendRule (g, reinit, ext)) :: t ->
-           grammar_delete g reinit (of_coq_extend_statement ext);
+           grammar_delete g reinit ext;
            camlp5_state := t;
            remove_grammars (n-1)
        | ByEXTEND (undo,redo)::t ->
@@ -364,7 +270,8 @@ let eoi_entry en =
   let symbs = G.r_next (G.r_next G.r_stop (G.s_nterm en)) (G.s_token Tok.PEOI) in
   let act = fun _ x loc -> x in
   let warning msg = Feedback.msg_warning Pp.(str msg) in
-  Gram.safe_extend ~warning:(Some warning) e None (make_rule [G.production (symbs, act)]);
+  let ext = { G.pos = None; data = make_rule [G.production (symbs, act)] } in
+  Gram.safe_extend ~warning:(Some warning) e ext;
   e
 
 let map_entry f en =
@@ -372,7 +279,8 @@ let map_entry f en =
   let symbs = G.r_next G.r_stop (G.s_nterm en) in
   let act = fun x loc -> f x in
   let warning msg = Feedback.msg_warning Pp.(str msg) in
-  Gram.safe_extend ~warning:(Some warning) e None (make_rule [G.production (symbs, act)]);
+  let ext = { G.pos = None; data = make_rule [G.production (symbs, act)] } in
+  Gram.safe_extend ~warning:(Some warning) e ext;
   e
 
 (* Parse a string, does NOT check if the entire string was read
@@ -516,12 +424,11 @@ module Module =
   end
 
 let epsilon_value (type s tr a) f (e : (s, tr, a) symbol) =
-  let s = symbol_of_prod_entry_key e in
-  let r = G.production (G.r_next G.r_stop s, (fun x _ -> f x)) in
-  let ext = [None, None, [r]] in
+  let r = G.production (G.r_next G.r_stop e, (fun x _ -> f x)) in
   let entry = Gram.entry_create "epsilon" in
   let warning msg = Feedback.msg_warning Pp.(str msg) in
-  let () = G.safe_extend ~warning:(Some warning) entry None ext in
+  let ext = { G.pos = None; data = [None, None, [r]] } in
+  let () = G.safe_extend ~warning:(Some warning) entry ext in
   try Some (parse_string entry "") with _ -> None
 
 (** Synchronized grammar extensions *)

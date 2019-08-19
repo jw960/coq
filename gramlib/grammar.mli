@@ -74,12 +74,16 @@ module type S =
         val clear_entry : 'a Entry.e -> unit
       end
 
-    val safe_extend : warning:(string -> unit) option ->
-      'a Entry.e -> Gramext.position option ->
-        (string option * Gramext.g_assoc option * 'a ty_production list)
-          list ->
-        unit
-    val safe_delete_rule : 'a Entry.e -> ('a, _, 'f, 'r) ty_rule -> unit
+    type 'a single_extend_statement =
+      string option * Gramext.g_assoc option * 'a ty_production list
+
+    type 'a extend_statement =
+      { pos : Gramext.position option
+      ; data : 'a single_extend_statement list
+      }
+
+    val safe_extend : warning:(string -> unit) option -> 'a Entry.e -> 'a extend_statement -> unit
+    val safe_delete_rule : 'a Entry.e -> 'a ty_production -> unit
 
     (* Used in custom entries, should tweak? *)
     val level_of_nonterm : ('a,ty_norec,'c) ty_symbol -> string option

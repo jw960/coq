@@ -63,15 +63,20 @@ module type S =
         val clear_entry : 'a Entry.e -> unit
       end
 
-    val safe_extend : warning:(string -> unit) option ->
-      'a Entry.e -> Gramext.position option ->
-        (string option * Gramext.g_assoc option * 'a ty_production list)
-          list ->
-        unit
-    val safe_delete_rule : 'a Entry.e -> ('a, _, 'r, 'f) ty_rule -> unit
+    type 'a single_extend_statement =
+      string option * Gramext.g_assoc option * 'a ty_production list
+
+    type 'a extend_statement =
+      { pos : Gramext.position option
+      ; data : 'a single_extend_statement list
+      }
+
+    val safe_extend : warning:(string -> unit) option -> 'a Entry.e -> 'a extend_statement -> unit
+    val safe_delete_rule : 'a Entry.e -> 'a ty_production -> unit
 
     (* Used in custom entries, should tweak? *)
     val level_of_nonterm : ('a,ty_norec,'c) ty_symbol -> string option
+
   end
 
 (* Implementation *)
@@ -1575,16 +1580,24 @@ let clear_entry e =
     let r_next_norec r s = TNext (NoRec2, r, s)
     let rules (p, act) = TRules (p, act)
     let production (p, act) = TProd (p, act)
+
     module Unsafe =
       struct
         let clear_entry = clear_entry
       end
-    let safe_extend ~warning (e : 'a Entry.e) pos
-        (r :
-         (string option * Gramext.g_assoc option * 'a ty_production list)
-           list) =
-      extend_entry ~warning e pos r
-    let safe_delete_rule e r =
+
+    type 'a single_extend_statement =
+      string option * Gramext.g_assoc option * 'a ty_production list
+
+    type 'a extend_statement =
+      { pos : Gramext.position option
+      ; data : 'a single_extend_statement list
+      }
+
+    let safe_extend ~warning (e : 'a Entry.e) { pos; data } =
+      extend_entry ~warning e pos data
+
+    let safe_delete_rule e (TProd (r,_act)) =
       let AnyS (symbols, _) = get_symbols r in
       delete_rule e symbols
 

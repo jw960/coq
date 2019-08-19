@@ -207,14 +207,21 @@ module Module :
 
 (** {5 Type-safe grammar extension} *)
 
-type ('self, 'trec, 'a) symbol
-type ('self, 'trec, _, 'r) rule
-
 type norec = Gramlib.Grammar.ty_norec
 type mayrec = Gramlib.Grammar.ty_mayrec
 
+type ('self, 'trec, 'a) symbol
+type ('self, 'trec, _, 'r) rule
 type 'a rules
 type 'a production_rule
+
+type 'a single_extend_statement =
+  string option * Gramlib.Gramext.g_assoc option * 'a production_rule list
+
+type 'a extend_statement =
+  { pos : Gramlib.Gramext.position option
+  ; data : 'a single_extend_statement list
+  }
 
 module GExtend : sig
 
@@ -255,18 +262,6 @@ val epsilon_value : ('a -> 'self) -> ('self, _, 'a) symbol -> 'self option
 
 type gram_reinit = Gramlib.Gramext.g_assoc * Gramlib.Gramext.position
 (** Type of reinitialization data *)
-
-type 'a single_extend_statement =
-  string option *
-  (* Level *)
-  Gramlib.Gramext.g_assoc option *
-  (* Associativity *)
-  'a production_rule list
-  (* Symbol list with the interpretation function *)
-
-type 'a extend_statement =
-  Gramlib.Gramext.position option *
-  'a single_extend_statement list
 
 val grammar_extend : 'a Entry.t -> gram_reinit option -> 'a extend_statement -> unit
 (** Extend the grammar of Coq, without synchronizing it with the backtracking

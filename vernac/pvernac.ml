@@ -57,7 +57,7 @@ module Vernac_ =
         Pcoq.GExtend.production (Pcoq.GExtend.r_next (Pcoq.GExtend.r_stop) (Pcoq.GExtend.s_token Tok.PEOI), act_eoi);
         Pcoq.GExtend.production (Pcoq.GExtend.r_next (Pcoq.GExtend.r_stop) (Pcoq.GExtend.s_nterm vernac_control), act_vernac);
       ] in
-      Pcoq.grammar_extend main_entry None (None, [None, None, rule])
+      Pcoq.(grammar_extend main_entry None {pos=None; data=[None, None, rule]})
 
     let select_tactic_entry spec =
       match spec with
