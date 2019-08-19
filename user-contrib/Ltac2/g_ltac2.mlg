@@ -844,10 +844,10 @@ END
 let () =
 
 let open Tok in
-let (++) r s = Next (r, s) in
+let (++) r s = Pcoq.GExtend.r_next r s in
 let rules = [
-  Rule (
-    Stop ++ Pcoq.GExtend.s_nterm test_dollar_ident ++ Pcoq.GExtend.s_token (PKEYWORD "$") ++ Pcoq.GExtend.s_nterm Prim.ident,
+  Pcoq.GExtend.production (
+    GExtend.r_stop ++ Pcoq.GExtend.s_nterm test_dollar_ident ++ Pcoq.GExtend.s_token (PKEYWORD "$") ++ Pcoq.GExtend.s_nterm Prim.ident,
     begin fun id _ _ loc ->
       let id = Loc.tag ~loc id in
       let arg = Genarg.in_gen (Genarg.rawwit Tac2env.wit_ltac2_quotation) id in
@@ -855,8 +855,8 @@ let rules = [
     end
   );
 
-  Rule (
-    Stop ++ Pcoq.GExtend.s_nterm test_ampersand_ident ++ Pcoq.GExtend.s_token (PKEYWORD "&") ++ Pcoq.GExtend.s_nterm Prim.ident,
+  Pcoq.GExtend.production (
+    GExtend.r_stop ++ Pcoq.GExtend.s_nterm test_ampersand_ident ++ Pcoq.GExtend.s_token (PKEYWORD "&") ++ Pcoq.GExtend.s_nterm Prim.ident,
     begin fun id _ _ loc ->
       let tac = Tac2quote.of_exact_hyp ~loc (CAst.make ~loc id) in
       let arg = Genarg.in_gen (Genarg.rawwit Tac2env.wit_ltac2) tac in
@@ -864,8 +864,8 @@ let rules = [
     end
   );
 
-  Rule (
-    Stop ++ Pcoq.GExtend.s_token (PIDENT (Some "ltac2")) ++ Pcoq.GExtend.s_token (PKEYWORD ":") ++
+  Pcoq.GExtend.production (
+    GExtend.r_stop ++ Pcoq.GExtend.s_token (PIDENT (Some "ltac2")) ++ Pcoq.GExtend.s_token (PKEYWORD ":") ++
       Pcoq.GExtend.s_token (PKEYWORD "(") ++ Pcoq.GExtend.s_nterm tac2expr ++ Pcoq.GExtend.s_token (PKEYWORD ")"),
     begin fun _ tac _ _ _ loc ->
       let arg = Genarg.in_gen (Genarg.rawwit Tac2env.wit_ltac2) tac in

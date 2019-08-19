@@ -54,8 +54,8 @@ module Vernac_ =
       let act_vernac v loc = Some v in
       let act_eoi _ loc = None in
       let rule = [
-        Rule (Next (Stop, Pcoq.GExtend.s_token Tok.PEOI), act_eoi);
-        Rule (Next (Stop, Pcoq.GExtend.s_nterm vernac_control), act_vernac);
+        Pcoq.GExtend.production (Pcoq.GExtend.r_next (Pcoq.GExtend.r_stop) (Pcoq.GExtend.s_token Tok.PEOI), act_eoi);
+        Pcoq.GExtend.production (Pcoq.GExtend.r_next (Pcoq.GExtend.r_stop) (Pcoq.GExtend.s_nterm vernac_control), act_vernac);
       ] in
       Pcoq.grammar_extend main_entry None (None, [None, None, rule])
 

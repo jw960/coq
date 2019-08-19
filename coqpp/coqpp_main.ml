@@ -217,13 +217,13 @@ let rec print_prod fmt p =
 
 and print_extrule fmt (tkn, vars, body) =
   let tkn = List.rev tkn in
-  fprintf fmt "@[Pcoq.Rule@ (@[%a@],@ @[(%a)@])@]" (print_symbols ~norec:false) tkn print_fun (vars, body)
+  fprintf fmt "@[Pcoq.GExtend.production@ (@[%a@],@ @[(%a)@])@]" (print_symbols ~norec:false) tkn print_fun (vars, body)
 
 and print_symbols ~norec fmt = function
-| [] -> fprintf fmt "Pcoq.Stop"
+| [] -> fprintf fmt "Pcoq.GExtend.r_stop"
 | tkn :: tkns ->
-  let c = if norec then "Pcoq.NextNoRec" else "Pcoq.Next" in
-  fprintf fmt "%s @[(%a,@ %a)@]" c (print_symbols ~norec) tkns print_symbol tkn
+  let c = if norec then "Pcoq.GExtend.r_next_norec" else "Pcoq.GExtend.r_next" in
+  fprintf fmt "%s @[(%a)@ (%a)@]" c (print_symbols ~norec) tkns print_symbol tkn
 
 and print_symbol fmt tkn = match tkn with
 | SymbToken (t, s) ->
@@ -250,7 +250,7 @@ and print_symbol fmt tkn = match tkn with
   let pr fmt (r, body) =
     let (vars, tkn) = List.split r in
     let tkn = List.rev tkn in
-    fprintf fmt "Pcoq.Rules @[(%a,@ (%a))@]" (print_symbols ~norec:true) tkn print_fun (vars, body)
+    fprintf fmt "Pcoq.GExtend.rules @[(%a,@ (%a))@]" (print_symbols ~norec:true) tkn print_fun (vars, body)
   in
   let pr fmt rules = print_list fmt pr rules in
   fprintf fmt "(Pcoq.GExtend.s_rules %a)" pr (List.rev rules)

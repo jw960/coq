@@ -174,6 +174,13 @@ module GExtend = struct
   let s_nterml e s = Aentryl (e,s)
   let s_rules r = Arules r
 
+  let r_stop = Stop
+  let r_next p n = Next(p,n)
+  let r_next_norec p n = NextNoRec(p,n)
+
+  let rules (r,act) = Rules (r,act)
+  let production (r,act) = Rule (r,act)
+
   let level_of_nonterm = function
     | Aentryl (_,l) -> Some l
     | _ -> None

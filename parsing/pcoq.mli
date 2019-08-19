@@ -208,17 +208,13 @@ module Module :
 (** {5 Type-safe grammar extension} *)
 
 type ('self, 'trec, 'a) symbol
+type ('self, 'trec, _, 'r) rule
 
 type norec = Gramlib.Grammar.ty_norec
 type mayrec = Gramlib.Grammar.ty_mayrec
 
-type ('self, 'trec, _, 'r) rule =
-| Stop : ('self, norec, 'r, 'r) rule
-| Next : ('self, _, 'a, 'r) rule * ('self, _, 'b) symbol -> ('self, mayrec, 'b -> 'a, 'r) rule
-| NextNoRec : ('self, norec, 'a, 'r) rule * ('self, norec, 'b) symbol -> ('self, norec, 'b -> 'a, 'r) rule
-
-type 'a rules =
-  | Rules : (_, norec, 'act, Loc.t -> 'a) rule * 'act -> 'a rules
+type 'a rules
+type 'a production_rule
 
 module GExtend : sig
 
@@ -238,12 +234,20 @@ module GExtend : sig
   val s_nterml : 'a entry -> string -> ('self, norec, 'a) symbol
   val s_rules : 'a rules list -> ('self, norec, 'a) symbol
 
+  val r_stop : ('self, norec, 'r, 'r) rule
+  val r_next :
+    ('self, _, 'a, 'r) rule -> ('self, _, 'b) symbol ->
+    ('self, mayrec, 'b -> 'a, 'r) rule
+  val r_next_norec :
+    ('self, norec, 'a, 'r) rule -> ('self, norec, 'b) symbol ->
+    ('self, norec, 'b -> 'a, 'r) rule
+
+  val rules : (_, norec, 'f, Loc.t -> 'a) rule * 'f -> 'a rules
+  val production : ('a, _, 'act, Loc.t -> 'a) rule * 'act -> 'a production_rule
+
   val level_of_nonterm : ('a,norec,'c) symbol -> string option
 
 end
-
-type 'a production_rule =
-  | Rule : ('a, _, 'act, Loc.t -> 'a) rule * 'act -> 'a production_rule
 
 val epsilon_value : ('a -> 'self) -> ('self, _, 'a) symbol -> 'self option
 

@@ -459,18 +459,18 @@ type ('s, 'a, 'r) mayrec_rule =
 | MayRecRMay : ('s, mayrec, 'a, 'r) rule -> ('s, 'a, 'r) mayrec_rule
 
 let rec ty_erase : type s a r. (s, a, r) ty_rule -> (s, a, r) mayrec_rule = function
-| TyStop -> MayRecRNo Stop
+| TyStop -> MayRecRNo GExtend.r_stop
 | TyMark (_, _, _, r) -> ty_erase r
 | TyNext (rem, TyTerm tok) ->
    begin match ty_erase rem with
-   | MayRecRNo rem -> MayRecRMay (Next (rem, Pcoq.GExtend.s_token tok))
-   | MayRecRMay rem -> MayRecRMay (Next (rem, Pcoq.GExtend.s_token tok)) end
+   | MayRecRNo rem -> MayRecRMay (GExtend.r_next rem (GExtend.s_token tok))
+   | MayRecRMay rem -> MayRecRMay (GExtend.r_next rem (GExtend.s_token tok)) end
 | TyNext (rem, TyNonTerm (_, _, s, _)) ->
    begin match ty_erase rem, s with
-   | MayRecRNo rem, MayRecNo s -> MayRecRMay (Next (rem, s))
-   | MayRecRNo rem, MayRecMay s -> MayRecRMay (Next (rem, s))
-   | MayRecRMay rem, MayRecNo s -> MayRecRMay (Next (rem, s))
-   | MayRecRMay rem, MayRecMay s -> MayRecRMay (Next (rem, s)) end
+   | MayRecRNo rem, MayRecNo s -> MayRecRMay (GExtend.r_next rem s)
+   | MayRecRNo rem, MayRecMay s -> MayRecRMay (GExtend.r_next rem s)
+   | MayRecRMay rem, MayRecNo s -> MayRecRMay (GExtend.r_next rem s)
+   | MayRecRMay rem, MayRecMay s -> MayRecRMay (GExtend.r_next rem s) end
 
 type ('self, 'r) any_ty_rule =
 | AnyTyRule : ('self, 'act, Loc.t -> 'r) ty_rule -> ('self, 'r) any_ty_rule

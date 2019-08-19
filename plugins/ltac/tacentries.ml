@@ -405,16 +405,20 @@ let create_ltac_quotation name cast (e, l) =
 (*   let level = Some "1" in *)
   let level = None in
   let assoc = None in
+  let open Pcoq.GExtend in
   let rule =
-    Next (Next (Next (Next (Next (Stop,
-      Pcoq.GExtend.s_token (CLexer.terminal name)),
-      Pcoq.GExtend.s_token (CLexer.terminal ":")),
-      Pcoq.GExtend.s_token (CLexer.terminal "(")),
-      entry),
-      Pcoq.GExtend.s_token (CLexer.terminal ")"))
+    r_next
+      (r_next
+         (r_next
+            (r_next
+               (r_next r_stop (s_token (CLexer.terminal name)))
+               (s_token (CLexer.terminal ":")))
+            (s_token (CLexer.terminal "(")))
+         entry)
+      (s_token (CLexer.terminal ")"))
   in
   let action _ v _ _ _ loc = cast (Some loc, v) in
-  let gram = (level, assoc, [Rule (rule, action)]) in
+  let gram = (level, assoc, [Pcoq.GExtend.production (rule, action)]) in
   Pcoq.grammar_extend Pltac.tactic_arg None (None, [gram])
 
 (** Command *)
