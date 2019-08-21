@@ -858,16 +858,15 @@ let print_ltac qid =
 (** Calling tactics *)
 
 let solve ~pstate default tac =
-  let pstate, status = Proof_global.map_fold_proof_endline begin fun etac p ->
+  let pstate, () = Proof_global.map_fold_proof_endline begin fun etac p ->
     let with_end_tac = if default then Some etac else None in
     let g = Goal_select.get_default_goal_selector () in
-    let (p, status) = Pfedit.solve g None tac ?with_end_tac p in
+    let p = Pfedit.solve g None tac ?with_end_tac p in
     (* in case a strict subtree was completed,
        go back to the top of the prooftree *)
     let p = Proof.maximal_unfocus Vernacentries.command_focus p in
-    p, status
+    p, ()
   end pstate in
-  if not status then Feedback.feedback Feedback.AddedAxiom;
   pstate
 
 let call ~pstate ~default e =

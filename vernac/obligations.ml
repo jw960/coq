@@ -419,7 +419,7 @@ let warn_solve_errored = CWarnings.create ~name:"solve_obligation_error" ~catego
 let solve_by_tac ?loc name evi t poly ctx =
   (* spiwack: the status is dropped. *)
   try
-    let (entry,_,ctx') =
+    let entry, ctx' =
       Pfedit.build_constant_by_tactic
         ~name ~poly ctx evi.evar_hyps evi.evar_concl t in
     let env = Global.env () in
@@ -496,7 +496,7 @@ let rec solve_obligation prg num tac =
   let info = Lemmas.Info.make ~hook ~proof_ending ~scope ~kind () in
   let poly = prg.prg_poly in
   let lemma = Lemmas.start_lemma ~name:obl.obl_name ~poly ~info evd (EConstr.of_constr obl.obl_type) in
-  let lemma = fst @@ Lemmas.by !default_tactic lemma in
+  let lemma = Lemmas.by !default_tactic lemma in
   let lemma = Option.cata (fun tac -> Lemmas.set_endline_tactic tac lemma) lemma tac in
   lemma
 

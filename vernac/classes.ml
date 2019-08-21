@@ -388,15 +388,15 @@ let declare_instance_open sigma ?hook ~tac ~global ~poly id pri imps udecl ids t
           Tactics.New.reduce_after_refine;
         ]
       in
-      let lemma, _ = Lemmas.by init_refine lemma in
+      let lemma = Lemmas.by init_refine lemma in
       lemma
     else
-      let lemma, _ = Lemmas.by (Tactics.auto_intros_tac ids) lemma in
+      let lemma = Lemmas.by (Tactics.auto_intros_tac ids) lemma in
       lemma
   in
   match tac with
   | Some tac ->
-    let lemma, _ = Lemmas.by tac lemma in
+    let lemma = Lemmas.by tac lemma in
     lemma
   | None ->
     lemma

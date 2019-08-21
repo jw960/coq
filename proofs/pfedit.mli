@@ -40,15 +40,19 @@ val get_current_context : Proof_global.t -> Evd.evar_map * env
     subgoal of the current focused proof. [solve SelectAll
     tac] applies [tac] to all subgoals. *)
 
-val solve : ?with_end_tac:unit Proofview.tactic ->
-      Goal_select.t -> int option -> unit Proofview.tactic ->
-      Proof.t -> Proof.t * bool
+val solve
+  : ?with_end_tac:unit Proofview.tactic
+  -> Goal_select.t
+  -> int option
+  -> unit Proofview.tactic
+  -> Proof.t
+  -> Proof.t
 
 (** [by tac] applies tactic [tac] to the 1st subgoal of the current
     focused proof.
     Returns [false] if an unsafe tactic has been used. *)
 
-val by : unit Proofview.tactic -> Proof_global.t -> Proof_global.t * bool
+val by : unit Proofview.tactic -> Proof_global.t -> Proof_global.t
 
 (** Option telling if unification heuristics should be used. *)
 val use_unification_heuristics : unit -> bool
@@ -64,7 +68,7 @@ val build_constant_by_tactic
   -> poly:bool
   -> EConstr.types
   -> unit Proofview.tactic
-  -> Evd.side_effects Proof_global.proof_entry * bool * UState.t
+  -> Evd.side_effects Proof_global.proof_entry * UState.t
 
 val build_by_tactic
   :  ?side_eff:bool
@@ -73,7 +77,7 @@ val build_by_tactic
   -> poly:bool
   -> EConstr.types
   -> unit Proofview.tactic
-  -> constr * bool * UState.t
+  -> constr * UState.t
 
 val refine_by_tactic
   :  name:Id.t

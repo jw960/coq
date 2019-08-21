@@ -310,5 +310,5 @@ let update_global_env =
   map_proof (fun p ->
       let { Proof.sigma } = Proof.data p in
       let tac = Proofview.Unsafe.tclEVARS (Evd.update_sigma_env sigma (Global.env ())) in
-      let p, (status,info), _ = Proof.run_tactic (Global.env ()) tac p in
+      let p, _info, () = Proof.run_tactic (Global.env ()) tac p in
       p)

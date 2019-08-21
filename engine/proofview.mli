@@ -29,7 +29,6 @@ type proofview
    the [evar_map] context. *)
 val proofview : proofview -> Evar.t list * Evd.evar_map
 
-
 (** {6 Starting and querying a proof view} *)
 
 (** Abstract representation of the initial goals of a proof. *)
@@ -145,7 +144,7 @@ val unfocus : focus_context -> proofview -> proofview
 
 
 (** The abstract type of tactics *)
-type +'a tactic 
+type +'a tactic
 
 (** Applies a tactic to the current proofview. Returns a tuple
     [a,pv,(b,sh,gu)] where [a] is the return value of the tactic, [pv]
@@ -162,9 +161,7 @@ val apply
   -> Environ.env
   -> 'a tactic
   -> proofview
-  -> 'a * proofview
-       * (bool*Evar.t list*Evar.t list)
-       * Proofview_monad.Info.tree
+  -> 'a * proofview * Evar.t list * Evar.t list * Proofview_monad.Info.tree
 
 (** {7 Monadic primitives} *)
 
@@ -383,9 +380,6 @@ val tclENV : Environ.env tactic
 (** [tclEFFECTS eff] add the effects [eff] to the current state. *)
 val tclEFFECTS : Evd.side_effects -> unit tactic
 
-(** [mark_as_unsafe] declares the current tactic is unsafe. *)
-val mark_as_unsafe : unit tactic
-
 (** Gives up on the goal under focus. Reports an unsafe status. Proofs
     with given up goals cannot be closed. *)
 val give_up : unit tactic
@@ -601,9 +595,6 @@ module V82 : sig
      should be avoided as much as possible.  It should work as
      expected for a tactic obtained from {!V82.tactic} though. *)
   val of_tactic : 'a tactic -> tac
-
-  (* marks as unsafe if the argument is [false] *)
-  val put_status : bool -> unit tactic
 
   (* exception for which it is deemed to be safe to transmute into
      tactic failure. *)

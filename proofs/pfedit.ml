@@ -97,7 +97,7 @@ let solve ?with_end_tac gi info_lvl tac pr =
       else tac
     in
     let env = Global.env () in
-    let (p,(status,info),()) = Proof.run_tactic env tac pr in
+    let (p,info,()) = Proof.run_tactic env tac pr in
     let env = Global.env () in
     let sigma = Evd.from_env env in
     let () =
@@ -105,9 +105,9 @@ let solve ?with_end_tac gi info_lvl tac pr =
       | None -> ()
       | Some i -> Feedback.msg_info (hov 0 (Proofview.Trace.pr_info env sigma ~lvl:i info))
     in
-    (p,status)
+    p
 
-let by tac = Proof_global.map_fold_proof (solve (Goal_select.SelectNth 1) None tac)
+let by tac = Proof_global.map_proof (solve (Goal_select.SelectNth 1) None tac)
 
 (**********************************************************************)
 (* Shortcut to build a term using tactics *)
@@ -119,13 +119,13 @@ let build_constant_by_tactic ~name ctx sign ~poly typ tac =
   let goals = [ (Global.env_of_context sign , typ) ] in
   let pf = Proof_global.start_proof ~name ~poly ~udecl:UState.default_univ_decl evd goals in
   try
-    let pf, status = by tac pf in
+    let pf = by tac pf in
     let open Proof_global in
     let { entries; universes } = close_proof ~opaque:Transparent ~keep_body_ucst_separate:false (fun x -> x) pf in
     match entries with
     | [entry] ->
       let univs = UState.demote_seff_univs entry.Proof_global.proof_entry_universes universes in
-      entry, status, univs
+      entry, univs
     | _ ->
       CErrors.anomaly Pp.(str "[build_constant_by_tactic] close_proof returned more than one proof term")
   with reraise ->
@@ -135,14 +135,14 @@ let build_constant_by_tactic ~name ctx sign ~poly typ tac =
 let build_by_tactic ?(side_eff=true) env sigma ~poly typ tac =
   let name = Id.of_string ("temporary_proof"^string_of_int (next())) in
   let sign = val_of_named_context (named_context env) in
-  let ce, status, univs = build_constant_by_tactic ~name sigma sign ~poly typ tac in
+  let ce, univs = build_constant_by_tactic ~name sigma sign ~poly typ tac in
   let body, eff = Future.force ce.Proof_global.proof_entry_body in
   let (cb, ctx) =
     if side_eff then Safe_typing.inline_private_constants env (body, eff.Evd.seff_private)
     else body
   in
   let univs = UState.merge ~sideff:side_eff ~extend:true Evd.univ_rigid univs ctx in
-  cb, status, univs
+  cb, univs
 
 let refine_by_tactic ~name ~poly env sigma ty tac =
   (* Save the initial side-effects to restore them afterwards. We set the

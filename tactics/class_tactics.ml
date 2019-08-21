@@ -943,7 +943,7 @@ module Search = struct
             * with | Proof_global.NoCurrentProof -> *)
            Id.of_string "instance", false
          in
-         let (), pv', (unsafe, shelved, gaveup), _ =
+         let (), pv', shelved, gaveup, _ =
            Proofview.apply ~name ~poly env tac pv
          in
          if not (List.is_empty gaveup) then

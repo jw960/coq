@@ -92,7 +92,7 @@ module P : sig
   type s = proofview * Environ.env
 
   (** Status (safe/unsafe) * given up *)
-  type w = bool * goal list
+  type w = goal list
 
   val wunit : w
   val wprod : w -> w -> w
@@ -133,9 +133,6 @@ module Comb : State with type t = goal_with_state list
 
 (** Lens to the global environment. *)
 module Env : State with type t := Environ.env
-
-(** Lens to the tactic status ([true] if safe, [false] if unsafe) *)
-module Status : Writer with type t := bool
 
 (** Lens to the list of goals which have been shelved during the
     execution of the tactic. *)

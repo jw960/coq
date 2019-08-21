@@ -139,7 +139,7 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
   let concl = EConstr.of_constr concl in
   let solve_tac = tclCOMPLETE (tclTHEN (tclDO (List.length sign) Tactics.intro) tac) in
   let ectx = Evd.evar_universe_context evd in
-  let (const, safe, ectx) =
+  let const, ectx =
     try Pfedit.build_constant_by_tactic ~poly ~name ectx secsign concl solve_tac
     with Logic_monad.TacticFailure e as src ->
     (* if the tactic [tac] fails, it reports a [TacticFailure e],
@@ -178,8 +178,7 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
     Proofview.tclEFFECTS effs <*>
     tacK lem args
   in
-  let tac = if not safe then Proofview.mark_as_unsafe <*> solve else solve in
-  Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evd) tac
+  Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evd) solve
   end
 
 let abstract_subproof ~opaque tac =

@@ -229,13 +229,10 @@ let apply ~name ~poly env t sp =
   let ans = Logic_monad.NonLogical.run ans in
   match ans with
   | Nil (e, info) -> iraise (TacticFailure e, info)
-  | Cons ((r, (state, _), status, info), _) ->
-    let (status, gaveup) = status in
-    let status = (status, state.shelf, gaveup) in
+  | Cons ((r, (state, _), gaveup, info), _) ->
+    let shelf = state.shelf in
     let state = { state with shelf = [] } in
-    r, state, status, Trace.to_tree info
-
-
+    r, state, shelf, gaveup, Trace.to_tree info
 
 (** {7 Monadic primitives} *)
 
@@ -830,19 +827,14 @@ let tclEFFECTS eff =
   Env.set (Global.env ()) >>
   Pv.modify (fun initial -> emit_side_effects eff initial)
 
-let mark_as_unsafe = Status.put false
-
 (** Gives up on the goal under focus. Reports an unsafe status. Proofs
     with given up goals cannot be closed. *)
 let give_up =
   let open Proof in
   Comb.get >>= fun initial ->
   Comb.set [] >>
-  mark_as_unsafe >>
   InfoL.leaf (Info.Tactic (fun _ _ -> Pp.str"give_up")) >>
   Giveup.put (CList.map drop_state initial)
-
-
 
 (** {7 Control primitives} *)
 
@@ -1253,13 +1245,11 @@ module V82 = struct
     try
       let init = { shelf = []; solution = gls.Evd.sigma ; comb = [with_empty_state gls.Evd.it] } in
       let name, poly = Names.Id.of_string "legacy_pe", false in
-      let (_,final,_,_) = apply ~name ~poly (goal_env gls.Evd.sigma gls.Evd.it) t init in
+      let (_,final,_,_,_) = apply ~name ~poly (goal_env gls.Evd.sigma gls.Evd.it) t init in
       { Evd.sigma = final.solution ; it = CList.map drop_state final.comb }
     with Logic_monad.TacticFailure e as src ->
       let (_, info) = CErrors.push src in
       iraise (e, info)
-
-  let put_status = Status.put
 
   let catchable_exception = catchable_exception
 

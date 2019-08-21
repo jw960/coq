@@ -25,7 +25,7 @@ val pf_map : (Proof_global.t -> Proof_global.t) -> t -> t
 val pf_fold : (Proof_global.t -> 'a) -> t -> 'a
 (** [pf_fold f l] fold over the underlying proof object *)
 
-val by : unit Proofview.tactic -> t -> t * bool
+val by : unit Proofview.tactic -> t -> t
 (** [by tac l] apply a tactic to [l] *)
 
 (** Creating high-level proofs with an associated constant *)

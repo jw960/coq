@@ -191,7 +191,7 @@ let build_functional_principle (evd:Evd.evar_map ref) interactive_proof old_prin
   in
   (*       let _tim1 = System.get_time ()  in *)
   let map (c, u) = EConstr.mkConstU (c, EConstr.EInstance.make u) in
-  let lemma,_ = Lemmas.by (Proofview.V82.tactic (proof_tac (Array.map map funs) mutr_nparams)) lemma in
+  let lemma = Lemmas.by (Proofview.V82.tactic (proof_tac (Array.map map funs) mutr_nparams)) lemma in
   (*       let _tim2 =  System.get_time ()  in *)
   (*    begin *)
   (*      let dur1 = System.time_difference tim1 tim2 in *)
@@ -1378,8 +1378,7 @@ let derive_correctness (funs: Constr.pconstant list) (graphs:inductive list) =
                 ~info
                 !evd
                 typ in
-            let lemma = fst @@ Lemmas.by
-                (Proofview.V82.tactic (proving_tac i)) lemma in
+            let lemma = Lemmas.by (Proofview.V82.tactic (proving_tac i)) lemma in
             let () = Lemmas.save_lemma_proved ~lemma ~opaque:Proof_global.Transparent ~idopt:None in
             let finfo = find_Function_infos (fst f_as_constant) in
             (* let lem_cst = fst (destConst (Constrintern.global_reference lem_id)) in *)
@@ -1439,9 +1438,9 @@ let derive_correctness (funs: Constr.pconstant list) (graphs:inductive list) =
                 ~kind:Decls.(IsProof Theorem) () in
             let lemma = Lemmas.start_lemma ~name:lem_id ~poly:false ~info
                 sigma (fst lemmas_types_infos.(i)) in
-            let lemma = fst (Lemmas.by
-                               (Proofview.V82.tactic (observe_tac ("prove completeness ("^(Id.to_string f_id)^")")
-                                                        (proving_tac i))) lemma) in
+            let lemma = Lemmas.by
+                (Proofview.V82.tactic (observe_tac ("prove completeness ("^(Id.to_string f_id)^")")
+                                         (proving_tac i))) lemma in
             let () = Lemmas.save_lemma_proved ~lemma ~opaque:Proof_global.Transparent ~idopt:None in
             let finfo = find_Function_infos (fst f_as_constant) in
             let _,lem_cst_constr = Evd.fresh_global

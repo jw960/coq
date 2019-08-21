@@ -513,7 +513,7 @@ let start_proof_and_print ~program_mode ~poly ?hook ~scope ~kind l =
           if not (Evarutil.is_ground_env sigma env &&
                   Evarutil.is_ground_term sigma concl)
           then raise Exit;
-          let c, _, ctx =
+          let c, ctx =
             Pfedit.build_by_tactic ~poly:false env (Evd.evar_universe_context sigma) concl tac
           in Evd.set_universe_context sigma ctx, EConstr.of_constr c
         with Logic_monad.TacticFailure e when Logic.catchable_exception e ->
@@ -591,9 +591,8 @@ let vernac_end_proof ~lemma = let open Vernacexpr in function
 let vernac_exact_proof ~lemma c =
   (* spiwack: for simplicity I do not enforce that "Proof proof_term" is
      called only at the beginning of a proof. *)
-  let lemma, status = Lemmas.by (Tactics.exact_proof c) lemma in
-  let () = save_lemma_proved ~lemma ~opaque:Proof_global.Opaque ~idopt:None in
-  if not status then Feedback.feedback Feedback.AddedAxiom
+  let lemma = Lemmas.by (Tactics.exact_proof c) lemma in
+  save_lemma_proved ~lemma ~opaque:Proof_global.Opaque ~idopt:None
 
 let vernac_assumption ~atts discharge kind l nl =
   let open DefAttributes in

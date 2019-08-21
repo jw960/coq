@@ -545,7 +545,7 @@ let interp_gen kind ist pattern_mode flags env sigma c =
 
   (* Again this is called at times with no open proof! *)
   let name, poly = Id.of_string "tacinterp", ist.poly in
-  let (trace,_,_,_) = Proofview.apply ~name ~poly env (push_trace (loc_of_glob_constr term,LtacConstrInterp (term,vars)) ist) dummy_proofview in
+  let (trace,_,_,_,_) = Proofview.apply ~name ~poly env (push_trace (loc_of_glob_constr term,LtacConstrInterp (term,vars)) ist) dummy_proofview in
   let (evd,c) =
     catch_error trace (understand_ltac flags env sigma vars kind) term
   in

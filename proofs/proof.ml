@@ -380,7 +380,7 @@ let run_tactic env tac pr =
     Proofview.tclUNIT (result,retrieved)
   in
   let { name; poly } = pr in
-  let ((result,retrieved),proofview,(status,to_shelve,give_up),info_trace) =
+  let (result,retrieved),proofview,to_shelve,give_up,info_trace =
     Proofview.apply ~name ~poly env tac sp
   in
   let sigma = Proofview.return proofview in
@@ -394,7 +394,7 @@ let run_tactic env tac pr =
   in
   let given_up = pr.given_up@give_up in
   let proofview = Proofview.Unsafe.reset_future_goals proofview in
-  { pr with proofview ; shelf ; given_up },(status,info_trace),result
+  { pr with proofview ; shelf ; given_up },info_trace,result
 
 (*** Commands ***)
 
@@ -446,7 +446,7 @@ module V82 = struct
       Proofview.Unsafe.tclEVARS sigma
     end in
     let { name; poly } = pr in
-    let ((), proofview, _, _) = Proofview.apply ~name ~poly env tac pr.proofview in
+    let (), proofview,_,_,_ = Proofview.apply ~name ~poly env tac pr.proofview in
     let shelf =
       List.filter begin fun g ->
         Evd.is_undefined (Proofview.return proofview) g

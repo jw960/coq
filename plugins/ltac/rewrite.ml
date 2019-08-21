@@ -2008,7 +2008,7 @@ let add_morphism_interactive atts m n : Lemmas.t =
   Flags.silently
     (fun () ->
        let lemma = Lemmas.start_lemma ~name:instance_id ~poly ~info (Evd.from_ctx uctx) (EConstr.of_constr instance) in
-       fst (Lemmas.by (Tacinterp.interp tac) lemma)) ()
+       Lemmas.by (Tacinterp.interp tac) lemma) ()
 
 let add_morphism atts binders m s n =
   init_setoid ();

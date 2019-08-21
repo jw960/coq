@@ -1341,9 +1341,9 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name (gls_type
       sigma gls_type in
   let lemma = if Indfun_common.is_strict_tcc  ()
   then
-    fst @@ Lemmas.by (Proofview.V82.tactic (tclIDTAC)) lemma
+    Lemmas.by (Proofview.V82.tactic (tclIDTAC)) lemma
   else
-    fst @@ Lemmas.by (Proofview.V82.tactic begin
+    Lemmas.by (Proofview.V82.tactic begin
         fun g ->
           tclTHEN
             (decompose_and_tac)
@@ -1382,8 +1382,8 @@ let com_terminate
         ~info
         ctx
         (EConstr.of_constr (compute_terminate_type nb_args fonctional_ref)) in
-    let lemma = fst @@ Lemmas.by (New.observe_tac (fun _ _ -> str "starting_tac") tac_start) lemma in
-    fst @@ Lemmas.by (Proofview.V82.tactic (observe_tac (fun _ _ -> str "whole_start") (whole_start tac_end nb_args is_mes fonctional_ref
+    let lemma = Lemmas.by (New.observe_tac (fun _ _ -> str "starting_tac") tac_start) lemma in
+    Lemmas.by (Proofview.V82.tactic (observe_tac (fun _ _ -> str "whole_start") (whole_start tac_end nb_args is_mes fonctional_ref
                                    input_type relation rec_arg_num ))) lemma
   in
   let lemma = start_proof Global.(env ()) ctx Tacticals.New.tclIDTAC Tacticals.New.tclIDTAC in
@@ -1428,7 +1428,7 @@ let com_eqn uctx nb_arg eq_name functional_ref f_ref terminate_ref equation_lemm
     let equation_lemma_type = subst1 f_constr equation_lemma_type in
     let lemma = Lemmas.start_lemma ~name:eq_name ~poly:false evd
        (EConstr.of_constr equation_lemma_type) in
-    let lemma = fst @@ Lemmas.by
+    let lemma = Lemmas.by
        (Proofview.V82.tactic (start_equation f_ref terminate_ref
           (fun  x ->
              prove_eq (fun _ -> tclIDTAC)

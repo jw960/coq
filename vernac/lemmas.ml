@@ -106,8 +106,8 @@ module Internal = struct
 end
 
 let by tac pf =
-  let proof, res = Pfedit.by tac pf.proof in
-  { pf with proof }, res
+  let proof = Pfedit.by tac pf.proof in
+  { pf with proof }
 
 (************************************************************************)
 (* Creating a lemma-like constant                                       *)
