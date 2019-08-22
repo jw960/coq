@@ -68,7 +68,9 @@ let save_proof_proved_poly Lemmas.{ proof; info } ~opaque ~idopt ?hook compute_g
        have existential variables in the initial types of goals, we need to
        normalise them for the kernel. *)
     let subst_evar k =
-      Proof.in_proof proof (fun m -> Evd.existential_opt_value0 m k) in
+      let { Proof.sigma } = Proof.data proof in
+      Evd.existential_opt_value0 sigma k
+    in
     let nf = UnivSubst.nf_evars_and_universes_opt_subst subst_evar
         (UState.subst universes) in
 

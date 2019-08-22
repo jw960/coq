@@ -50,7 +50,11 @@ let save_proof_proved_non_poly
   (* Because of dependent subgoals at the beginning of proofs, we could
      have existential variables in the initial types of goals, we need to
      normalise them for the kernel. *)
-  let subst_evar k = Proof.in_proof proof (fun m -> Evd.existential_opt_value0 m k) in
+  let subst_evar k =
+    let { Proof.sigma } = Proof.data proof in
+    Evd.existential_opt_value0 sigma k
+  in
+
   let nf = UnivSubst.nf_evars_and_universes_opt_subst subst_evar UState.(subst initial_euctx) in
 
   (* Create the constant entry *)
