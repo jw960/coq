@@ -42,8 +42,10 @@ let save_proof_proved_non_poly
     | None -> CErrors.user_err Pp.(str "Some unresolved existential variables remain")
   in
 
+  let univctx = Entries.Monomorphic_entry (UState.context_set initial_euctx) in
+
   let eff = Evd.eval_side_effects evd in
-  let pterm = proof_opt terms, eff in
+  let pt, eff = proof_opt terms, eff in
 
   (* Because of dependent subgoals at the beginning of proofs, we could
      have existential variables in the initial types of goals, we need to
@@ -52,29 +54,18 @@ let save_proof_proved_non_poly
   let nf = UnivSubst.nf_evars_and_universes_opt_subst subst_evar UState.(subst initial_euctx) in
 
   (* Create the constant entry *)
+  let types = EConstr.Unsafe.to_constr types in
+  let types = nf types in
+
+  (* Already checked the univ_decl for the type universes when starting the proof. *)
+  let univs = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
+  let used_univs = Univ.LSet.union (Vars.universes_of_constr types) (Vars.universes_of_constr pt) in
+  let univs = UState.restrict univs used_univs in
+  let univs = UState.check_mono_univ_decl univs udecl in
+
   let const =
-    let types = EConstr.Unsafe.to_constr types in
-    let types = nf types in
-
-    (* Already checked the univ_decl for the type universes when starting the proof. *)
-    let univctx = Entries.Monomorphic_entry (UState.context_set initial_euctx) in
-
-    let body = Future.(chain (from_val pterm) (fun (pt,eff) ->
-        (* Deferred proof, we already checked the universe declaration with
-             the initial universes, ensure that the final universes respect
-             the declaration as well. If the declaration is non-extensible,
-             this will prevent the body from adding universes and constraints. *)
-        let univs = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
-        let used_univs = Univ.LSet.union
-            (Vars.universes_of_constr types)
-            (Vars.universes_of_constr pt)
-        in
-        let univs = UState.restrict univs used_univs in
-        let univs = UState.check_mono_univ_decl univs udecl in
-        (pt,univs),eff))
-    in
     Proof_global.{
-      proof_entry_body = body;
+      proof_entry_body = Future.from_val ((pt, univs), eff);
       proof_entry_secctx = section_vars;
       proof_entry_feedback = feedback_id;
       proof_entry_type = Some types;
