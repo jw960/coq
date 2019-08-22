@@ -4,11 +4,22 @@ open Names
 open Entries
 open Nameops
 open Globnames
-open Decl_kinds
 open Declare
 open Proof_global
 
 [@@@ocaml.warning "-8"]
+
+let private_poly_univs =
+  let b = ref true in
+  let _ = Goptions.(declare_bool_option {
+      optdepr = false;
+      optname = "use private polymorphic universes for Qed constants";
+      optkey = ["Private";"Polymorphic";"Universes"];
+      optread = (fun () -> !b);
+      optwrite = ((:=) b);
+    })
+  in
+  fun () -> !b
 
 let default_thm_id = Id.of_string ""
 let check_anonymity id save_ident =
@@ -72,7 +83,8 @@ let save_proof_proved_poly Lemmas.{ proof; info } ~opaque ~idopt ?hook compute_g
         let used_univs_body = Vars.universes_of_constr body in
         let used_univs_typ = Vars.universes_of_constr typ in
         if allow_deferred then
-          let initunivs = UState.const_univ_entry ~poly initial_euctx in
+          (* let initunivs = UState.const_univ_entry ~poly initial_euctx in *)
+          let initunivs = Obj.magic () in
           let ctx = constrain_variables universes in
           (* For vi2vo compilation proofs are computed now but we need to
              complement the univ constraints of the typ with the ones of
@@ -157,7 +169,7 @@ let save_proof_proved_poly Lemmas.{ proof; info } ~opaque ~idopt ?hook compute_g
         gr
     in
     definition_message name;
-    DeclareDef.Hook.call ?hook ctx [] scope r
+    DeclareDef.Hook.call ?hook (Obj.magic ()) (* ctx *) [] scope r
   with e when CErrors.noncritical e ->
     let e = CErrors.push e in
     iraise (fix_exn e)
