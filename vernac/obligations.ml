@@ -277,7 +277,7 @@ type obligation_info =
        (bool * Evar_kinds.obligation_definition_status)
        * Int.Set.t * unit Proofview.tactic option) array
 
-let assumption_message = Declare.assumption_message
+let assumption_message = DeclareVar.assumption_message
 
 let default_tactic = ref (Proofview.tclUNIT ())
 

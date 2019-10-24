@@ -42,9 +42,9 @@ let should_axiom_into_instance = let open Decls in function
 
 let declare_variable is_coe ~kind typ imps impl {CAst.v=name} =
   let kind = Decls.IsAssumption kind in
-  let decl = Declare.SectionLocalAssum {typ; impl} in
-  let () = Declare.declare_variable ~name ~kind decl in
-  let () = Declare.assumption_message name in
+  let decl = DeclareVar.SectionLocalAssum {typ; impl} in
+  let () = DeclareVar.declare_variable ~name ~kind decl in
+  let () = DeclareVar.assumption_message name in
   let r = GlobRef.VarRef name in
   let () = maybe_declare_manual_implicits true r imps in
   let env = Global.env () in
@@ -70,7 +70,7 @@ let declare_axiom is_coe ~poly ~local ~kind typ (univs, pl) imps nl {CAst.v=name
   let gr = GlobRef.ConstRef kn in
   let () = maybe_declare_manual_implicits false gr imps in
   let () = DeclareUniv.declare_univ_binders gr pl in
-  let () = Declare.assumption_message name in
+  let () = DeclareVar.assumption_message name in
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let () = if do_instance then Classes.declare_instance env sigma None false gr in
@@ -251,7 +251,7 @@ let context_nosection sigma ~poly ctx =
       else Declare.ImportNeedQualified
     in
     let cst = Declare.declare_constant ~name ~kind ~local decl in
-    let () = Declare.assumption_message name in
+    let () = DeclareVar.assumption_message name in
     let env = Global.env () in
     (* why local when is_modtype? *)
     let () = if Lib.is_modtype() || Option.is_empty b then

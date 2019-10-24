@@ -32,24 +32,12 @@ type 'a proof_entry = private {
   proof_entry_inline_code : bool;
 }
 
-(** Declaration of local constructions (Variable/Hypothesis/Local) *)
-
-type variable_declaration =
-  | SectionLocalDef of Evd.side_effects proof_entry
-  | SectionLocalAssum of { typ:types; impl:Glob_term.binding_kind; }
-
 type 'a constant_entry =
   | DefinitionEntry of 'a proof_entry
   | ParameterEntry of parameter_entry
   | PrimitiveEntry of primitive_entry
 
 val declare_universe_context : poly:bool -> Univ.ContextSet.t -> unit
-
-val declare_variable
-  :  name:variable
-  -> kind:Decls.logical_kind
-  -> variable_declaration
-  -> unit
 
 (** Declaration of global constructions
    i.e. Definition/Theorem/Axiom/Parameter/... *)
@@ -116,7 +104,6 @@ val set_declare_scheme :
 (** Declaration messages *)
 
 val definition_message : Id.t -> unit
-val assumption_message : Id.t -> unit
 val fixpoint_message : int array option -> Id.t list -> unit
 val cofixpoint_message : Id.t list -> unit
 val recursive_message : bool (** true = fixpoint *) ->
@@ -126,6 +113,14 @@ val check_exists : Id.t -> unit
 
 (* Used outside this module only in indschemes *)
 exception AlreadyDeclared of (string option * Id.t)
+
+(* Side-effects handling, mostly internal and should go away *)
+val get_roles
+  :  Names.Cmap.key list
+  -> Evd.side_effects
+  -> (Names.Cmap.key * Evd.side_effect_role option) list
+
+val register_side_effect : Constant.t * Evd.side_effect_role option -> unit
 
 (* For legacy support, do not use *)
 module Internal : sig

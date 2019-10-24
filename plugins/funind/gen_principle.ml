@@ -241,8 +241,8 @@ let save name const ?hook uctx scope kind =
   let fix_exn = Future.fix_exn_of const.Declare.proof_entry_body in
   let r = match scope with
     | Discharge ->
-      let c = SectionLocalDef const in
-      let () = declare_variable ~name ~kind c in
+      let c = DeclareVar.SectionLocalDef const in
+      let () = DeclareVar.declare_variable ~name ~kind c in
       GlobRef.VarRef name
     | Global local ->
       let kn = declare_constant ~name ~kind ~local (DefinitionEntry const) in

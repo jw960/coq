@@ -266,8 +266,8 @@ let save_remaining_recthms env sigma ~poly ~scope ~udecl uctx body opaq i { Rect
          | Monomorphic_entry univs -> univs
        in
        let () = Declare.declare_universe_context ~poly univs in
-       let c = Declare.SectionLocalAssum {typ=t_i; impl} in
-       let () = Declare.declare_variable ~name ~kind c in
+       let c = DeclareVar.SectionLocalAssum {typ=t_i; impl} in
+       let () = DeclareVar.declare_variable ~name ~kind c in
        GlobRef.VarRef name, impargs
      | Global local ->
        let kind = Decls.(IsAssumption Conjectural) in
@@ -289,8 +289,8 @@ let save_remaining_recthms env sigma ~poly ~scope ~udecl uctx body opaq i { Rect
     match scope with
     | Discharge ->
       let const = Declare.definition_entry ~types:t_i ~opaque:opaq ~univs body_i in
-      let c = Declare.SectionLocalDef const in
-      let () = Declare.declare_variable ~name ~kind c in
+      let c = DeclareVar.SectionLocalDef const in
+      let () = DeclareVar.declare_variable ~name ~kind c in
       GlobRef.VarRef name, impargs
     | Global local ->
       let const = Declare.definition_entry ~types:t_i ~univs ~opaque:opaq body_i in
@@ -334,7 +334,7 @@ let finish_admitted env sigma ~name ~poly ~scope pe ctx hook ~udecl impargs othe
   | Discharge -> warn_let_as_axiom name; Declare.ImportNeedQualified
   in
   let kn = Declare.declare_constant ~name ~local ~kind:Decls.(IsAssumption Conjectural) (Declare.ParameterEntry pe) in
-  let () = Declare.assumption_message name in
+  let () = DeclareVar.assumption_message name in
   DeclareUniv.declare_univ_binders (GlobRef.ConstRef kn) (UState.universe_binders ctx);
   (* This takes care of the implicits and hook for the current constant*)
   process_recthms ?fix_exn:None ?hook env sigma ctx ~udecl ~poly ~scope:(Global local) (GlobRef.ConstRef kn) impargs other_thms
@@ -409,8 +409,8 @@ let finish_proved env sigma idopt po info =
       let open DeclareDef in
       let r = match scope with
         | Discharge ->
-          let c = Declare.SectionLocalDef const in
-          let () = Declare.declare_variable ~name ~kind c in
+          let c = DeclareVar.SectionLocalDef const in
+          let () = DeclareVar.declare_variable ~name ~kind c in
           let () = if should_suggest
             then Proof_using.suggest_variable (Global.env ()) name
           in
