@@ -20,17 +20,7 @@ open Entries
    [Nametab] and [Impargs]. *)
 
 (** Proof entries *)
-type 'a proof_entry = private {
-  proof_entry_body   : 'a Entries.const_entry_body;
-  (* List of section variables *)
-  proof_entry_secctx : Id.Set.t option;
-  (* State id on which the completion of type checking is reported *)
-  proof_entry_feedback : Stateid.t option;
-  proof_entry_type        : Constr.types option;
-  proof_entry_universes   : Entries.universes_entry;
-  proof_entry_opaque      : bool;
-  proof_entry_inline_code : bool;
-}
+type 'a proof_entry
 
 (** Declaration of local constructions (Variable/Hypothesis/Local) *)
 
