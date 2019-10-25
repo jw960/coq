@@ -99,8 +99,8 @@ let context_set_of_entry = function
   | Monomorphic_entry uctx -> uctx
 
 let declare_assumptions ~poly ~scope ~kind univs nl l =
-  let open DeclareDef in
-  let () = match scope with
+  let () = let open DeclareDef in
+    match scope with
     | Discharge ->
       (* declare universes separately for variables *)
       Declare.declare_universe_context ~poly (context_set_of_entry (fst univs))
@@ -112,10 +112,10 @@ let declare_assumptions ~poly ~scope ~kind univs nl l =
       let univs,subst' =
         List.fold_left_map (fun univs id ->
             let refu = match scope with
-              | Discharge ->
+              | DeclareDef.Discharge ->
                 declare_variable is_coe ~kind typ imps Glob_term.Explicit id;
                 GlobRef.VarRef id.CAst.v, Univ.Instance.empty
-              | Global local ->
+              | DeclareDef.Global local ->
                 declare_axiom is_coe ~local ~poly ~kind typ univs imps nl id
             in
             next_univs univs, (id.CAst.v, Constr.mkRef refu))
@@ -293,15 +293,14 @@ let context ~poly l =
 
 (* Deprecated *)
 let declare_assumption is_coe ~poly ~scope ~kind typ univs pl imps impl nl name =
-let open DeclareDef in
-match scope with
-| Discharge ->
-  let univs = match univs with
-    | Monomorphic_entry univs -> univs
-    | Polymorphic_entry (_, univs) -> Univ.ContextSet.of_context univs
-  in
-  let () = Declare.declare_universe_context ~poly univs in
-  declare_variable is_coe ~kind typ imps impl name;
-  GlobRef.VarRef name.CAst.v, Univ.Instance.empty
-| Global local ->
-  declare_axiom is_coe ~poly ~local ~kind typ (univs, pl) imps nl name
+  match scope with
+  | DeclareDef.Discharge ->
+    let univs = match univs with
+      | Monomorphic_entry univs -> univs
+      | Polymorphic_entry (_, univs) -> Univ.ContextSet.of_context univs
+    in
+    let () = Declare.declare_universe_context ~poly univs in
+    declare_variable is_coe ~kind typ imps impl name;
+    GlobRef.VarRef name.CAst.v, Univ.Instance.empty
+  | DeclareDef.Global local ->
+    declare_axiom is_coe ~poly ~local ~kind typ (univs, pl) imps nl name
