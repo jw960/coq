@@ -17,7 +17,6 @@ open CErrors
 open Util
 open CAst
 open Names
-open Termops
 open Declarations
 open Environ
 open Impargs
@@ -32,29 +31,11 @@ open Context.Rel.Declaration
 module RelDecl = Context.Rel.Declaration
 module NamedDecl = Context.Named.Declaration
 
-type object_pr = {
-  print_inductive           : MutInd.t -> UnivNames.univ_name_list option -> Pp.t;
-  print_constant_with_infos : Constant.t -> UnivNames.univ_name_list option -> Pp.t;
-  print_section_variable    : env -> Evd.evar_map -> variable -> Pp.t;
-  print_syntactic_def       : env -> KerName.t -> Pp.t;
-  print_module              : bool -> ModPath.t -> Pp.t;
-  print_modtype             : ModPath.t -> Pp.t;
-  print_named_decl          : env -> Evd.evar_map -> Constr.named_declaration -> Pp.t;
-  print_library_entry       : env -> Evd.evar_map -> bool -> (object_name * Lib.node) -> Pp.t option;
-  print_context             : env -> Evd.evar_map -> bool -> int option -> Lib.library_segment -> Pp.t;
-  print_typed_value_in_env  : Environ.env -> Evd.evar_map -> EConstr.constr * EConstr.types -> Pp.t;
-  print_eval                : Reductionops.reduction_function -> env -> Evd.evar_map -> Constrexpr.constr_expr -> EConstr.unsafe_judgment -> Pp.t;
-}
-
 let gallina_print_module  = print_module ~mod_ops:Declaremods.mod_ops
 let gallina_print_modtype = print_modtype ~mod_ops:Declaremods.mod_ops
 
-
-
 (**************)
 (** Utilities *)
-
-let print_closed_sections = ref false
 
 let pr_infos_list l = v 0 (prlist_with_sep cut (fun x -> x) l)
 
@@ -522,7 +503,7 @@ let print_located_qualid ref = print_located_qualid "object" LocAny ref
 (**** Printing declarations and judgments *)
 (****  Gallina layer                  *****)
 
-let gallina_print_typed_value_in_env env sigma (trm,typ) =
+let print_typed_value_in_env env sigma (trm,typ) =
   (pr_leconstr_env env sigma trm ++ fnl () ++
      str "     : " ++ pr_letype_env env sigma typ)
 
@@ -551,13 +532,10 @@ let gallina_print_named_decl env sigma =
   | LocalDef (id, body, typ) ->
      print_named_def env sigma (Id.to_string id.Context.binder_name) body typ
 
-let assumptions_for_print lna =
-  List.fold_right (fun na env -> add_name na env) lna empty_names_context
-
 (*********************)
 (* *)
 
-let gallina_print_inductive sp udecl =
+let print_inductive sp udecl =
   let env = Global.env() in
   let mib = Environ.lookup_mind sp env in
   let mipv = mib.mind_packets in
@@ -569,7 +547,7 @@ let gallina_print_inductive sp udecl =
 let print_named_decl env sigma id =
   gallina_print_named_decl env sigma (Global.lookup_named id) ++ fnl ()
 
-let gallina_print_section_variable env sigma id =
+let print_section_variable env sigma id =
   print_named_decl env sigma id ++
   with_line_skip (print_name_infos (GlobRef.VarRef id))
 
@@ -627,11 +605,11 @@ let print_constant with_values sep sp udecl =
         (if with_values then print_typed_body env sigma (Some c,typ) else pr_ltype typ)++
         Printer.pr_universes sigma univs ?priv)
 
-let gallina_print_constant_with_infos sp udecl =
+let print_constant_with_infos sp udecl =
   print_constant true " = " sp udecl ++
   with_line_skip (print_name_infos (GlobRef.ConstRef sp))
 
-let gallina_print_syntactic_def env kn =
+let print_syntactic_def env kn =
   let qid = Nametab.shortest_qualid_of_syndef Id.Set.empty kn
   and (vars,a) = Syntax_def.search_syntactic_definition kn in
   let c = Notation_ops.glob_constr_of_notation_constr a in
@@ -657,7 +635,7 @@ let gallina_print_leaf_entry env sigma with_values ((sp,kn as oname),lobj) =
       | (_,"CONSTANT") ->
           Some (print_constant with_values sep (Constant.make1 kn) None)
       | (_,"INDUCTIVE") ->
-          Some (gallina_print_inductive (MutInd.make1 kn) None)
+          Some (print_inductive (MutInd.make1 kn) None)
       | (_,("AUTOHINT"|"GRAMMAR"|"SYNTAXCONSTANT"|"PPSYNTAX"|"TOKEN"|"CLASS"|
             "COERCION"|"REQUIRE"|"END-SECTION"|"STRUCTURE")) -> None
       (* To deal with forgotten cases... *)
@@ -683,7 +661,7 @@ let gallina_print_library_entry env sigma with_values ent =
     | (oname,Lib.OpenedModule _) ->
       Some (str " >>>>>>> Module " ++ pr_name oname)
 
-let gallina_print_context env sigma with_values =
+let print_context env sigma with_values =
   let rec prec n = function
     | h::rest when Option.is_empty n || Option.get n > 0 ->
       (match gallina_print_library_entry env sigma with_values h with
@@ -693,41 +671,9 @@ let gallina_print_context env sigma with_values =
   in
   prec
 
-let gallina_print_eval red_fun env sigma _ {uj_val=trm;uj_type=typ} =
+let print_eval red_fun env sigma _ {uj_val=trm;uj_type=typ} =
   let ntrm = red_fun env sigma trm in
-  (str "     = " ++ gallina_print_typed_value_in_env env sigma (ntrm,typ))
-
-(******************************************)
-(**** Printing abstraction layer          *)
-
-let default_object_pr = {
-  print_inductive           = gallina_print_inductive;
-  print_constant_with_infos = gallina_print_constant_with_infos;
-  print_section_variable    = gallina_print_section_variable;
-  print_syntactic_def       = gallina_print_syntactic_def;
-  print_module              = gallina_print_module;
-  print_modtype             = gallina_print_modtype;
-  print_named_decl          = gallina_print_named_decl;
-  print_library_entry       = gallina_print_library_entry;
-  print_context             = gallina_print_context;
-  print_typed_value_in_env  = gallina_print_typed_value_in_env;
-  print_eval                = gallina_print_eval;
-}
-
-let object_pr = ref default_object_pr
-let set_object_pr = (:=) object_pr
-
-let print_inductive x = !object_pr.print_inductive x
-let print_constant_with_infos c = !object_pr.print_constant_with_infos c
-let print_section_variable c = !object_pr.print_section_variable c
-let print_syntactic_def x = !object_pr.print_syntactic_def x
-let print_module x  = !object_pr.print_module  x
-let print_modtype x = !object_pr.print_modtype x
-let print_named_decl x = !object_pr.print_named_decl x
-let print_library_entry x = !object_pr.print_library_entry x
-let print_context x = !object_pr.print_context x
-let print_typed_value_in_env x = !object_pr.print_typed_value_in_env x
-let print_eval x = !object_pr.print_eval x
+  (str "     = " ++ print_typed_value_in_env env sigma (ntrm,typ))
 
 (******************************************)
 (**** Printing declarations and judgments *)
@@ -746,8 +692,6 @@ let print_safe_judgment env sigma j =
 (*********************)
 (* *)
 
-let print_full_context env sigma =
-  print_context env sigma true None (Lib.contents ())
 let print_full_context_typ env sigma =
   print_context env sigma false None (Lib.contents ())
 
@@ -788,11 +732,11 @@ let print_full_pure_context env sigma =
   | ((_,kn),Lib.Leaf ModuleObject _)::rest ->
           (* TODO: make it reparsable *)
     let (mp,l) = KerName.repr kn in
-          prec rest ++ print_module true (MPdot (mp,l)) ++ str "." ++ fnl () ++ fnl ()
+          prec rest ++ gallina_print_module true (MPdot (mp,l)) ++ str "." ++ fnl () ++ fnl ()
   | ((_,kn),Lib.Leaf ModuleTypeObject _)::rest ->
           (* TODO: make it reparsable *)
     let (mp,l) = KerName.repr kn in
-          prec rest ++ print_modtype (MPdot (mp,l)) ++ str "." ++ fnl () ++ fnl ()
+          prec rest ++ gallina_print_modtype (MPdot (mp,l)) ++ str "." ++ fnl () ++ fnl ()
   | _::rest -> prec rest
   | _ -> mt () in
   prec (Lib.contents ())
@@ -817,9 +761,6 @@ let read_sec_context qid =
   let cxt = Lib.contents () in
   List.rev (get_cxt [] cxt)
 
-let print_sec_context env sigma sec =
-  print_context env sigma true None (read_sec_context sec)
-
 let print_sec_context_typ env sigma sec =
   print_context env sigma false None (read_sec_context sec)
 
@@ -841,15 +782,15 @@ let print_any_name env sigma na udecl =
   | Term (VarRef sp) -> print_section_variable env sigma sp
   | Syntactic kn -> print_syntactic_def env kn
   | Dir (Nametab.GlobDirRef.DirModule Nametab.{ obj_dir; obj_mp; _ } ) ->
-    print_module (printable_body obj_dir) obj_mp
+    gallina_print_module (printable_body obj_dir) obj_mp
   | Dir _ -> mt ()
-  | ModuleType mp -> print_modtype mp
+  | ModuleType mp -> gallina_print_modtype mp
   | Other (obj, info) -> info.print obj
   | Undefined qid ->
   try  (* Var locale de but, pas var de section... donc pas d'implicits *)
     let dir,str = repr_qualid qid in
     if not (DirPath.is_empty dir) then raise Not_found;
-    str |> Global.lookup_named |> print_named_decl env sigma
+    str |> Global.lookup_named |> gallina_print_named_decl env sigma
 
   with Not_found ->
     user_err
@@ -864,25 +805,6 @@ let print_name env sigma na udecl =
       udecl
   | {loc; v=Constrexpr.AN ref} ->
     print_any_name env sigma (locate_any_name ref) udecl
-
-let print_opaque_name env sigma qid =
-  let open GlobRef in
-  match Nametab.global qid with
-    | ConstRef cst ->
-      let cb = Global.lookup_constant cst in
-      if Declareops.constant_has_body cb then
-        print_constant_with_infos cst None
-      else
-        user_err Pp.(str "Not a defined constant.")
-    | IndRef (sp,_) ->
-      print_inductive sp None
-    | ConstructRef cstr as gr ->
-      let ty, ctx = Typeops.type_of_global_in_context env gr in
-      let ty = EConstr.of_constr ty in
-      let open EConstr in
-      print_typed_value_in_env env sigma (mkConstruct cstr, ty)
-    | VarRef id ->
-      env |> lookup_named id |> print_named_decl env sigma
 
 let print_about_any ?loc env sigma k udecl =
   maybe_error_reject_univ_decl k udecl;

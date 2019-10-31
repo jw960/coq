@@ -17,7 +17,6 @@ open Util
 open Names
 open Tacmach
 open Constrintern
-open Prettyp
 open Printer
 open Goptions
 open Libnames
@@ -1592,19 +1591,19 @@ let vernac_check_may_eval ~pstate ~atts redexp glopt rc =
   in
   let pp = match redexp with
     | None ->
-        let evars_of_term c = Evarutil.undefined_evars_of_term sigma c in
-        let l = Evar.Set.union (evars_of_term j.Environ.uj_val) (evars_of_term j.Environ.uj_type) in
-        let j = { j with Environ.uj_type = Reductionops.nf_betaiota env sigma j.Environ.uj_type } in
-        print_judgment env sigma j ++
-        pr_ne_evar_set (fnl () ++ str "where" ++ fnl ()) (mt ()) sigma l
+      let evars_of_term c = Evarutil.undefined_evars_of_term sigma c in
+      let l = Evar.Set.union (evars_of_term j.Environ.uj_val) (evars_of_term j.Environ.uj_type) in
+      let j = { j with Environ.uj_type = Reductionops.nf_betaiota env sigma j.Environ.uj_type } in
+      Prettyp.print_judgment env sigma j ++
+      pr_ne_evar_set (fnl () ++ str "where" ++ fnl ()) (mt ()) sigma l
     | Some r ->
-        let (sigma,r_interp) = Hook.get f_interp_redexp env sigma r in
-	let redfun env evm c =
-          let (redfun, _) = reduction_of_red_expr env r_interp in
-          let (_, c) = redfun env evm c in
-          c
-        in
-        print_eval redfun env sigma rc j
+      let (sigma,r_interp) = Hook.get f_interp_redexp env sigma r in
+      let redfun env evm c =
+        let (redfun, _) = reduction_of_red_expr env r_interp in
+        let (_, c) = redfun env evm c in
+        c
+      in
+      Prettyp.print_eval redfun env sigma rc j
   in
   pp ++ Printer.pr_universe_ctx_set sigma uctx
 
@@ -1625,7 +1624,7 @@ let vernac_global_check c =
   let c = EConstr.to_constr sigma c in
   let j = Safe_typing.typing senv c in
   let env = Safe_typing.env_of_safe_env senv in
-  print_safe_judgment env sigma j ++
+  Prettyp.print_safe_judgment env sigma j ++
   pr_universe_ctx_set sigma uctx
 
 
@@ -1671,16 +1670,16 @@ let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
   with (* fallback to globals *)
     | NoHyp | Not_found ->
     let sigma, env = get_current_or_global_context ~pstate in
-    print_about env sigma ref_or_by_not udecl
+    Prettyp.print_about env sigma ref_or_by_not udecl
 
 let vernac_print ~pstate ~atts =
   let sigma, env = get_current_or_global_context ~pstate in
   function
   | PrintTypingFlags -> pr_typing_flags (Environ.typing_flags (Global.env ()))
   | PrintTables -> print_tables ()
-  | PrintFullContext-> print_full_context_typ env sigma
-  | PrintSectionContext qid -> print_sec_context_typ env sigma qid
-  | PrintInspect n -> inspect env sigma n
+  | PrintFullContext-> Prettyp.print_full_context_typ env sigma
+  | PrintSectionContext qid -> Prettyp.print_sec_context_typ env sigma qid
+  | PrintInspect n -> Prettyp.inspect env sigma n
   | PrintGrammar ent -> Metasyntax.pr_grammar ent
   | PrintCustomGrammar ent -> Metasyntax.pr_custom_grammar ent
   | PrintLoadPath dir -> (* For compatibility ? *) print_loadpath dir
@@ -1693,7 +1692,7 @@ let vernac_print ~pstate ~atts =
   | PrintDebugGC -> Mltop.print_gc ()
   | PrintName (qid,udecl) ->
     dump_global qid;
-    print_name env sigma qid udecl
+    Prettyp.print_name env sigma qid udecl
   | PrintGraph -> Prettyp.print_graph ()
   | PrintClasses -> Prettyp.print_classes()
   | PrintTypeClasses -> Prettyp.print_typeclasses()
@@ -1723,7 +1722,7 @@ let vernac_print ~pstate ~atts =
     print_about_hyp_globs ~pstate ref_or_by_not udecl glnumopt
   | PrintImplicit qid ->
     dump_global qid;
-    print_impargs qid
+    Prettyp.print_impargs qid
   | PrintAssumptions (o,t,r) ->
       (* Prints all the axioms and section variables used by a term *)
       let gr = smart_global r in
@@ -1819,16 +1818,16 @@ let vernac_search ~pstate ~atts s gopt r =
        Search.prioritize_search) pr_search
 
 let vernac_locate ~pstate = function
-  | LocateAny {v=AN qid}  -> print_located_qualid qid
-  | LocateTerm {v=AN qid} -> print_located_term qid
+  | LocateAny {v=AN qid}  -> Prettyp.print_located_qualid qid
+  | LocateTerm {v=AN qid} -> Prettyp.print_located_term qid
   | LocateAny {v=ByNotation (ntn, sc)} (* TODO : handle Ltac notations *)
   | LocateTerm {v=ByNotation (ntn, sc)} ->
     let _, env = get_current_or_global_context ~pstate in
     Notation.locate_notation
       (Constrextern.without_symbols (pr_lglob_constr_env env)) ntn sc
   | LocateLibrary qid -> print_located_library qid
-  | LocateModule qid -> print_located_module qid
-  | LocateOther (s, qid) -> print_located_other s qid
+  | LocateModule qid -> Prettyp.print_located_module qid
+  | LocateOther (s, qid) -> Prettyp.print_located_other s qid
   | LocateFile f -> locate_file f
 
 let vernac_register qid r =
