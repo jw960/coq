@@ -27,6 +27,11 @@ val require_library_from_dirpath
   -> bool option
   -> unit
 
+type trace_ops =
+  { require : (DirPath.t * string) list -> bool option -> unit }
+
+val set_trace_ops : trace_ops -> unit
+
 (** {6 Start the compilation of a library } *)
 
 (** Segments of a library *)

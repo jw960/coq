@@ -451,6 +451,14 @@ let section_instance = let open GlobRef in function
     let data = section_segment_of_mutual_inductive kn in
     extract_worklist data
 
+type trace_ops =
+  { snapshot_env : int -> unit
+  ; restore_env : int -> unit
+  }
+
+let tops = ref None
+let set_trace_ops t = tops := Some t
+
 (*************)
 (* Sections. *)
 let open_section id =
@@ -461,6 +469,7 @@ let open_section id =
   if Nametab.exists_dir obj_dir then
     user_err ~hdr:"open_section" (Id.print id ++ str " already exists.");
   let fs = Summary.freeze_summaries ~marshallable:false in
+  Option.iter (fun t -> t.snapshot_env (Hashtbl.hash fs)) !tops;
   add_entry (make_foname id) (OpenedSection (prefix, fs));
   (*Pushed for the lifetime of the section: removed by unfrozing the summary*)
   Nametab.(push_dir (Until 1) obj_dir (GlobDirRef.DirOpenSection prefix));
@@ -494,6 +503,7 @@ let close_section () =
   pop_path_prefix ();
   let newdecls = List.map discharge_item secdecls in
   let () = Global.close_section fs in
+  Option.iter (fun t -> t.restore_env (Hashtbl.hash fs)) !tops;
   List.iter (Option.iter (fun (id,o) -> add_discharged_leaf id o)) newdecls
 
 (* State and initialization. *)

@@ -288,6 +288,42 @@ end
 
 type private_constants = SideEffects.t
 
+type global_declaration =
+| ConstantEntry : Entries.constant_entry -> global_declaration
+| OpaqueEntry : private_constants Entries.const_entry_body Entries.opaque_entry -> global_declaration
+
+type side_effect_declaration =
+| DefinitionEff : Entries.definition_entry -> side_effect_declaration
+| OpaqueEff : Constr.constr Entries.opaque_entry -> side_effect_declaration
+
+(** Trace operators *)
+type trace_ops =
+  { constant : Label.t * global_declaration -> unit
+  ; private_constant : Label.t * side_effect_declaration -> unit
+  ; mind : Label.t * Entries.mutual_inductive_entry -> unit
+  ; constraints: Univ.Constraint.t -> unit
+  ; named_assum : Id.t * Constr.types -> unit
+  ; named_def: Id.t * Entries.section_def_entry -> unit
+  ; push_section_context : Name.t array * Univ.UContext.t -> unit
+  ; push_context_set : bool * Univ.ContextSet.t -> unit
+  (* Subsumed by snapshot_env / restore_env *)
+  (* ; open_section : unit -> unit
+   * ; close_section : unit -> unit *)
+  ; lib_start : DirPath.t -> unit
+  ; mod_impl : Label.t * Entries.module_entry * Declarations.inline -> unit
+  ; mod_start : Label.t -> unit
+  ; mod_end : Label.t * (Entries.module_struct_entry * Declarations.inline) option -> unit
+  ; mod_param : MBId.t * Entries.module_struct_entry * Declarations.inline -> unit
+  ; mod_include : Entries.module_struct_entry * bool * Declarations.inline -> unit
+  ; mod_type_ : Label.t * Entries.module_type_entry * Declarations.inline -> unit
+  ; mod_type_start : Label.t -> unit
+  ; mod_type_end : Label.t -> unit
+  ; other : string -> unit
+  }
+
+let tops = ref None
+let set_trace_ops t = tops := Some t
+
 let side_effects_of_private_constants l =
   List.rev (SideEffects.repr l)
 
@@ -328,6 +364,7 @@ type constraints_addition =
   | Later of Univ.ContextSet.t Future.computation
 
 let push_context_set poly cst senv =
+  Option.iter (fun t -> t.push_context_set (poly,cst)) !tops;
   if Univ.ContextSet.is_empty cst then senv
   else
     let sections =
@@ -428,7 +465,6 @@ let check_required current_libs needed =
   in
   Array.iter check needed
 
-
 (** {6 Insertion of section variables} *)
 
 (** They are now typed before being added to the environment.
@@ -447,6 +483,7 @@ let safe_push_named d env =
   Environ.push_named d env
 
 let push_named_def (id,de) senv =
+  Option.iter (fun t -> t.named_def (id,de)) !tops;
   let sections = Section.push_local senv.sections in
   let c, r, typ = Term_typing.translate_local_def senv.env id de in
   let x = Context.make_annot id r in
@@ -454,6 +491,7 @@ let push_named_def (id,de) senv =
   { senv with sections; env = env'' }
 
 let push_named_assum (x,t) senv =
+  Option.iter (fun _t -> _t.named_assum (x,t)) !tops;
   let sections = Section.push_local senv.sections in
   let t, r = Term_typing.translate_local_assum senv.env t in
   let x = Context.make_annot x r in
@@ -461,6 +499,7 @@ let push_named_assum (x,t) senv =
   { senv with sections; env = env'' }
 
 let push_section_context (nas, ctx) senv =
+  Option.iter (fun t -> t.push_section_context (nas, ctx)) !tops;
   let sections = Section.push_context (nas, ctx) senv.sections in
   let senv = { senv with sections } in
   let ctx = Univ.ContextSet.of_context ctx in
@@ -571,10 +610,6 @@ let add_field ?(is_include=false) ((l,sfb) as field) gn senv =
 (** Applying a certain function to the resolver of a safe environment *)
 
 let update_resolver f senv = { senv with modresolver = f senv.modresolver }
-
-type global_declaration =
-| ConstantEntry : Entries.constant_entry -> global_declaration
-| OpaqueEntry : private_constants Entries.const_entry_body Entries.opaque_entry -> global_declaration
 
 type exported_private_constant = Constant.t
 
@@ -690,10 +725,6 @@ let check_signatures curmb sl =
   match sl with
   | None -> 0
   | Some (n, _) -> n
-
-type side_effect_declaration =
-| DefinitionEff : Entries.definition_entry -> side_effect_declaration
-| OpaqueEff : Constr.constr Entries.opaque_entry -> side_effect_declaration
 
 let constant_entry_of_side_effect eff =
   let cb = eff.seff_body in
@@ -812,6 +843,7 @@ let export_private_constants ce senv =
   (ce, exported), senv
 
 let add_constant l decl senv =
+  Option.iter (fun t -> t.constant (l, decl)) !tops;
   let kn = Constant.make2 senv.modpath l in
     let cb =
       match decl with
@@ -862,6 +894,7 @@ let add_constant l decl senv =
   kn, senv
 
 let add_private_constant l decl senv : (Constant.t * private_constants) * safe_environment =
+  Option.iter (fun t -> t.private_constant (l, decl)) !tops;
   let kn = Constant.make2 senv.modpath l in
     let cb =
       match decl with
@@ -901,6 +934,7 @@ let check_mind mie lab =
     assert (Id.equal (Label.to_id lab) oie.mind_entry_typename)
 
 let add_mind l mie senv =
+  Option.iter (fun t -> t.mind (l, mie)) !tops;
   let () = check_mind mie l in
   let kn = MutInd.make2 senv.modpath l in
   let mib = Indtypes.check_inductive senv.env kn mie in
@@ -912,6 +946,7 @@ let add_mind l mie senv =
 (** Insertion of module types *)
 
 let add_modtype l params_mte inl senv =
+  Option.iter (fun (t : trace_ops) -> t.mod_type_ (l,params_mte,inl)) !tops;
   let mp = MPdot(senv.modpath, l) in
   let mtb = Mod_typing.translate_modtype senv.env mp inl params_mte  in
   let mtb = Declareops.hcons_module_type mtb in
@@ -933,6 +968,7 @@ let full_add_module_type mp mt senv =
 (** Insertion of modules *)
 
 let add_module l me inl senv =
+  Option.iter (fun t -> t.mod_impl (l,me,inl)) !tops;
   let mp = MPdot(senv.modpath, l) in
   let mb = Mod_typing.translate_module senv.env mp inl me in
   let mb = Declareops.hcons_module_body mb in
@@ -946,6 +982,7 @@ let add_module l me inl senv =
 (** {6 Interactive sections *)
 
 let open_section senv =
+  (* Option.iter (fun t -> t.open_section ()) !tops; *)
   let custom = {
     rev_env = senv.env;
     rev_univ = senv.univ;
@@ -955,6 +992,7 @@ let open_section senv =
   { senv with sections }
 
 let close_section senv =
+  (* Option.iter (fun t -> t.close_section ()) !tops; *)
   let open Section in
   let sections0 = senv.sections in
   let env0 = senv.env in
@@ -1016,6 +1054,7 @@ let close_section senv =
 (** {6 Starting / ending interactive modules and module types } *)
 
 let start_module l senv =
+  Option.iter (fun t -> t.mod_start l) !tops;
   let () = check_modlabel l senv in
   let () = check_empty_context senv in
   let mp = MPdot(senv.modpath, l) in
@@ -1027,6 +1066,7 @@ let start_module l senv =
     required = senv.required }
 
 let start_modtype l senv =
+  Option.iter (fun t -> t.mod_type_start l) !tops;
   let () = check_modlabel l senv in
   let () = check_empty_context senv in
   let mp = MPdot(senv.modpath, l) in
@@ -1041,6 +1081,7 @@ let start_modtype l senv =
     This module should have been freshly started. *)
 
 let add_module_parameter mbid mte inl senv =
+  Option.iter (fun t -> t.mod_param (mbid, mte, inl)) !tops;
   let () = check_empty_struct senv in
   let mp = MPbound mbid in
   let mtb = Mod_typing.translate_modtype senv.env mp inl ([],mte) in
@@ -1121,6 +1162,7 @@ let propagate_senv newdef newenv newresolver senv oldsenv =
   }
 
 let end_module l restype senv =
+  Option.iter (fun t -> t.mod_end (l,restype)) !tops;
   let mp = senv.modpath in
   let params, oldsenv = check_struct senv.modvariant in
   let () = check_current_label l mp in
@@ -1153,6 +1195,7 @@ let build_mtb mp sign cst delta =
     mod_retroknowledge = ModTypeRK }
 
 let end_modtype l senv =
+  Option.iter (fun t -> t.mod_type_end l) !tops;
   let mp = senv.modpath in
   let params, oldsenv = check_sig senv.modvariant in
   let () = check_current_label l mp in
@@ -1173,6 +1216,7 @@ let end_modtype l senv =
 (** {6 Inclusion of module or module type } *)
 
 let add_include me is_module inl senv =
+  Option.iter (fun t -> t.mod_include (me,is_module,inl)) !tops;
   let open Mod_typing in
   let mp_sup = senv.modpath in
   let sign,(),resolver,cst =
@@ -1235,6 +1279,7 @@ let current_modpath senv = senv.modpath
 let current_dirpath senv = Names.ModPath.dp (current_modpath senv)
 
 let start_library dir senv =
+  Option.iter (fun t -> t.lib_start dir) !tops;
   check_initial senv;
   assert (not (DirPath.is_empty dir));
   let mp = MPfile dir in
@@ -1440,9 +1485,9 @@ let register_inductive ind prim senv =
   add_retroknowledge action senv
 
 let add_constraints c =
+  Option.iter (fun t -> t.constraints c) !tops;
   add_constraints
     (Now (Univ.ContextSet.add_constraints c Univ.ContextSet.empty))
-
 
 (* NB: The next old comment probably refers to [propagate_loads] above.
    When a Require is done inside a module, we'll redo this require

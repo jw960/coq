@@ -83,6 +83,33 @@ type side_effect_declaration =
 
 type exported_private_constant = Constant.t
 
+(** Trace operations  *)
+type trace_ops =
+  { constant : Label.t * global_declaration -> unit
+  ; private_constant : Label.t * side_effect_declaration -> unit
+  ; mind : Label.t * Entries.mutual_inductive_entry -> unit
+  ; constraints: Univ.Constraint.t -> unit
+  ; named_assum : Id.t * Constr.types -> unit
+  ; named_def: Id.t * Entries.section_def_entry -> unit
+  ; push_section_context : Name.t array * Univ.UContext.t -> unit
+  ; push_context_set : bool * Univ.ContextSet.t -> unit
+  (* Subsumed by snapshot_env / restore_env *)
+  (* ; open_section : unit -> unit
+   * ; close_section : unit -> unit *)
+  ; lib_start : DirPath.t -> unit
+  ; mod_impl : Label.t * Entries.module_entry * Declarations.inline -> unit
+  ; mod_start : Label.t -> unit
+  ; mod_end : Label.t * (Entries.module_struct_entry * Declarations.inline) option -> unit
+  ; mod_param : MBId.t * Entries.module_struct_entry * Declarations.inline -> unit
+  ; mod_include : Entries.module_struct_entry * bool * Declarations.inline -> unit
+  ; mod_type_ : Label.t * Entries.module_type_entry * Declarations.inline -> unit
+  ; mod_type_start : Label.t -> unit
+  ; mod_type_end : Label.t -> unit
+  ; other : string -> unit
+  }
+
+val set_trace_ops : trace_ops -> unit
+
 val export_private_constants :
   private_constants Entries.proof_output ->
   (Constr.constr Univ.in_universe_context_set * exported_private_constant list) safe_transformer

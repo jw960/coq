@@ -371,7 +371,14 @@ let warn_require_in_module =
                               strbrk "You can Require a module at toplevel " ++
                               strbrk "and optionally Import it inside another one.")
 
+type trace_ops =
+  { require : (DirPath.t * string) list -> bool option -> unit }
+
+let tops = ref None
+let set_trace_ops t = tops := Some t
+
 let require_library_from_dirpath ~lib_resolver modrefl export =
+  Option.iter (fun t -> t.require modrefl export) !tops;
   let needed, contents = List.fold_left (rec_intern_library ~lib_resolver) ([], DPMap.empty) modrefl in
   let needed = List.rev_map (fun dir -> DPMap.find dir contents) needed in
   let modrefl = List.map fst modrefl in
