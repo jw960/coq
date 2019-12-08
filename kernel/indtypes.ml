@@ -558,3 +558,5 @@ let check_inductive env kn mie =
     build_inductive env names mie.mind_entry_private univs variance
       paramsctxt kn record mie.mind_entry_finite
       inds nmr recargs
+
+let () = let _ = 1 + 2 in ()
