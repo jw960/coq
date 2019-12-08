@@ -37,7 +37,6 @@ plugins/derive/*
 plugins/extraction/*
 plugins/firstorder/*
 plugins/fourier/*
-plugins/funind/*
 plugins/ltac/*
 plugins/nsatz/*
 plugins/omega/*
@@ -49,4 +48,5 @@ plugins/ssr/*
 plugins/ssrmatching/*
 plugins/syntax/*
 # Enabled
+# plugins/funind/*
 # plugins/micromega/*
