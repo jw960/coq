@@ -1,5 +1,0 @@
-(library
- (name ssrmatching_plugin)
- (public_name coq.plugins.ssrmatching)
- (synopsis "Coq ssrmatching plugin")
- (libraries coq.plugins.ltac))
