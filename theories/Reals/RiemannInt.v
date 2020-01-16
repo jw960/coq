@@ -15,6 +15,8 @@ Require Import Ranalysis_reg.
 Require Import Rbase.
 Require Import RiemannInt_SF.
 Require Import Max.
+Require Import RList.
+
 Local Open Scope R_scope.
 
 Set Implicit Arguments.
