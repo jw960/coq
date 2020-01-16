@@ -1,0 +1,5 @@
+(library
+ (name gappatac)
+ (public_name coq.plugins.gappa)
+ (flags :standard -w -3)
+ (libraries coq.plugins.ltac))

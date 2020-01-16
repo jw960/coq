@@ -127,7 +127,7 @@ module Options = struct
   let all_opts =
   [ { enabled = false; cmd = "-debug"; }
   ; { enabled = false; cmd = "-native_compiler"; }
-  ; { enabled = true; cmd = "-w +default"; }
+  ; { enabled = false; cmd = "-w +default"; }
   ]
 
   let build_coq_flags () =
@@ -179,6 +179,8 @@ let pp_vo_dep dir fmt vo =
   let sdir = gen_sub depth in
   (* All files except those in Init implicitly depend on the Prelude, we account for it here. *)
   let eflag, edep = if List.tl dir = ["Init"] then "-noinit -R theories Coq", [] else "", [bpath ["theories";"Init";"Prelude.vo"]] in
+  let eflag = if List.mem "Flocq" dir then "-R user-contrib/Flocq Flocq" else eflag in
+  let eflag = if List.mem "Gappa" dir then "-R user-contrib/Gappa Gappa" else eflag in
   (* Coq flags *)
   let cflag = Options.build_coq_flags () in
   (* Correct path from global to local "theories/Init/Decimal.vo" -> "../../theories/Init/Decimal.vo" *)
