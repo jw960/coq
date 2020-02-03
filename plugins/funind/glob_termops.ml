@@ -109,8 +109,10 @@ let change_vars =
         | GCast (b, c) ->
           GCast
             ( change_vars mapping b
-            , Glob_ops.map_cast_type (change_vars mapping) c ))
-      rt
+            , Glob_ops.map_cast_type (change_vars mapping) c )
+        | GArray(u,t,def,ty) ->
+          GArray(u,Array.map (change_vars mapping) t, change_vars mapping def, change_vars mapping ty)
+        ) rt
   and change_vars_br mapping ({CAst.loc; v = idl, patl, res} as br) =
     let new_mapping = List.fold_right Id.Map.remove idl mapping in
     if Id.Map.is_empty new_mapping then br
@@ -282,6 +284,8 @@ let rec alpha_rt excluded rt =
       GCast (alpha_rt excluded b, Glob_ops.map_cast_type (alpha_rt excluded) c)
     | GApp (f, args) ->
       GApp (alpha_rt excluded f, List.map (alpha_rt excluded) args)
+    | GArray(u,t,def,ty) ->
+      GArray(u, Array.map (alpha_rt excluded) t, alpha_rt excluded def, alpha_rt excluded ty)
   in
   new_rt
 
@@ -331,8 +335,9 @@ let is_free_in id =
         | GHole _ -> false
         | GCast (b, (CastConv t | CastVM t | CastNative t)) ->
           is_free_in b || is_free_in t | GCast (b, CastCoerce) -> is_free_in b
-        | GInt _ | GFloat _ -> false)
-      x
+        | GInt _ | GFloat _ -> false
+        | GArray(_u, t, def, ty) -> Array.exists is_free_in t || is_free_in def || is_free_in ty
+      ) x
   and is_free_in_br {CAst.v = ids, _, rt} =
     (not (Id.List.mem id ids)) && is_free_in rt
   in
@@ -404,6 +409,8 @@ let replace_var_by_term x_id term =
         | (GSort _ | GHole _) as rt -> rt
         | GInt _ as rt -> rt
         | GFloat _ as rt -> rt
+        | GArray(u, t,def,ty) ->
+          GArray(u, Array.map replace_var_by_pattern t, replace_var_by_pattern def, replace_var_by_pattern ty)
         | GCast (b, c) ->
           GCast
             ( replace_var_by_pattern b
@@ -510,7 +517,10 @@ let expand_as =
           ( sty
           , Option.map (expand_as map) po
           , List.map (fun (rt, t) -> (expand_as map rt, t)) el
-          , List.map (expand_as_br map) brl ))
+          , List.map (expand_as_br map) brl )
+      | GArray(u, t,def,ty) ->
+        GArray(u, Array.map (expand_as map) t, expand_as map def, expand_as map ty)
+    )
   and expand_as_br map {CAst.loc; v = idl, cpl, rt} =
     CAst.make ?loc (idl, cpl, expand_as (List.fold_left add_as map cpl) rt)
   in

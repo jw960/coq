@@ -452,6 +452,8 @@ let () = define1 "constr_kind" constr begin fun c ->
     v_blk 17 [|Value.of_uint63 n|]
   | Float f ->
     v_blk 18 [|Value.of_float f|]
+  | Array(u,t,def,ty) ->
+    v_blk 19 [|of_instance u; Value.of_array Value.of_constr t; Value.of_constr def; Value.of_constr ty|]
   end
 end
 

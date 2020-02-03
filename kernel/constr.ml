@@ -105,6 +105,7 @@ type ('constr, 'types, 'sort, 'univs) kind_of_term =
   | Proj      of Projection.t * 'constr
   | Int       of Uint63.t
   | Float     of Float64.t
+  | Array     of 'univs * 'constr array * 'constr * 'types
 (* constr is the fixpoint of the previous type. Requires option
    -rectypes of the Caml compiler to be set *)
 type t = (t, t, Sorts.t, Instance.t) kind_of_term
@@ -241,6 +242,9 @@ let mkRef (gr,u) = let open GlobRef in match gr with
 
 (* Constructs a primitive integer *)
 let mkInt i = Int i
+
+(* Constructs an array *)
+let mkArray (u,t,def,ty) = Array (u,t,def,ty)
 
 (* Constructs a primitive float number *)
 let mkFloat f = Float f
@@ -476,6 +480,8 @@ let fold f acc c = match kind c with
     Array.fold_left2 (fun acc t b -> f (f acc t) b) acc tl bl
   | CoFix (_,(_lna,tl,bl)) ->
     Array.fold_left2 (fun acc t b -> f (f acc t) b) acc tl bl
+  | Array(_u,t,def,ty) ->
+    f (f (Array.fold_left f acc t) def) ty
 
 (* [iter f c] iters [f] on the immediate subterms of [c]; it is
    not recursive and the order with which subterms are processed is
@@ -494,6 +500,7 @@ let iter f c = match kind c with
   | Case (_,p,c,bl) -> f p; f c; Array.iter f bl
   | Fix (_,(_,tl,bl)) -> Array.iter f tl; Array.iter f bl
   | CoFix (_,(_,tl,bl)) -> Array.iter f tl; Array.iter f bl
+  | Array(_u,t,def,ty) -> Array.iter f t; f def; f ty
 
 (* [iter_with_binders g f n c] iters [f n] on the immediate
    subterms of [c]; it carries an extra data [n] (typically a lift
@@ -518,6 +525,8 @@ let iter_with_binders g f n c = match kind c with
   | CoFix (_,(_,tl,bl)) ->
       Array.Fun1.iter f n tl;
       Array.Fun1.iter f (iterate g (Array.length tl) n) bl
+  | Array(_u,t,def,ty) ->
+    Array.iter (f n) t; f n def; f n ty
 
 (* [fold_constr_with_binders g f n acc c] folds [f n] on the immediate
    subterms of [c] starting from [acc] and proceeding from left to
@@ -546,6 +555,8 @@ let fold_constr_with_binders g f n acc c =
       let n' = iterate g (Array.length tl) n in
       let fd = Array.map2 (fun t b -> (t,b)) tl bl in
       Array.fold_left (fun acc (t,b) -> f n' (f n acc t) b) acc fd
+  | Array(_u,t,def,ty) ->
+    f n (f n (Array.fold_left (f n) acc t) def) ty
 
 (* [map f c] maps [f] on the immediate subterms of [c]; it is
    not recursive and the order with which subterms are processed is
@@ -682,6 +693,12 @@ let map_gen userview f c = match kind c with
       let bl' = Array.Smart.map f bl in
       if tl'==tl && bl'==bl then c
       else mkCoFix (ln,(lna,tl',bl'))
+  | Array(u,t,def,ty) ->
+    let t' = Array.Smart.map f t in
+    let def' = f def in
+    let ty' = f ty in
+    if def'==def && t==t' && ty==ty' then c
+    else mkArray(u,t',def',ty')
 
 let map_user_view = map_gen true
 let map = map_gen false
@@ -742,6 +759,12 @@ let fold_map f accu c = match kind c with
       let accu, bl' = Array.Smart.fold_left_map f accu bl in
       if tl'==tl && bl'==bl then accu, c
       else accu, mkCoFix (ln,(lna,tl',bl'))
+  | Array(u,t,def,ty) ->
+    let accu, t' = Array.Smart.fold_left_map f accu t in
+    let accu, def' = f accu def in
+    let accu, ty' = f accu ty in
+    if def'==def && t==t' && ty==ty' then accu, c
+    else accu, mkArray(u,t',def',ty')
 
 (* [map_with_binders g f n c] maps [f n] on the immediate
    subterms of [c]; it carries an extra data [n] (typically a lift
@@ -803,6 +826,12 @@ let map_with_binders g f l c0 = match kind c0 with
     let l' = iterate g (Array.length tl) l in
     let bl' = Array.Fun1.Smart.map f l' bl in
     mkCoFix (ln,(lna,tl',bl'))
+  | Array(u,t,def,ty) ->
+    let t' = Array.Fun1.Smart.map f l t in
+    let def' = f l def in
+    let ty' = f l ty in
+    if def'==def && t==t' && ty==ty' then c0
+    else mkArray(u,t',def',ty')
 
 (*********************)
 (*      Lifting      *)
@@ -845,9 +874,10 @@ let fold_with_full_binders g f n acc c =
       let n' = CArray.fold_left2_i (fun i c n t -> g (LocalAssum (n,lift i t)) c) n lna tl in
       let fd = Array.map2 (fun t b -> (t,b)) tl bl in
       Array.fold_left (fun acc (t,b) -> f n' (f n acc t) b) acc fd
+  | Array(_u,t,def,ty) -> f n (f n (Array.fold_left (f n) acc t) def) ty
 
 
-type 'univs instance_compare_fn = GlobRef.t -> int ->
+type 'univs instance_compare_fn = (GlobRef.t * int) option ->
   'univs -> 'univs -> bool
 
 type 'constr constr_compare_fn = int -> 'constr -> 'constr -> bool
@@ -884,10 +914,10 @@ let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq leq nargs t
   | Evar (e1,l1), Evar (e2,l2) -> Evar.equal e1 e2 && List.equal (eq 0) l1 l2
   | Const (c1,u1), Const (c2,u2) ->
     (* The args length currently isn't used but may as well pass it. *)
-    Constant.equal c1 c2 && leq_universes (GlobRef.ConstRef c1) nargs u1 u2
-  | Ind (c1,u1), Ind (c2,u2) -> eq_ind c1 c2 && leq_universes (GlobRef.IndRef c1) nargs u1 u2
+    Constant.equal c1 c2 && leq_universes (Some (GlobRef.ConstRef c1, nargs)) u1 u2
+  | Ind (c1,u1), Ind (c2,u2) -> eq_ind c1 c2 && leq_universes (Some (GlobRef.IndRef c1, nargs)) u1 u2
   | Construct (c1,u1), Construct (c2,u2) ->
-    eq_constructor c1 c2 && leq_universes (GlobRef.ConstructRef c1) nargs u1 u2
+    eq_constructor c1 c2 && leq_universes (Some (GlobRef.ConstructRef c1, nargs)) u1 u2
   | Case (_,p1,c1,bl1), Case (_,p2,c2,bl2) ->
     eq 0 p1 p2 && eq 0 c1 c2 && Array.equal (eq 0) bl1 bl2
   | Fix ((ln1, i1),(_,tl1,bl1)), Fix ((ln2, i2),(_,tl2,bl2)) ->
@@ -895,9 +925,13 @@ let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq leq nargs t
     && Array.equal_norefl (eq 0) tl1 tl2 && Array.equal_norefl (eq 0) bl1 bl2
   | CoFix(ln1,(_,tl1,bl1)), CoFix(ln2,(_,tl2,bl2)) ->
     Int.equal ln1 ln2 && Array.equal_norefl (eq 0) tl1 tl2 && Array.equal_norefl (eq 0) bl1 bl2
+  | Array(u1,t1,def1,ty1), Array(u2,t2,def2,ty2) ->
+    leq_universes None u1 u2 &&
+    Array.equal_norefl (eq 0) t1 t2 &&
+    eq 0 def1 def2 && eq 0 ty1 ty2
   | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _
     | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
-    | CoFix _ | Int _ | Float _), _ -> false
+    | CoFix _ | Int _ | Float _| Array _), _ -> false
 
 (* [compare_head_gen_leq u s eq leq c1 c2] compare [c1] and [c2] using [eq] to compare
    the immediate subterms of [c1] of [c2] for conversion if needed, [leq] for cumulativity,
@@ -923,7 +957,7 @@ let compare_head_gen_with kind1 kind2 eq_universes eq_sorts eq t1 t2 =
 let compare_head_gen eq_universes eq_sorts eq t1 t2 =
   compare_head_gen_leq eq_universes eq_sorts eq eq t1 t2
 
-let compare_head = compare_head_gen (fun _ _ -> Univ.Instance.equal) Sorts.equal
+let compare_head = compare_head_gen (fun _ -> Univ.Instance.equal) Sorts.equal
 
 (*******************************)
 (*  alpha conversion functions *)
@@ -932,14 +966,14 @@ let compare_head = compare_head_gen (fun _ _ -> Univ.Instance.equal) Sorts.equal
 (* alpha conversion : ignore print names and casts *)
 
 let rec eq_constr nargs m n =
-  (m == n) || compare_head_gen (fun _ _ -> Instance.equal) Sorts.equal eq_constr nargs m n
+  (m == n) || compare_head_gen (fun _ -> Instance.equal) Sorts.equal eq_constr nargs m n
 
 let equal n m = eq_constr 0 m n (* to avoid tracing a recursive fun *)
 
 let eq_constr_univs univs m n =
   if m == n then true
   else
-    let eq_universes _ _ = UGraph.check_eq_instances univs in
+    let eq_universes _ = UGraph.check_eq_instances univs in
     let eq_sorts s1 s2 = s1 == s2 || UGraph.check_eq univs (Sorts.univ_of_sort s1) (Sorts.univ_of_sort s2) in
     let rec eq_constr' nargs m n =
       m == n ||	compare_head_gen eq_universes eq_sorts eq_constr' nargs m n
@@ -948,7 +982,7 @@ let eq_constr_univs univs m n =
 let leq_constr_univs univs m n =
   if m == n then true
   else
-    let eq_universes _ _ = UGraph.check_eq_instances univs in
+    let eq_universes _ = UGraph.check_eq_instances univs in
     let eq_sorts s1 s2 = s1 == s2 ||
       UGraph.check_eq univs (Sorts.univ_of_sort s1) (Sorts.univ_of_sort s2) in
     let leq_sorts s1 s2 = s1 == s2 ||
@@ -965,7 +999,7 @@ let eq_constr_univs_infer univs m n =
   if m == n then true, Constraint.empty
   else
     let cstrs = ref Constraint.empty in
-    let eq_universes _ _ = UGraph.check_eq_instances univs in
+    let eq_universes _ = UGraph.check_eq_instances univs in
     let eq_sorts s1 s2 =
       if Sorts.equal s1 s2 then true
       else
@@ -985,7 +1019,7 @@ let leq_constr_univs_infer univs m n =
   if m == n then true, Constraint.empty
   else
     let cstrs = ref Constraint.empty in
-    let eq_universes _ _ l l' = UGraph.check_eq_instances univs l l' in
+    let eq_universes _ l l' = UGraph.check_eq_instances univs l l' in
     let eq_sorts s1 s2 =
       if Sorts.equal s1 s2 then true
       else
@@ -1015,7 +1049,7 @@ let leq_constr_univs_infer univs m n =
     res, !cstrs
 
 let rec eq_constr_nounivs m n =
-  (m == n) || compare_head_gen (fun _ _ _ _ -> true) (fun _ _ -> true) (fun _ -> eq_constr_nounivs) 0 m n
+  (m == n) || compare_head_gen (fun _ _ _ -> true) (fun _ _ -> true) (fun _ -> eq_constr_nounivs) 0 m n
 
 let constr_ord_int f t1 t2 =
   let (=?) f g i1 i2 j1 j2=
@@ -1076,6 +1110,9 @@ let constr_ord_int f t1 t2 =
     | Int i1, Int i2 -> Uint63.compare i1 i2
     | Int _, _ -> -1 | _, Int _ -> 1
     | Float f1, Float f2 -> Float64.total_compare f1 f2
+    | Array(_u1,t1,def1,ty1), Array(_u2,t2,def2,ty2) ->
+      (((Array.compare f) =? f) ==? f) t1 t2 def1 def2 ty1 ty2
+    | Array _, _ -> -1 | _, Array _ -> 1
 
 let rec compare m n=
   constr_ord_int compare m n
@@ -1161,9 +1198,11 @@ let hasheq t1 t2 =
       && array_eqeq bl1 bl2
     | Int i1, Int i2 -> i1 == i2
     | Float f1, Float f2 -> Float64.equal f1 f2
+    | Array(u1,t1,def1,ty1), Array(u2,t2,def2,ty2) ->
+      u1 == u2 && def1 == def2 && ty1 == ty2 && array_eqeq t1 t2
     | (Rel _ | Meta _ | Var _ | Sort _ | Cast _ | Prod _ | Lambda _ | LetIn _
       | App _ | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _
-      | Fix _ | CoFix _ | Int _ | Float _), _ -> false
+      | Fix _ | CoFix _ | Int _ | Float _ | Array _), _ -> false
 
 (** Note that the following Make has the side effect of creating
     once and for all the table we'll use for hash-consing all constr *)
@@ -1270,6 +1309,13 @@ let hashcons (sh_sort,sh_ci,sh_construct,sh_ind,sh_con,sh_na,sh_id) =
         let (h,l) = Uint63.to_int2 i in
         (t, combinesmall 18 (combine h l))
       | Float f -> (t, combinesmall 19 (Float64.hash f))
+      | Array (u,t,def,ty) ->
+        let u, hu = sh_instance u in
+        let t, ht = hash_term_array t in
+        let def, hdef = sh_rec def in
+        let ty, hty = sh_rec ty in
+        let h = combine4 hu ht hdef hty in
+        (Array(u,t,def,ty), combinesmall 20 h)
 
   and sh_rec t =
     let (y, h) = hash_term t in
@@ -1344,6 +1390,8 @@ let rec hash t =
       combinesmall 17 (combine (Projection.hash p) (hash c))
     | Int i -> combinesmall 18 (Uint63.hash i)
     | Float f -> combinesmall 19 (Float64.hash f)
+    | Array(u,t,def,ty) ->
+      combinesmall 20 (combine4 (Instance.hash u) (hash_term_array t) (hash def) (hash ty))
 
 and hash_term_array t =
   Array.fold_left (fun acc t -> combine acc (hash t)) 0 t
@@ -1492,3 +1540,6 @@ let rec debug_print c =
          str"}")
   | Int i -> str"Int("++str (Uint63.to_string i) ++ str")"
   | Float i -> str"Float("++str (Float64.to_string i) ++ str")"
+  | Array(u,t,def,ty) -> str"Array(" ++ prlist_with_sep pr_comma debug_print (Array.to_list t) ++ str" | "
+      ++ debug_print def ++ str " : " ++ debug_print ty
+      ++ str")@{" ++ Univ.Instance.pr Univ.Level.pr u ++ str"}"

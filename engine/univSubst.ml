@@ -146,7 +146,14 @@ let nf_evars_and_universes_opt_subst f subst =
         if pu' == pu then c else mkConstructU pu'
     | Sort (Type u) ->
       let u' = Univ.subst_univs_universe subst u in
-        if u' == u then c else mkSort (sort_of_univ u')
+      if u' == u then c else mkSort (sort_of_univ u')
+    | Array (u,elems,def,ty) ->
+      let u' = Univ.Instance.subst_fn lsubst u in
+      let elems' = CArray.Smart.map aux elems in
+      let def' = aux def in
+      let ty' = aux ty in
+      if u == u' && elems == elems' && def == def' && ty == ty' then c
+      else mkArray (u',elems',def',ty')
     | _ -> Constr.map aux c
   in aux
 

@@ -76,6 +76,9 @@ val mkVar : Id.t -> constr
 (** Constructs a machine integer *)
 val mkInt : Uint63.t -> constr
 
+(** Constructs an array *)
+val mkArray : Univ.Instance.t * constr array * constr * types -> constr
+
 (** Constructs a machine float number *)
 val mkFloat : Float64.t -> constr
 
@@ -238,6 +241,7 @@ type ('constr, 'types, 'sort, 'univs) kind_of_term =
   | Proj      of Projection.t * 'constr
   | Int       of Uint63.t
   | Float     of Float64.t
+  | Array     of 'univs * 'constr array * 'constr * 'types
 
 (** User view of [constr]. For [App], it is ensured there is at
    least one argument and the function is not itself an applicative
@@ -558,7 +562,7 @@ val compare_head : constr constr_compare_fn -> constr constr_compare_fn
 (** Convert a global reference applied to 2 instances. The int says
    how many arguments are given (as we can only use cumulativity for
    fully applied inductives/constructors) .*)
-type 'univs instance_compare_fn = GlobRef.t -> int ->
+type 'univs instance_compare_fn = (GlobRef.t * int) option ->
   'univs -> 'univs -> bool
 
 (** [compare_head_gen u s f c1 c2] compare [c1] and [c2] using [f] to

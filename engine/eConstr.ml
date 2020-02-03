@@ -77,6 +77,7 @@ let mkArrow t1 r t2 = of_kind (Prod (make_annot Anonymous r, t1, t2))
 let mkArrowR t1 t2 = mkArrow t1 Sorts.Relevant t2
 let mkInt i = of_kind (Int i)
 let mkFloat f = of_kind (Float f)
+let mkArray (u,t,def,ty) = of_kind (Array (u,t,def,ty))
 
 let mkRef (gr,u) = let open GlobRef in match gr with
   | ConstRef c -> mkConstU (c,u)
@@ -366,6 +367,7 @@ let iter_with_full_binders sigma g f n c =
     Array.iter (f n) tl;
     let n' = Array.fold_left2_i (fun i n na t -> g (LocalAssum (na,lift i t)) n) n lna tl in
     Array.iter (f n') bl
+  | Array (_u,t,def,ty) -> Array.Fun1.iter f n t; f n def; f n ty
 
 let iter_with_binders sigma g f n c =
   let f l c = f l (of_constr c) in
@@ -380,7 +382,7 @@ let compare_gen k eq_inst eq_sort eq_constr nargs c1 c2 =
 
 let eq_constr sigma c1 c2 =
   let kind c = kind sigma c in
-  let eq_inst _ _ i1 i2 = EInstance.equal sigma i1 i2 in
+  let eq_inst _ i1 i2 = EInstance.equal sigma i1 i2 in
   let eq_sorts s1 s2 = ESorts.equal sigma s1 s2 in
   let rec eq_constr nargs c1 c2 =
     compare_gen kind eq_inst eq_sorts eq_constr nargs c1 c2
@@ -390,13 +392,13 @@ let eq_constr sigma c1 c2 =
 let eq_constr_nounivs sigma c1 c2 =
   let kind c = kind sigma c in
   let rec eq_constr nargs c1 c2 =
-    compare_gen kind (fun _ _ _ _ -> true) (fun _ _ -> true) eq_constr nargs c1 c2
+    compare_gen kind (fun _ _ _ -> true) (fun _ _ -> true) eq_constr nargs c1 c2
   in
   eq_constr 0 c1 c2
 
 let compare_constr sigma cmp c1 c2 =
   let kind c = kind sigma c in
-  let eq_inst _ _ i1 i2 = EInstance.equal sigma i1 i2 in
+  let eq_inst _ i1 i2 = EInstance.equal sigma i1 i2 in
   let eq_sorts s1 s2 = ESorts.equal sigma s1 s2 in
   let cmp nargs c1 c2 = cmp c1 c2 in
   compare_gen kind eq_inst eq_sorts cmp 0 c1 c2
@@ -442,7 +444,7 @@ let cmp_constructors (mind, ind, cns as spec) nargs u1 u2 cstrs =
       Array.fold_left2 (fun cstrs u1 u2 -> UnivProblem.(Set.add (UWeak (u1,u2)) cstrs))
         cstrs (Univ.Instance.to_array u1) (Univ.Instance.to_array u2)
 
-let eq_universes env sigma cstrs cv_pb ref nargs l l' =
+let eq_universes env sigma cstrs cv_pb ref l l' =
   if EInstance.is_empty l then (assert (EInstance.is_empty l'); true)
   else
     let l = EInstance.kind sigma l
@@ -450,14 +452,15 @@ let eq_universes env sigma cstrs cv_pb ref nargs l l' =
     let open GlobRef in
     let open UnivProblem in
     match ref with
-    | VarRef _ -> assert false (* variables don't have instances *)
-    | ConstRef _ ->
+    | None -> cstrs := enforce_eq_instances_univs true l l' !cstrs; true
+    | Some (VarRef _, _) -> assert false (* variables don't have instances *)
+    | Some (ConstRef _, _) ->
       cstrs := enforce_eq_instances_univs true l l' !cstrs; true
-    | IndRef ind ->
+    | Some (IndRef ind, nargs) ->
       let mind = Environ.lookup_mind (fst ind) env in
       cstrs := cmp_inductives cv_pb (mind,snd ind) nargs l l' !cstrs;
       true
-    | ConstructRef ((mi,ind),ctor) ->
+    | Some (ConstructRef ((mi,ind),ctor), nargs) ->
       let mind = Environ.lookup_mind mi env in
       cstrs := cmp_constructors (mind,ind,ctor) nargs l l' !cstrs;
       true
@@ -469,8 +472,8 @@ let test_constr_universes env sigma leq m n =
   else
     let cstrs = ref Set.empty in
     let cv_pb = if leq then Reduction.CUMUL else Reduction.CONV in
-    let eq_universes ref nargs l l' = eq_universes env sigma cstrs Reduction.CONV ref nargs l l'
-    and leq_universes ref nargs l l' = eq_universes env sigma cstrs cv_pb ref nargs l l' in
+    let eq_universes ref l l' = eq_universes env sigma cstrs Reduction.CONV ref l l'
+    and leq_universes ref l l' = eq_universes env sigma cstrs cv_pb ref l l' in
     let eq_sorts s1 s2 =
       let s1 = ESorts.kind sigma s1 in
       let s2 = ESorts.kind sigma s2 in
@@ -546,18 +549,21 @@ let universes_of_constr sigma c =
   let rec aux s c =
     match kind sigma c with
     | Const (c, u) ->
-          LSet.fold LSet.add (Instance.levels (EInstance.kind sigma u)) s
+      LSet.fold LSet.add (Instance.levels (EInstance.kind sigma u)) s
     | Ind ((mind,_), u) | Construct (((mind,_),_), u) ->
-          LSet.fold LSet.add (Instance.levels (EInstance.kind sigma u)) s
+      LSet.fold LSet.add (Instance.levels (EInstance.kind sigma u)) s
     | Sort u ->
-       let sort = ESorts.kind sigma u in
-       if Sorts.is_small sort then s
-       else
-         let u = Sorts.univ_of_sort sort in
-         LSet.fold LSet.add (Universe.levels u) s
+      let sort = ESorts.kind sigma u in
+      if Sorts.is_small sort then s
+      else
+        let u = Sorts.univ_of_sort sort in
+        LSet.fold LSet.add (Universe.levels u) s
     | Evar (k, args) ->
-       let concl = Evd.evar_concl (Evd.find sigma k) in
-       fold sigma aux (aux s concl) c
+      let concl = Evd.evar_concl (Evd.find sigma k) in
+      fold sigma aux (aux s concl) c
+    | Array (u,_,_,_) ->
+      let s = LSet.fold LSet.add (Instance.levels (EInstance.kind sigma u)) s in
+      fold sigma aux s c
     | _ -> fold sigma aux s c
   in aux LSet.empty c
 
@@ -757,7 +763,7 @@ let kind_of_type sigma t = match kind sigma t with
   | (Rel _ | Meta _ | Var _ | Evar _ | Const _
   | Proj _ | Case _ | Fix _ | CoFix _ | Ind _)
     -> AtomicType (t,[||])
-  | (Lambda _ | Construct _ | Int _ | Float _) -> failwith "Not a type"
+  | (Lambda _ | Construct _ | Int _ | Float _ | Array _) -> failwith "Not a type"
 
 module Unsafe =
 struct
