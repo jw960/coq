@@ -102,6 +102,7 @@ before_script:
   interruptible: true
   dependencies: []
   script:
+    - opam pin add dune https://github.com/ejgallego/dune.git#coq+compose_local
     - set -e
     - make -f Makefile.dune world
     - set +e
@@ -125,6 +126,7 @@ before_script:
   dependencies:
     - build:edge+flambda:dune:dev
   script:
+    - opam pin add dune https://github.com/ejgallego/dune.git#coq+compose_local
     - tar xfj _build.tar.bz2
     - set -e
     - echo 'start:coq.test'
@@ -511,6 +513,7 @@ test-suite:edge:dune:dev:
   needs:
     - build:edge+flambda:dune:dev
   script:
+    - opam pin add dune https://github.com/ejgallego/dune.git#coq+compose_local
     - tar xfj _build.tar.bz2
     - make -f Makefile.dune test-suite
   variables:
