@@ -113,7 +113,11 @@ end
 
 (** Special cases for delayed proofs, in this case we must provide the
    proof information so the proof won't be forced. *)
-val save_lemma_admitted_delayed : proof:Declare.proof_object -> info:Info.t -> unit
+val save_lemma_admitted_delayed
+  : proof:Declare.proof_object
+  -> info:Info.t
+  -> unit
+
 val save_lemma_proved_delayed
   :  proof:Declare.proof_object
   -> info:Info.t
