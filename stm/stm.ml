@@ -201,8 +201,7 @@ let mkTransCmd cast cids ceff cqueue =
 
 (* Parts of the system state that are morally part of the proof state *)
 let summary_pstate = Evarutil.meta_counter_summary_tag,
-                     Evd.evar_counter_summary_tag,
-                     DeclareObl.program_tcc_summary_tag
+                     Evd.evar_counter_summary_tag
 
 type cached_state =
   | EmptyState
@@ -877,8 +876,7 @@ end = struct (* {{{ *)
   type proof_part =
     Vernacstate.LemmaStack.t option *
     int *                                   (* Evarutil.meta_counter_summary_tag *)
-    int *                                   (* Evd.evar_counter_summary_tag *)
-    DeclareObl.ProgramDecl.t CEphemeron.key Names.Id.Map.t (* Obligations.program_tcc_summary_tag *)
+    int                                     (* Evd.evar_counter_summary_tag *)
 
   type partial_state =
     [ `Full of Vernacstate.t
@@ -887,9 +885,8 @@ end = struct (* {{{ *)
   let proof_part_of_frozen { Vernacstate.lemmas; system } =
     let st = States.summary_of_state system in
     lemmas,
-    Summary.project_from_summary st Util.(pi1 summary_pstate),
-    Summary.project_from_summary st Util.(pi2 summary_pstate),
-    Summary.project_from_summary st Util.(pi3 summary_pstate)
+    Summary.project_from_summary st (fst summary_pstate),
+    Summary.project_from_summary st (snd summary_pstate)
 
   let cache_state ~marshallable id =
     VCS.set_state id (FullState (Vernacstate.freeze_interp_state ~marshallable))
@@ -956,7 +953,7 @@ end = struct (* {{{ *)
             else s
            with VCS.Expired -> s in
          VCS.set_state id (FullState s)
-    | `ProofOnly(ontop,(pstate,c1,c2,c3)) ->
+    | `ProofOnly(ontop,(pstate,c1,c2)) ->
          if is_cached_and_valid ontop then
            let s = get_cached ontop in
            let s = { s with lemmas =
@@ -965,9 +962,8 @@ end = struct (* {{{ *)
              States.replace_summary s.system
                begin
                  let st = States.summary_of_state s.system in
-                 let st = Summary.modify_summary st Util.(pi1 summary_pstate) c1 in
-                 let st = Summary.modify_summary st Util.(pi2 summary_pstate) c2 in
-                 let st = Summary.modify_summary st Util.(pi3 summary_pstate) c3 in
+                 let st = Summary.modify_summary st (fst summary_pstate) c1 in
+                 let st = Summary.modify_summary st (snd summary_pstate) c2 in
                  st
                end
                 } in
@@ -2361,9 +2357,8 @@ let known_state ~doc ?(redefine_qed=false) ~cache id =
    * side effects *)
   let cherry_pick_non_pstate () =
     let st = Summary.freeze_summaries ~marshallable:false in
-    let st = Summary.remove_from_summary st Util.(pi1 summary_pstate) in
-    let st = Summary.remove_from_summary st Util.(pi2 summary_pstate) in
-    let st = Summary.remove_from_summary st Util.(pi3 summary_pstate) in
+    let st = Summary.remove_from_summary st (fst summary_pstate) in
+    let st = Summary.remove_from_summary st (snd summary_pstate) in
     st, Lib.freeze () in
 
   let inject_non_pstate (s,l) =

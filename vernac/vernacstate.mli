@@ -37,6 +37,8 @@ type t =
   (** summary + libstack *)
   ; lemmas  : LemmaStack.t option
   (** proofs of lemmas currently opened *)
+  ; program : DeclareObl.State.t
+  (** program mode table *)
   ; shallow : bool
   (** is the state trimmed down (libstack) *)
   }
@@ -87,7 +89,7 @@ module Proof_global : sig
 
   (* Low-level stuff *)
   val get : unit -> LemmaStack.t option
-  val set : LemmaStack.t option -> unit
+  val set : LemmaStack.t option * DeclareObl.State.t -> unit
 
   val get_pstate : unit -> Proof_global.t option
 

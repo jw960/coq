@@ -98,12 +98,13 @@ val start_lemma_with_initialization
 
 (** {4 Saving proofs} *)
 
-val save_lemma_admitted : lemma:t -> unit
+val save_lemma_admitted : lemma:t -> pm:DeclareObl.State.t -> DeclareObl.State.t
 val save_lemma_proved
   :  lemma:t
+  -> pm:DeclareObl.State.t
   -> opaque:Proof_global.opacity_flag
   -> idopt:Names.lident option
-  -> unit
+  -> DeclareObl.State.t
 
 (** To be removed, don't use! *)
 module Internal : sig
@@ -113,9 +114,15 @@ end
 
 (** Special cases for delayed proofs, in this case we must provide the
    proof information so the proof won't be forced. *)
-val save_lemma_admitted_delayed : proof:Proof_global.proof_object -> info:Info.t -> unit
+val save_lemma_admitted_delayed
+  : proof:Proof_global.proof_object
+  -> pm:DeclareObl.State.t
+  -> info:Info.t
+  -> DeclareObl.State.t
+
 val save_lemma_proved_delayed
   :  proof:Proof_global.proof_object
+  -> pm:DeclareObl.State.t
   -> info:Info.t
   -> idopt:Names.lident option
-  -> unit
+  -> DeclareObl.State.t

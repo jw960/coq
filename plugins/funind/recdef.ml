@@ -63,7 +63,9 @@ let declare_fun name kind ?univs value =
   GlobRef.ConstRef(declare_constant ~name ~kind (DefinitionEntry ce))
 
 let defined lemma =
-  Lemmas.save_lemma_proved ~lemma ~opaque:Proof_global.Transparent ~idopt:None
+  let pm = DeclareObl.State.empty in
+  let _pm = Lemmas.save_lemma_proved ~lemma ~pm ~opaque:Proof_global.Transparent ~idopt:None in
+  ()
 
 let def_of_const t =
    match (Constr.kind t) with
@@ -1324,7 +1326,9 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name (gls_type
                 ]
             )) in
     let lemma = build_proof env (Evd.from_env env) start_tac end_tac in
-    Lemmas.save_lemma_proved ~lemma ~opaque:opacity ~idopt:None
+    let pm = DeclareObl.State.empty in
+    let _pm = Lemmas.save_lemma_proved ~lemma ~pm ~opaque:opacity ~idopt:None in
+    ()
   in
   let info = Lemmas.Info.make ~hook:(DeclareDef.Hook.make hook) () in
   let lemma = Lemmas.start_lemma
@@ -1448,7 +1452,8 @@ let com_eqn uctx nb_arg eq_name functional_ref f_ref terminate_ref equation_lemm
                }
           )
        )) lemma in
-    let _ = Flags.silently (fun () -> Lemmas.save_lemma_proved ~lemma ~opaque:opacity ~idopt:None) () in
+    let pm = DeclareObl.State.empty in
+    let _ = Flags.silently (fun () -> Lemmas.save_lemma_proved ~lemma ~pm ~opaque:opacity ~idopt:None) () in
     ()
 (*      Pp.msgnl (fun _ _ -> str "eqn finished"); *)
 

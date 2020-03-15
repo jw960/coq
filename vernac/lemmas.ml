@@ -287,11 +287,15 @@ let compute_proof_using_for_admitted proof typ pproofs =
       Some (Environ.really_needed env (Id.Set.union ids_typ ids_def))
     | _ -> None
 
-let finish_admitted ~info ~uctx pe =
-  let _r : Names.GlobRef.t list = MutualEntry.declare_variable ~info ~uctx pe in
-  ()
+let finish_admitted ~pm ~info ~uctx pe =
+  let cst = MutualEntry.declare_variable ~info ~uctx pe in
+  (* If the constant was an obligation we need to update the program map *)
+  match CEphemeron.get info.Info.proof_ending with
+  | Proof_ending.End_obligation oinfo ->
+    DeclareObl.obligation_admitted_terminator pm oinfo uctx (List.hd cst)
+  | _ -> pm
 
-let save_lemma_admitted ~(lemma : t) : unit =
+let save_lemma_admitted ~(lemma : t) ~pm  =
   let udecl = Proof_global.get_universe_decl lemma.proof in
   let Proof.{ poly; entry } = Proof.data (Proof_global.get_proof lemma.proof) in
   let typ = match Proofview.initial_goals entry with
@@ -304,7 +308,7 @@ let save_lemma_admitted ~(lemma : t) : unit =
   let sec_vars = compute_proof_using_for_admitted lemma.proof typ pproofs in
   let uctx = Proof_global.get_initial_euctx lemma.proof in
   let univs = UState.check_univ_decl ~poly uctx udecl in
-  finish_admitted ~info:lemma.info ~uctx (sec_vars, (typ, univs), None)
+  finish_admitted ~pm ~info:lemma.info ~uctx (sec_vars, (typ, univs), None)
 
 (************************************************************************)
 (* Saving a lemma-like constant                                         *)
@@ -373,18 +377,18 @@ let finish_proved_equations ~kind ~hook i proof_obj types sigma0 =
   in
   hook recobls sigma
 
-let finalize_proof proof_obj proof_info =
+let finalize_proof pm proof_obj proof_info =
   let open Proof_global in
   let open Proof_ending in
   match CEphemeron.default proof_info.Info.proof_ending Regular with
   | Regular ->
-    finish_proved proof_obj proof_info
+    finish_proved proof_obj proof_info; pm
   | End_obligation oinfo ->
-    DeclareObl.obligation_terminator proof_obj.entries proof_obj.uctx oinfo
+    DeclareObl.obligation_terminator pm proof_obj.entries proof_obj.uctx oinfo
   | End_derive { f ; name } ->
-    finish_derived ~f ~name ~entries:proof_obj.entries
+    finish_derived ~f ~name ~entries:proof_obj.entries; pm
   | End_equations { hook; i; types; sigma } ->
-    finish_proved_equations ~kind:proof_info.Info.kind ~hook i proof_obj types sigma
+    finish_proved_equations ~kind:proof_info.Info.kind ~hook i proof_obj types sigma; pm
 
 let err_save_forbidden_in_place_of_qed () =
   CErrors.user_err (Pp.str "Cannot use Save with more than one constant or in this proof mode")
@@ -402,16 +406,16 @@ let process_idopt_for_save ~idopt info =
         err_save_forbidden_in_place_of_qed ()
     in { info with Info.thms }
 
-let save_lemma_proved ~lemma ~opaque ~idopt =
+let save_lemma_proved ~lemma ~pm ~opaque ~idopt =
   (* Env and sigma are just used for error printing in save_remaining_recthms *)
   let proof_obj = Proof_global.close_proof ~opaque ~keep_body_ucst_separate:false (fun x -> x) lemma.proof in
   let proof_info = process_idopt_for_save ~idopt lemma.info in
-  finalize_proof proof_obj proof_info
+  finalize_proof pm proof_obj proof_info
 
 (***********************************************************************)
 (* Special case to close a lemma without forcing a proof               *)
 (***********************************************************************)
-let save_lemma_admitted_delayed ~proof ~info =
+let save_lemma_admitted_delayed ~proof ~pm ~info =
   let open Proof_global in
   let { entries; uctx } = proof in
   if List.length entries <> 1 then
@@ -425,14 +429,14 @@ let save_lemma_admitted_delayed ~proof ~info =
     | Some typ -> typ in
   let ctx = UState.univ_entry ~poly uctx in
   let sec_vars = if get_keep_admitted_vars () then proof_entry_secctx else None in
-  finish_admitted ~uctx ~info (sec_vars, (typ, ctx), None)
+  finish_admitted ~pm ~uctx ~info (sec_vars, (typ, ctx), None)
 
-let save_lemma_proved_delayed ~proof ~info ~idopt =
+let save_lemma_proved_delayed ~proof ~pm ~info ~idopt =
   (* vio2vo calls this but with invalid info, we have to workaround
      that to add the name to the info structure *)
   if CList.is_empty info.Info.thms then
     let info = add_first_thm ~info ~name:proof.Proof_global.name ~typ:EConstr.mkSet ~impargs:[] in
-    finalize_proof proof info
+    finalize_proof pm proof info
   else
     let info = process_idopt_for_save ~idopt info in
-    finalize_proof proof info
+    finalize_proof pm proof info

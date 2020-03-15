@@ -80,13 +80,13 @@ let do_definition ?hook ~name ~scope ~poly ~kind udecl bl red_option c ctypopt =
     DeclareDef.declare_definition ~name ~scope ~kind ?hook ~impargs ce
   in ()
 
-let do_definition_program ?hook ~name ~scope ~poly ~kind udecl bl red_option c ctypopt =
+let do_definition_program ?hook pm ~name ~scope ~poly ~kind udecl bl red_option c ctypopt =
   let program_mode = true in
   let (body, types), evd, udecl, impargs =
     interp_definition ~program_mode udecl bl ~poly red_option c ctypopt
   in
   let term, ty, uctx, obls = DeclareDef.prepare_obligation ~name ~poly ~body ~types ~udecl evd in
-  let _ : DeclareObl.progress =
-    Obligations.add_definition
+  let pm, _ =
+    Obligations.add_definition ~pm
       ~name ~term ty ~uctx ~udecl ~impargs ~scope ~poly ~kind ?hook obls
-  in ()
+  in pm

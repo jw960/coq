@@ -14,7 +14,6 @@ open Constr
 type 'a obligation_body = DefinedObl of 'a | TermObl of constr
 
 module Obligation : sig
-
   type t = private
     { obl_name : Id.t
     ; obl_type : types
@@ -26,20 +25,13 @@ module Obligation : sig
 
   val set_type : typ:Constr.types -> t -> t
   val set_body : body:pconstant obligation_body -> t -> t
-
 end
 
-type obligations =
-  { obls : Obligation.t array
-  ; remaining : int }
-
-type fixpoint_kind =
-  | IsFixpoint of lident option list
-  | IsCoFixpoint
+type obligations = {obls : Obligation.t array; remaining : int}
+type fixpoint_kind = IsFixpoint of lident option list | IsCoFixpoint
 
 (* Information about a single [Program {Definition,Lemma,..}] declaration *)
 module ProgramDecl : sig
-
   type t = private
     { prg_name : Id.t
     ; prg_body : constr
@@ -56,11 +48,10 @@ module ProgramDecl : sig
     ; prg_kind : Decls.definition_object_kind
     ; prg_reduce : constr -> constr
     ; prg_hook : DeclareDef.Hook.t option
-    ; prg_opaque : bool
-    }
+    ; prg_opaque : bool }
 
   val make :
-    ?opaque:bool
+       ?opaque:bool
     -> ?hook:DeclareDef.Hook.t
     -> Names.Id.t
     -> udecl:UState.universe_decl
@@ -75,18 +66,19 @@ module ProgramDecl : sig
     -> fixpoint_kind option
     -> Vernacexpr.decl_notation list
     -> ( Names.Id.t
-         * Constr.types
-         * Evar_kinds.t Loc.located
-         * (bool * Evar_kinds.obligation_definition_status)
-         * Int.Set.t
-         * unit Proofview.tactic option )
-      array
+       * Constr.types
+       * Evar_kinds.t Loc.located
+       * (bool * Evar_kinds.obligation_definition_status)
+       * Int.Set.t
+       * unit Proofview.tactic option )
+       array
     -> (Constr.constr -> Constr.constr)
     -> t
 
   val set_uctx : uctx:UState.t -> t -> t
 end
 
+(** [declare_obligation] Save an obligation *)
 val declare_obligation :
      ProgramDecl.t
   -> Obligation.t
@@ -94,69 +86,75 @@ val declare_obligation :
   -> Constr.types option
   -> Entries.universes_entry
   -> bool * Obligation.t
-(** [declare_obligation] Save an obligation *)
 
-module ProgMap : CMap.ExtS with type key = Id.t and module Set := Id.Set
+module State : sig
+  type t
 
-val declare_definition : ProgramDecl.t -> Names.GlobRef.t
+  val empty : t
+  val num_pending : t -> int
+  val first_pending : t -> ProgramDecl.t option
+
+  (** Returns [Error duplicate_list] if not a single program is open *)
+  val get_unique_open_prog :
+    t -> Id.t option -> (ProgramDecl.t, Id.t list) result
+
+  (** Add a new obligation *)
+  val add : t -> Id.t -> ProgramDecl.t -> t
+
+  val fold : t -> f:(Id.t -> ProgramDecl.t -> 'a -> 'a) -> init:'a -> 'a
+
+  val all : t -> ProgramDecl.t list
+
+  val find : t -> Id.t -> ProgramDecl.t option
+end
+
+val declare_definition : State.t -> ProgramDecl.t -> State.t * Names.GlobRef.t
 
 (** Resolution status of a program *)
 type progress =
-  | Remain of int
-  (** n obligations remaining *)
-  | Dependent
-  (** Dependent on other definitions *)
-  | Defined of GlobRef.t
-  (** Defined as id *)
+  | Remain of int  (** n obligations remaining *)
+  | Dependent  (** Dependent on other definitions *)
+  | Defined of GlobRef.t  (** Defined as id *)
 
-type obligation_qed_info =
-  { name : Id.t
-  ; num : int
-  ; auto : Id.t option -> Int.Set.t -> unit Proofview.tactic option -> progress
-  }
+type obligation_resolver =
+     State.t
+  -> Id.t option
+  -> Int.Set.t
+  -> unit Proofview.tactic option
+  -> State.t * progress
 
-val obligation_terminator
-  : Evd.side_effects Declare.proof_entry list
-  -> UState.t
-  -> obligation_qed_info -> unit
+type obligation_qed_info = {name : Id.t; num : int; auto : obligation_resolver}
+
 (** [obligation_terminator] part 2 of saving an obligation, proof mode *)
+val obligation_terminator :
+     State.t
+  -> Evd.side_effects Declare.proof_entry list
+  -> UState.t
+  -> obligation_qed_info
+  -> State.t
 
-val obligation_hook
-  : ProgramDecl.t
-  -> Obligation.t
-  -> Int.t
-  -> (Names.Id.t option -> Int.Set.t -> 'a option -> 'b)
-  -> DeclareDef.Hook.S.t
-  -> unit
 (** [obligation_hook] part 2 of saving an obligation, non-interactive mode *)
+val obligation_admitted_terminator :
+  State.t -> obligation_qed_info -> UState.t -> GlobRef.t -> State.t
 
-val update_obls :
-     ProgramDecl.t
-  -> Obligation.t array
-  -> int
-  -> progress
 (** [update_obls prg obls n progress] What does this do? *)
+val update_obls :
+  State.t -> ProgramDecl.t -> Obligation.t array -> int -> State.t * progress
+
+(** Check obligations are properly solved before closing a section / module *)
+val check_solved_obligations : pm:State.t -> msg:string -> unit
 
 (** { 2 Util }  *)
-
-(** Check obligations are properly solved before closing a section *)
-val check_can_close : Id.t -> unit
-
-val get_prg_info_map : unit -> ProgramDecl.t CEphemeron.key ProgMap.t
-
-val program_tcc_summary_tag :
-  ProgramDecl.t CEphemeron.key Id.Map.t Summary.Dyn.tag
 
 val obl_substitution :
      bool
   -> Obligation.t array
   -> Int.Set.t
-  -> (ProgMap.key * (Constr.types * Constr.types)) list
+  -> (Id.t * (Constr.types * Constr.types)) list
 
 val dependencies : Obligation.t array -> int -> Int.Set.t
-
 val err_not_transp : unit -> unit
-val progmap_add : ProgMap.key -> ProgramDecl.t CEphemeron.key -> unit
+val progmap_add : Id.t -> ProgramDecl.t CEphemeron.key -> State.t -> State.t
 
 (* This is a hack to make it possible for Obligations to craft a Qed
  * behind the scenes.  The fix_exn the Stm attaches to the Future proof

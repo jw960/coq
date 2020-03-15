@@ -63,15 +63,18 @@ type t = {
   parsing : Parser.state;
   system  : States.state;          (* summary + libstack *)
   lemmas  : LemmaStack.t option;   (* proofs of lemmas currently opened *)
+  program : DeclareObl.State.t;    (* obligations table *)
   shallow : bool                   (* is the state trimmed down (libstack) *)
 }
 
 let s_cache = ref None
 let s_lemmas = ref None
+let s_program = ref DeclareObl.State.empty
 
 let invalidate_cache () =
   s_cache := None;
-  s_lemmas := None
+  s_lemmas := None;
+  s_program := DeclareObl.State.empty
 
 let update_cache rf v =
   rf := Some v; v
@@ -88,13 +91,15 @@ let do_if_not_cached rf f v =
 let freeze_interp_state ~marshallable =
   { system = update_cache s_cache (States.freeze ~marshallable);
     lemmas = !s_lemmas;
+    program = !s_program;
     shallow = false;
     parsing = Parser.cur_state ();
   }
 
-let unfreeze_interp_state { system; lemmas; parsing } =
+let unfreeze_interp_state { system; lemmas; program; parsing } =
   do_if_not_cached s_cache States.unfreeze system;
   s_lemmas := lemmas;
+  s_program := program;
   Pcoq.unfreeze parsing
 
 let make_shallow st =
@@ -108,7 +113,9 @@ let make_shallow st =
 module Proof_global = struct
 
   let get () = !s_lemmas
-  let set x = s_lemmas := x
+  let set (pstate,pm) =
+    s_lemmas := pstate;
+    s_program := pm
 
   let get_pstate () =
     Option.map (LemmaStack.with_top ~f:(Lemmas.pf_fold (fun x -> x))) !s_lemmas

@@ -1379,7 +1379,8 @@ let derive_correctness (funs: Constr.pconstant list) (graphs:inductive list) =
             let lemma = Lemmas.start_lemma ~name:lem_id ~poly:false !evd typ in
             let lemma = fst @@ Lemmas.by
                 (Proofview.V82.tactic (proving_tac i)) lemma in
-            let () = Lemmas.save_lemma_proved ~lemma ~opaque:Proof_global.Transparent ~idopt:None in
+            let pm = DeclareObl.State.empty in
+            let _pm = Lemmas.save_lemma_proved ~lemma ~pm ~opaque:Proof_global.Transparent ~idopt:None in
             let finfo =
               match find_Function_infos (fst f_as_constant) with
               | None -> raise Not_found
@@ -1441,7 +1442,9 @@ let derive_correctness (funs: Constr.pconstant list) (graphs:inductive list) =
             let lemma = fst (Lemmas.by
                                (Proofview.V82.tactic (observe_tac ("prove completeness ("^(Id.to_string f_id)^")")
                                                         (proving_tac i))) lemma) in
-            let () = Lemmas.save_lemma_proved ~lemma ~opaque:Proof_global.Transparent ~idopt:None in
+            (* No Obligations here *)
+            let pm = DeclareObl.State.empty in
+            let _pm = Lemmas.save_lemma_proved ~lemma ~pm ~opaque:Proof_global.Transparent ~idopt:None in
             let finfo =
               match find_Function_infos (fst f_as_constant) with
               | None -> raise Not_found

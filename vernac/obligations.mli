@@ -70,7 +70,8 @@ val default_tactic : unit Proofview.tactic ref
    will return whether all the obligations were solved; if so, it will
    also register [c] with the kernel. *)
 val add_definition :
-     name:Names.Id.t
+     pm:DeclareObl.State.t
+  -> name:Names.Id.t
   -> ?term:constr
   -> types
   -> uctx:UState.t
@@ -84,14 +85,15 @@ val add_definition :
   -> ?hook:DeclareDef.Hook.t
   -> ?opaque:bool
   -> RetrieveObl.obligation_info
-  -> DeclareObl.progress
+  -> DeclareObl.State.t * DeclareObl.progress
 
 (* XXX: unify with MutualEntry *)
 
 (** Start a [Program Fixpoint] declaration, similar to the above,
    except it takes a list now. *)
 val add_mutual_definitions :
-     (DeclareDef.Recthm.t * Constr.t * RetrieveObl.obligation_info) list
+     pm:DeclareObl.State.t
+  -> (DeclareDef.Recthm.t * Constr.t * RetrieveObl.obligation_info) list
   -> uctx:UState.t
   -> ?udecl:UState.universe_decl (** Universe binders and constraints *)
   -> ?tactic:unit Proofview.tactic
@@ -103,36 +105,52 @@ val add_mutual_definitions :
   -> ?opaque:bool
   -> Vernacexpr.decl_notation list
   -> DeclareObl.fixpoint_kind
-  -> unit
+  -> DeclareObl.State.t
 
 (** Implementation of the [Obligation] command *)
 val obligation :
-     int * Names.Id.t option * Constrexpr.constr_expr option
+     pm:DeclareObl.State.t
+  -> int * Names.Id.t option * Constrexpr.constr_expr option
   -> Genarg.glob_generic_argument option
   -> Lemmas.t
 
 (** Implementation of the [Next Obligation] command *)
 val next_obligation :
-  Names.Id.t option -> Genarg.glob_generic_argument option -> Lemmas.t
+     pm:DeclareObl.State.t
+  -> Names.Id.t option
+  -> Genarg.glob_generic_argument option
+  -> Lemmas.t
 
 (** Implementation of the [Solve Obligation] command *)
 val solve_obligations :
-  Names.Id.t option -> unit Proofview.tactic option -> DeclareObl.progress
+     pm:DeclareObl.State.t
+  -> Names.Id.t option
+  -> unit Proofview.tactic option
+  -> DeclareObl.State.t * DeclareObl.progress
 
-val solve_all_obligations : unit Proofview.tactic option -> unit
+val solve_all_obligations :
+  pm:DeclareObl.State.t -> unit Proofview.tactic option -> DeclareObl.State.t
 
 (** Number of remaining obligations to be solved for this program *)
 val try_solve_obligation :
-  int -> Names.Id.t option -> unit Proofview.tactic option -> unit
+     pm:DeclareObl.State.t
+  -> int
+  -> Names.Id.t option
+  -> unit Proofview.tactic option
+  -> DeclareObl.State.t
 
 val try_solve_obligations :
-  Names.Id.t option -> unit Proofview.tactic option -> unit
+     pm:DeclareObl.State.t
+  -> Names.Id.t option
+  -> unit Proofview.tactic option
+  -> DeclareObl.State.t
 
-val show_obligations : ?msg:bool -> Names.Id.t option -> unit
-val show_term : Names.Id.t option -> Pp.t
-val admit_obligations : Names.Id.t option -> unit
+val show_obligations :
+  pm:DeclareObl.State.t -> ?msg:bool -> Names.Id.t option -> unit
 
-exception NoObligations of Names.Id.t option
+val show_term : pm:DeclareObl.State.t -> Names.Id.t option -> Pp.t
 
-val explain_no_obligations : Names.Id.t option -> Pp.t
+val admit_obligations :
+  pm:DeclareObl.State.t -> Names.Id.t option -> DeclareObl.State.t
+
 val check_program_libraries : unit -> unit

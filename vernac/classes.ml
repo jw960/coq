@@ -334,7 +334,7 @@ let do_declare_instance sigma ~global ~poly k u ctx ctx' pri udecl impargs subst
   Impargs.maybe_declare_manual_implicits false cst impargs;
   instance_hook pri global cst
 
-let declare_instance_program env sigma ~global ~poly name pri impargs udecl term termtype =
+let declare_instance_program pm env sigma ~global ~poly name pri impargs udecl term termtype =
   let hook { DeclareDef.Hook.S.scope; dref; _ } =
     let cst = match dref with GlobRef.ConstRef kn -> kn | _ -> assert false in
     let pri = intern_info pri in
@@ -346,9 +346,9 @@ let declare_instance_program env sigma ~global ~poly name pri impargs udecl term
   let hook = DeclareDef.Hook.make hook in
   let uctx = Evd.evar_universe_context sigma in
   let scope, kind = DeclareDef.Global Declare.ImportDefaultBehavior, Decls.Instance in
-  let _ : DeclareObl.progress =
-    Obligations.add_definition ~name ~term ~udecl ~scope ~poly ~kind ~hook ~impargs ~uctx typ obls
-  in ()
+  let pm, _ =
+    Obligations.add_definition ~pm ~name ~term ~udecl ~scope ~poly ~kind ~hook ~impargs ~uctx typ obls
+  in pm
 
 let declare_instance_open sigma ?hook ~tac ~global ~poly id pri impargs udecl ids term termtype =
   (* spiwack: it is hard to reorder the actions to do
@@ -491,7 +491,7 @@ let do_instance env env' sigma ?hook ~global ~poly cty k u ctx ctx' pri decl imp
   else
     declare_instance_constant pri global imps ?hook id decl poly sigma term termtype
 
-let do_instance_program env env' sigma ?hook ~global ~poly cty k u ctx ctx' pri decl imps subst id opt_props =
+let do_instance_program pm env env' sigma ?hook ~global ~poly cty k u ctx ctx' pri decl imps subst id opt_props =
   let term, termtype, sigma =
     match opt_props with
     | Some props ->
@@ -504,9 +504,10 @@ let do_instance_program env env' sigma ?hook ~global ~poly cty k u ctx ctx' pri 
       term, termtype, sigma in
   let termtype, sigma = do_instance_resolve_TC termtype sigma env in
   if not (Evd.has_undefined sigma) && not (Option.is_empty opt_props) then
-    declare_instance_constant pri global imps ?hook id decl poly sigma term termtype
+    let () = declare_instance_constant pri global imps ?hook id decl poly sigma term termtype in
+    pm
   else
-    declare_instance_program  env sigma ~global ~poly id pri imps decl term termtype
+    declare_instance_program pm env sigma ~global ~poly id pri imps decl term termtype
 
 let interp_instance_context ~program_mode env ctx ~generalize pl tclass =
   let sigma, decl = Constrexpr_ops.interp_univ_decl_opt env pl in
@@ -561,15 +562,16 @@ let new_instance_interactive ?(global=false)
   id, do_instance_interactive env env' sigma ?hook ~tac ~global ~poly
     cty k u ctx ctx' pri decl imps subst id opt_props
 
-let new_instance_program ?(global=false)
+let new_instance_program ?(global=false) pm
     ~poly instid ctx cl opt_props
     ?(generalize=true) ?hook pri =
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
     new_instance_common ~program_mode:true ~generalize env instid ctx cl in
-  do_instance_program env env' sigma ?hook ~global ~poly
-    cty k u ctx ctx' pri decl imps subst id opt_props;
-  id
+  let pm =
+    do_instance_program pm env env' sigma ?hook ~global ~poly
+      cty k u ctx ctx' pri decl imps subst id opt_props in
+  pm, id
 
 let new_instance ?(global=false)
     ~poly instid ctx cl props
