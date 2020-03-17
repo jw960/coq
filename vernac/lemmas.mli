@@ -32,8 +32,7 @@ val by : unit Proofview.tactic -> t -> t * bool
 module Proof_ending : sig
 
   type t =
-    | Regular
-    | End_obligation of DeclareObl.obligation_qed_info
+    | Regular of DeclareObl.obligation_qed_info option
     | End_derive of { f : Id.t; name : Id.t }
     | End_equations of
         { hook : Constant.t list -> Evd.evar_map -> unit

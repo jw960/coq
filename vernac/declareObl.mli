@@ -94,9 +94,9 @@ end
 val declare_obligation :
      ProgramDecl.t
   -> Obligation.t
+  -> univs:Entries.universes_entry
   -> Constr.types
   -> Constr.types option
-  -> Entries.universes_entry
   -> bool * Obligation.t
 
 module State : sig
@@ -144,15 +144,15 @@ type obligation_qed_info = {name : Id.t; num : int; auto : obligation_resolver}
 
 (** [obligation_terminator] part 2 of saving an obligation, proof mode *)
 val obligation_terminator :
-     State.t
-  -> Evd.side_effects Declare.proof_entry list
-  -> UState.t
-  -> obligation_qed_info
+     pm:State.t
+  -> uctx:UState.t
+  -> oinfo:obligation_qed_info
+  -> Evd.side_effects Declare.proof_entry
   -> State.t
 
 (** [obligation_hook] part 2 of saving an obligation, non-interactive mode *)
 val obligation_admitted_terminator :
-  State.t -> obligation_qed_info -> UState.t -> GlobRef.t -> State.t
+  pm:State.t -> oinfo:obligation_qed_info -> uctx:UState.t -> GlobRef.t -> State.t
 
 (** [update_obls prg obls n progress] What does this do? *)
 val update_obls :

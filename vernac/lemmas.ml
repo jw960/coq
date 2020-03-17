@@ -24,8 +24,7 @@ type lemma_possible_guards = int list list
 module Proof_ending = struct
 
   type t =
-    | Regular
-    | End_obligation of DeclareObl.obligation_qed_info
+    | Regular of DeclareObl.obligation_qed_info option
     | End_derive of { f : Id.t; name : Id.t }
     | End_equations of
         { hook : Constant.t list -> Evd.evar_map -> unit
@@ -49,7 +48,7 @@ module Info = struct
     ; compute_guard : lemma_possible_guards
     }
 
-  let make ?hook ?(proof_ending=Proof_ending.Regular) ?(scope=DeclareDef.Global Declare.ImportDefaultBehavior)
+  let make ?hook ?(proof_ending=Proof_ending.Regular None) ?(scope=DeclareDef.Global Declare.ImportDefaultBehavior)
       ?(kind=Decls.(IsProof Lemma)) () =
     { hook
     ; compute_guard = []
@@ -165,7 +164,7 @@ let start_lemma_with_initialization ?hook ~poly ~scope ~kind ~udecl sigma recgua
     let info =
       Info.{ hook
            ; compute_guard
-           ; proof_ending = CEphemeron.create Proof_ending.Regular
+           ; proof_ending = CEphemeron.create (Proof_ending.Regular None)
            ; thms
            ; scope
            ; kind
@@ -291,8 +290,8 @@ let finish_admitted ~pm ~info ~uctx pe =
   let cst = MutualEntry.declare_variable ~info ~uctx pe in
   (* If the constant was an obligation we need to update the program map *)
   match CEphemeron.get info.Info.proof_ending with
-  | Proof_ending.End_obligation oinfo ->
-    DeclareObl.obligation_admitted_terminator pm oinfo uctx (List.hd cst)
+  | Proof_ending.Regular (Some oinfo) ->
+    DeclareObl.obligation_admitted_terminator ~pm ~oinfo ~uctx (List.hd cst)
   | _ -> pm
 
 let save_lemma_admitted ~(lemma : t) ~pm  =
@@ -314,12 +313,33 @@ let save_lemma_admitted ~(lemma : t) ~pm  =
 (* Saving a lemma-like constant                                         *)
 (************************************************************************)
 
-let finish_proved po info =
+let fixup_info_ctx ~pm ~info ~oinfo ~uctx =
+  (* We cannot update the entry info at this point *)
+  (* let info = { info with Info.poly = true } in *)
+  let open DeclareObl in
+  let prg = Option.get (State.find pm oinfo.name) in
+  let prg_ctx = prg.ProgramDecl.prg_ctx in
+  let uctx = if prg.ProgramDecl.prg_poly
+    then uctx
+    else UState.union prg_ctx uctx in
+  info, uctx
+
+let finish_proved ~pm ~info ~oinfo ~uctx entry =
+  let info, uctx = Option.cata
+      (fun oinfo -> fixup_info_ctx ~pm ~info ~oinfo ~uctx) (info,uctx)oinfo in
+  let _r = MutualEntry.declare_mutdef ~info ~uctx entry in
+  (* XXX: This is doubly-declaring the constant *)
+  (* Option.cata (fun oinfo -> DeclareObl.obligation_terminator ~pm ~uctx ~oinfo entry) pm oinfo *)
+  (* XXX: This is a test to see how many things do break *)
+  Option.cata (fun oinfo ->
+      DeclareObl.obligation_admitted_terminator ~pm ~uctx ~oinfo List.(hd _r))
+    pm oinfo
+
+let finish_proved ~pm ~info ~oinfo po =
   let open Proof_global in
   match po with
-  | { entries=[const]; uctx } ->
-    let _r : Names.GlobRef.t list = MutualEntry.declare_mutdef ~info ~uctx const in
-    ()
+  | { entries=[entry]; uctx } ->
+    finish_proved ~pm ~info ~oinfo ~uctx entry
   | _ ->
     CErrors.anomaly ~label:"finish_proved" Pp.(str "close_proof returned more than one proof term")
 
@@ -377,18 +397,16 @@ let finish_proved_equations ~kind ~hook i proof_obj types sigma0 =
   in
   hook recobls sigma
 
-let finalize_proof pm proof_obj proof_info =
+let finalize_proof ~pm ~info proof_obj =
   let open Proof_global in
   let open Proof_ending in
-  match CEphemeron.default proof_info.Info.proof_ending Regular with
-  | Regular ->
-    finish_proved proof_obj proof_info; pm
-  | End_obligation oinfo ->
-    DeclareObl.obligation_terminator pm proof_obj.entries proof_obj.uctx oinfo
+  match CEphemeron.default info.Info.proof_ending (Regular None) with
+  | Regular oinfo ->
+    finish_proved ~pm ~info ~oinfo proof_obj
   | End_derive { f ; name } ->
     finish_derived ~f ~name ~entries:proof_obj.entries; pm
   | End_equations { hook; i; types; sigma } ->
-    finish_proved_equations ~kind:proof_info.Info.kind ~hook i proof_obj types sigma; pm
+    finish_proved_equations ~kind:info.Info.kind ~hook i proof_obj types sigma; pm
 
 let err_save_forbidden_in_place_of_qed () =
   CErrors.user_err (Pp.str "Cannot use Save with more than one constant or in this proof mode")
@@ -399,8 +417,8 @@ let process_idopt_for_save ~idopt info =
   | Some { CAst.v = save_name } ->
     (* Save foo was used; we override the info in the first theorem *)
     let thms =
-      match info.Info.thms, CEphemeron.default info.Info.proof_ending Proof_ending.Regular with
-      | [ { DeclareDef.Recthm.name; _} as decl ], Proof_ending.Regular ->
+      match info.Info.thms, CEphemeron.default info.Info.proof_ending (Proof_ending.Regular None) with
+      | [ { DeclareDef.Recthm.name; _} as decl ], Proof_ending.Regular None ->
         [ { decl with DeclareDef.Recthm.name = save_name } ]
       | _ ->
         err_save_forbidden_in_place_of_qed ()
@@ -409,8 +427,8 @@ let process_idopt_for_save ~idopt info =
 let save_lemma_proved ~lemma ~pm ~opaque ~idopt =
   (* Env and sigma are just used for error printing in save_remaining_recthms *)
   let proof_obj = Proof_global.close_proof ~opaque ~keep_body_ucst_separate:false (fun x -> x) lemma.proof in
-  let proof_info = process_idopt_for_save ~idopt lemma.info in
-  finalize_proof pm proof_obj proof_info
+  let info = process_idopt_for_save ~idopt lemma.info in
+  finalize_proof ~pm ~info proof_obj
 
 (***********************************************************************)
 (* Special case to close a lemma without forcing a proof               *)
@@ -436,7 +454,7 @@ let save_lemma_proved_delayed ~proof ~pm ~info ~idopt =
      that to add the name to the info structure *)
   if CList.is_empty info.Info.thms then
     let info = add_first_thm ~info ~name:proof.Proof_global.name ~typ:EConstr.mkSet ~impargs:[] in
-    finalize_proof pm proof info
+    finalize_proof ~pm ~info proof
   else
     let info = process_idopt_for_save ~idopt info in
-    finalize_proof pm proof info
+    finalize_proof ~pm ~info proof

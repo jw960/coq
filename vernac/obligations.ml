@@ -124,8 +124,8 @@ let rec solve_obligation prg num tac =
   let evd = Evd.update_sigma_env evd (Global.env ()) in
   let auto pm n oblset tac = auto_solve_obligations ~pm n ~oblset tac in
   let proof_ending =
-    Lemmas.Proof_ending.End_obligation
-      DeclareObl.{name = prg.prg_name; num; auto}
+    Lemmas.Proof_ending.Regular (
+      Some DeclareObl.{name = prg.prg_name; num; auto})
   in
   let info = Lemmas.Info.make ~proof_ending ~scope ~kind () in
   let poly = prg.prg_poly in
@@ -175,8 +175,8 @@ and solve_obligation_by_tac ~pm prg obls i tac =
       | Some (t, ty, ctx) ->
         let prg = ProgramDecl.set_uctx ~uctx:ctx prg in
         (* Why is uctx not used above? *)
-        let uctx = UState.univ_entry ~poly:prg.prg_poly ctx in
-        let def, obl' = declare_obligation prg obl t ty uctx in
+        let univs = UState.univ_entry ~poly:prg.prg_poly ctx in
+        let def, obl' = declare_obligation prg obl ~univs t ty  in
         obls.(i) <- obl';
         if def && not prg.prg_poly then
           (* Declare the term constraints with the first obligation only *)

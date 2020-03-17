@@ -196,7 +196,7 @@ let get_hide_obligations =
   Goptions.declare_bool_option_and_ref ~depr:false ~key:["Hide"; "Obligations"]
     ~value:false
 
-let declare_obligation prg obl body ty uctx =
+let declare_obligation prg obl ~univs body ty  =
   let body = prg.prg_reduce body in
   let ty = Option.map prg.prg_reduce ty in
   match obl.obl_status with
@@ -208,7 +208,7 @@ let declare_obligation prg obl body ty uctx =
       if get_shrink_obligations () && not poly then shrink_body body ty
       else ([], body, ty, [||])
     in
-    let ce = Declare.definition_entry ?types:ty ~opaque ~univs:uctx body in
+    let ce = Declare.definition_entry ?types:ty ~opaque ~univs body in
     (* ppedrot: seems legit to have obligations as local *)
     let constant =
       Declare.declare_constant ~name:obl.obl_name
@@ -220,7 +220,7 @@ let declare_obligation prg obl body ty uctx =
       add_hint (Locality.make_section_locality None) prg constant;
     Declare.definition_message obl.obl_name;
     let body =
-      match uctx with
+      match univs with
       | Polymorphic_entry (_, uctx) ->
         Some (DefinedObl (constant, Univ.UContext.instance uctx))
       | Monomorphic_entry _ ->
@@ -620,61 +620,53 @@ type obligation_resolver =
 
 type obligation_qed_info = {name : Id.t; num : int; auto : obligation_resolver}
 
-let obligation_terminator pm entries uctx {name; num; auto} =
-  match entries with
-  | [entry] ->
-    let env = Global.env () in
-    let ty = entry.Declare.proof_entry_type in
-    let body, uctx = Declare.inline_private_constants ~uctx env entry in
-    let sigma = Evd.from_ctx uctx in
-    Inductiveops.control_only_guard (Global.env ()) sigma
-      (EConstr.of_constr body);
-    (* Declare the obligation ourselves and drop the hook *)
-    let prg = State.find_exn pm name in
-    let {obls; remaining = rem} = prg.prg_obligations in
-    let obl = obls.(num) in
-    let status =
-      match (obl.obl_status, entry.Declare.proof_entry_opaque) with
-      | (_, Evar_kinds.Expand), true -> err_not_transp ()
-      | (true, _), true -> err_not_transp ()
-      | (false, _), true -> Evar_kinds.Define true
-      | (_, Evar_kinds.Define true), false -> Evar_kinds.Define false
-      | (_, status), false -> status
-    in
-    let obl = {obl with obl_status = (false, status)} in
-    let uctx = if prg.prg_poly then uctx else UState.union prg.prg_ctx uctx in
-    let univs = UState.univ_entry ~poly:prg.prg_poly uctx in
-    let defined, obl = declare_obligation prg obl body ty univs in
-    let prg_ctx =
-      if prg.prg_poly then
-        (* Polymorphic *)
-        (* We merge the new universes and constraints of the
-           polymorphic obligation with the existing ones *)
-        UState.union prg.prg_ctx uctx
-      else if
-        (* The first obligation, if defined,
-           declares the univs of the constant,
-           each subsequent obligation declares its own additional
-           universes and constraints if any *)
-        defined
-      then
-        UState.make ~lbound:(Global.universes_lbound ()) (Global.universes ())
-      else uctx
-    in
-    update_program_decl_on_defined pm prg obls num obl ~uctx:prg_ctx rem ~auto
-  | _ ->
-    CErrors.anomaly
-      Pp.(
-        str
-          "[obligation_terminator] close_proof returned more than one proof \
-           term")
+let obligation_terminator ~pm ~uctx ~oinfo:{name; num; auto} entry =
+  let env = Global.env () in
+  let ty = entry.Declare.proof_entry_type in
+  let body, uctx = Declare.inline_private_constants ~uctx env entry in
+  let sigma = Evd.from_ctx uctx in
+  Inductiveops.control_only_guard (Global.env ()) sigma
+    (EConstr.of_constr body);
+  (* Declare the obligation ourselves and drop the hook *)
+  let prg = State.find_exn pm name in
+  let {obls; remaining = rem} = prg.prg_obligations in
+  let obl = obls.(num) in
+  let status =
+    match (obl.obl_status, entry.Declare.proof_entry_opaque) with
+    | (_, Evar_kinds.Expand), true -> err_not_transp ()
+    | (true, _), true -> err_not_transp ()
+    | (false, _), true -> Evar_kinds.Define true
+    | (_, Evar_kinds.Define true), false -> Evar_kinds.Define false
+    | (_, status), false -> status
+  in
+  let obl = {obl with obl_status = (false, status)} in
+  let uctx = if prg.prg_poly then uctx else UState.union prg.prg_ctx uctx in
+  let univs = UState.univ_entry ~poly:prg.prg_poly uctx in
+  let defined, obl = declare_obligation prg obl ~univs body ty in
+  let prg_ctx =
+    if prg.prg_poly then
+      (* Polymorphic *)
+      (* We merge the new universes and constraints of the
+         polymorphic obligation with the existing ones *)
+      UState.union prg.prg_ctx uctx
+    else if
+      (* The first obligation, if defined,
+         declares the univs of the constant,
+         each subsequent obligation declares its own additional
+         universes and constraints if any *)
+      defined
+    then
+      UState.make ~lbound:(Global.universes_lbound ()) (Global.universes ())
+    else uctx
+  in
+  update_program_decl_on_defined pm prg obls num obl ~uctx:prg_ctx rem ~auto
 
 (* Similar to the terminator but for the admitted path; this assumes
    the admitted constant was already declared.
 
    FIXME: There is duplication of this code with obligation_terminator
    and Obligations.admit_obligations *)
-let obligation_admitted_terminator pm {name; num; auto} ctx' dref =
+let obligation_admitted_terminator ~pm ~oinfo:{name; num; auto} ~uctx:ctx' dref =
   let prg = State.find_exn pm name in
   let {obls; remaining = rem} = prg.prg_obligations in
   let obl = obls.(num) in
@@ -686,8 +678,17 @@ let obligation_admitted_terminator pm {name; num; auto} ctx' dref =
       if not transparent then err_not_transp ()
     | _ -> ()
   in
+  (* Main difference with terminator is that here we process this
+     post-declare, whereas there they can do pre-declare *)
+  (* It seems pre-declare is the right choice *)
   let inst, ctx' =
-    if not prg.prg_poly (* Not polymorphic *) then
+    if prg.prg_poly then
+      (* We get the right order somehow, but surely it could be
+         enforced in a clearer way. *)
+      let uctx = UState.context ctx' in
+      (Univ.UContext.instance uctx, ctx')
+    else
+      (* Not polymorphic *)
       (* The universe context was declared globally, we continue
          from the new global environment. *)
       let ctx =
@@ -695,10 +696,6 @@ let obligation_admitted_terminator pm {name; num; auto} ctx' dref =
       in
       let ctx' = UState.merge_subst ctx (UState.subst ctx') in
       (Univ.Instance.empty, ctx')
-    else
-      (* We get the right order somehow, but surely it could be enforced in a clearer way. *)
-      let uctx = UState.context ctx' in
-      (Univ.UContext.instance uctx, ctx')
   in
   let obl = {obl with obl_body = Some (DefinedObl (cst, inst))} in
   let () = if transparent then add_hint true prg cst in
