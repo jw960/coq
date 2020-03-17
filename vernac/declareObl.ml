@@ -19,6 +19,7 @@ open Entries
 type 'a obligation_body = DefinedObl of 'a | TermObl of constr
 
 module Obligation = struct
+  (* XXX: This is almost the same than RetrieveObl.oblinfo *)
   type t =
     { obl_name : Id.t
     ; obl_type : types
@@ -29,7 +30,12 @@ module Obligation = struct
     ; obl_tac : unit Proofview.tactic option }
 
   let set_type ~typ obl = {obl with obl_type = typ}
-  let set_body ~body obl = {obl with obl_body = Some body}
+  let defined obl = Option.has_some obl.obl_body
+
+  let deps_remaining obls obl =
+    Int.Set.fold
+      (fun x acc -> if defined obls.(x) then acc else x :: acc)
+      obl.obl_deps []
 end
 
 type obligations = {obls : Obligation.t array; remaining : int}
@@ -237,9 +243,33 @@ let not_transp_msg =
 let pperror cmd = CErrors.user_err ~hdr:"Program" cmd
 let err_not_transp () = pperror not_transp_msg
 
-module ProgMap = Id.Map
+module State : sig
+  type t
 
-module State = struct
+  val empty : t
+  val first_pending : t -> ProgramDecl.t option
+
+  (** Returns [Error duplicate_list] if not a single program is open *)
+  val get_unique_open_prog :
+    t -> Id.t option -> (ProgramDecl.t, Id.t list) result
+
+  (** Add a new obligation *)
+  val add : t -> Id.t -> ProgramDecl.t -> t
+
+  val fold : t -> f:(Id.t -> ProgramDecl.t -> 'a -> 'a) -> init:'a -> 'a
+  val all : t -> ProgramDecl.t list
+  val find : t -> Id.t -> ProgramDecl.t option
+
+  val check_solved_obligations : pm:t -> msg:string -> unit
+
+  (* Local API *)
+  val find_exn : t -> Id.t -> ProgramDecl.t
+  val replace : t -> ProgramDecl.t -> t
+  val remove : t -> ProgramDecl.t -> t
+
+end = struct
+
+  module ProgMap = Id.Map
   type t = ProgramDecl.t CEphemeron.key ProgMap.t
 
   let empty = ProgMap.empty
@@ -276,36 +306,40 @@ module State = struct
     let f k v acc = f k (CEphemeron.get v) acc in
     ProgMap.fold f t init
 
-  let all pm = ProgMap.bindings pm |> List.map (fun (_,v) -> CEphemeron.get v)
+  let all pm = ProgMap.bindings pm |> List.map (fun (_, v) -> CEphemeron.get v)
   let find m t = ProgMap.find_opt t m |> Option.map CEphemeron.get
+
+  let check_solved_obligations ~pm ~msg : unit =
+    if not (ProgMap.is_empty pm) then
+      let keys = ProgMap.bindings pm |> List.map fst in
+      let have_string =
+        if Int.equal (List.length keys) 1 then " has " else " have "
+      in
+      CErrors.user_err ~hdr:"Program"
+        Pp.(
+          str "Unsolved obligations when closing "
+          ++ str msg ++ str ":" ++ spc ()
+          ++ prlist_with_sep spc (fun x -> Id.print x) keys
+          ++ str have_string ++ str "unsolved obligations")
+
+  (* Internal *)
+  let find_exn m t = ProgMap.find t m |> CEphemeron.get
+  let replace m prg =
+    let k = prg.prg_name in
+    ProgMap.add k (CEphemeron.create prg) (ProgMap.remove k m)
+
+  let remove pm prg = ProgMap.remove prg.prg_name pm
+
 end
 
-(* In all cases, the use of the map is read-only so we don't expose the ref *)
-let map_keys m = ProgMap.fold (fun k _ l -> k :: l) m []
-
-let check_solved_obligations ~pm ~msg : unit =
-  if not (ProgMap.is_empty pm) then
-    let keys = map_keys pm in
-    let have_string = if Int.equal (List.length keys) 1 then " has " else " have " in
-    CErrors.user_err ~hdr:"Program"
-      Pp.(
-        str "Unsolved obligations when closing "
-        ++ str msg ++ str ":" ++ spc ()
-        ++ prlist_with_sep spc (fun x -> Id.print x) keys
-        ++ str have_string
-        ++ str "unsolved obligations" )
-
-let map_replace k v m = ProgMap.add k (CEphemeron.create v) (ProgMap.remove k m)
-let progmap_remove pm prg = ProgMap.remove prg.prg_name pm
-let progmap_add n prg pm : _ ProgMap.t = ProgMap.add n prg pm
-let progmap_replace prg' pm = map_replace prg'.prg_name prg' pm
 let obligations_solved prg = Int.equal prg.prg_obligations.remaining 0
 
 let obligations_message rem =
   Format.asprintf "%s %s remaining"
     (if rem > 0 then string_of_int rem else "No more")
     (CString.plural rem "obligation")
-  |> Pp.str |> Flags.if_verbose Feedback.msg_info
+  |> Pp.str
+  |> Flags.if_verbose Feedback.msg_info
 
 type progress = Remain of int | Dependent | Defined of GlobRef.t
 
@@ -408,7 +442,7 @@ let declare_definition pm prg =
     DeclareDef.prepare_definition ~fix_exn ~opaque ~poly ~udecl ~types ~body
       sigma
   in
-  let pm = progmap_remove pm prg in
+  let pm = State.remove pm prg in
   (pm, DeclareDef.declare_definition ~name ~scope ~kind ~impargs ?hook ~obls ce)
 
 let rec lam_index n t acc =
@@ -498,38 +532,68 @@ let declare_mutual_definition pm l =
   let dref = List.hd kns in
   DeclareDef.Hook.(
     call ?hook:first.prg_hook {S.uctx = first.prg_ctx; obls; scope; dref});
-  let pm = List.fold_left progmap_remove pm l in
+  let pm = List.fold_left State.remove pm l in
   (pm, dref)
 
 let update_obls pm prg obls rem : State.t * progress =
   let prg_obligations = {obls; remaining = rem} in
   let prg' = {prg with prg_obligations} in
-  let pm = progmap_replace prg' pm in
+  let pm = State.replace pm prg' in
   obligations_message rem;
   if rem > 0 then (pm, Remain rem)
   else
     match prg'.prg_deps with
     | [] ->
       let pm, kn = declare_definition pm prg' in
-      let pm = progmap_remove pm prg' in
+      let pm = State.remove pm prg' in
       (pm, Defined kn)
     | l ->
       let progs =
-        List.map (fun x -> CEphemeron.get (ProgMap.find x pm)) prg'.prg_deps
+        List.map (fun x -> State.find_exn pm x) prg'.prg_deps
       in
       if List.for_all (fun x -> obligations_solved x) progs then
         let pm, kn = declare_mutual_definition pm progs in
         (pm, Defined kn)
       else (pm, Dependent)
 
-let dependencies obls n =
-  let res = ref Int.Set.empty in
+let subst_deps expand obls deps t =
+  let osubst = obl_substitution expand obls deps in
+  Vars.replace_vars (List.map (fun (n, (_, b)) -> (n, b)) osubst) t
+
+let subst_deps_obl obls obl =
+  let t' = subst_deps true obls obl.obl_deps obl.obl_type in
+  Obligation.set_type ~typ:t' obl
+
+let admit_obligations ~pm prg =
+  let {obls; _} = prg.prg_obligations in
+  let obls = Array.copy obls in
   Array.iteri
-    (fun i obl ->
-      if (not (Int.equal i n)) && Int.Set.mem n obl.obl_deps then
-        res := Int.Set.add i !res)
+    (fun i x ->
+      match x.obl_body with
+      | None ->
+        let x = subst_deps_obl obls x in
+        let ctx = UState.univ_entry ~poly:false prg.prg_ctx in
+        let kn =
+          Declare.declare_constant ~name:x.obl_name
+            ~local:Declare.ImportNeedQualified
+            (Declare.ParameterEntry (None, (x.obl_type, ctx), None))
+            ~kind:Decls.(IsAssumption Conjectural)
+        in
+        Declare.assumption_message x.obl_name;
+        obls.(i) <-
+          { x with
+            Obligation.obl_body = Some (DefinedObl (kn, Univ.Instance.empty)) }
+      | Some _ -> ())
     obls;
-  !res
+  update_obls pm prg obls 0
+
+let dependencies obls n =
+  Array.fold_left_i
+    (fun i res obl ->
+       if (not (Int.equal i n)) && Int.Set.mem n obl.obl_deps
+       then Int.Set.add i res
+       else res)
+    Int.Set.empty obls
 
 let update_program_decl_on_defined pm prg obls num obl ~uctx rem ~auto =
   let obls = Array.copy obls in
@@ -566,7 +630,7 @@ let obligation_terminator pm entries uctx {name; num; auto} =
     Inductiveops.control_only_guard (Global.env ()) sigma
       (EConstr.of_constr body);
     (* Declare the obligation ourselves and drop the hook *)
-    let prg = CEphemeron.get (ProgMap.find name pm) in
+    let prg = State.find_exn pm name in
     let {obls; remaining = rem} = prg.prg_obligations in
     let obl = obls.(num) in
     let status =
@@ -611,7 +675,7 @@ let obligation_terminator pm entries uctx {name; num; auto} =
    FIXME: There is duplication of this code with obligation_terminator
    and Obligations.admit_obligations *)
 let obligation_admitted_terminator pm {name; num; auto} ctx' dref =
-  let prg = CEphemeron.get (ProgMap.find name pm) in
+  let prg = State.find_exn pm name in
   let {obls; remaining = rem} = prg.prg_obligations in
   let obl = obls.(num) in
   let cst = match dref with GlobRef.ConstRef cst -> cst | _ -> assert false in

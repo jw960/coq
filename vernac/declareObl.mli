@@ -11,7 +11,24 @@
 open Names
 open Constr
 
-type 'a obligation_body = DefinedObl of 'a | TermObl of constr
+(** This module defines the funcionality for saving obligations and
+   program-defined constants.
+
+    Saving an obligation will register it with the kernel if opaque
+   and modify its body; there are 4 entry points:
+
+   - declare_obligation: called from the top-level search when an
+     obligation is automatically solved by a tactic.
+   - obligation_terminator: called at `Qed/Defined` time for an obligation.
+   - obligation_admitted_terminator: called at `Admitted` time for an obligation.
+   - admit_obligations: will admit all pending obligations
+
+    Once all obligations have been saved, declare_definition will send the original
+   constant to the kernel.
+
+ *)
+
+type 'a obligation_body
 
 module Obligation : sig
   type t = private
@@ -24,7 +41,8 @@ module Obligation : sig
     ; obl_tac : unit Proofview.tactic option }
 
   val set_type : typ:Constr.types -> t -> t
-  val set_body : body:pconstant obligation_body -> t -> t
+  val defined : t -> bool
+  val deps_remaining : t array -> t -> int list
 end
 
 type obligations = {obls : Obligation.t array; remaining : int}
@@ -65,13 +83,7 @@ module ProgramDecl : sig
     -> Names.Id.t list
     -> fixpoint_kind option
     -> Vernacexpr.decl_notation list
-    -> ( Names.Id.t
-       * Constr.types
-       * Evar_kinds.t Loc.located
-       * (bool * Evar_kinds.obligation_definition_status)
-       * Int.Set.t
-       * unit Proofview.tactic option )
-       array
+    -> RetrieveObl.obligation_info
     -> (Constr.constr -> Constr.constr)
     -> t
 
@@ -91,7 +103,6 @@ module State : sig
   type t
 
   val empty : t
-  val num_pending : t -> int
   val first_pending : t -> ProgramDecl.t option
 
   (** Returns [Error duplicate_list] if not a single program is open *)
@@ -102,12 +113,15 @@ module State : sig
   val add : t -> Id.t -> ProgramDecl.t -> t
 
   val fold : t -> f:(Id.t -> ProgramDecl.t -> 'a -> 'a) -> init:'a -> 'a
-
   val all : t -> ProgramDecl.t list
-
   val find : t -> Id.t -> ProgramDecl.t option
+
+  (** checks no obligations remain, called at the end of sections *)
+  val check_solved_obligations : pm:t -> msg:string -> unit
+
 end
 
+(** Called when all the obligations have been satisfied, closes the primary constant *)
 val declare_definition : State.t -> ProgramDecl.t -> State.t * Names.GlobRef.t
 
 (** Resolution status of a program *)
@@ -115,6 +129,9 @@ type progress =
   | Remain of int  (** n obligations remaining *)
   | Dependent  (** Dependent on other definitions *)
   | Defined of GlobRef.t  (** Defined as id *)
+
+(** Admits all obligations *)
+val admit_obligations : pm:State.t -> ProgramDecl.t -> State.t * progress
 
 type obligation_resolver =
      State.t
@@ -141,20 +158,10 @@ val obligation_admitted_terminator :
 val update_obls :
   State.t -> ProgramDecl.t -> Obligation.t array -> int -> State.t * progress
 
-(** Check obligations are properly solved before closing a section / module *)
-val check_solved_obligations : pm:State.t -> msg:string -> unit
-
 (** { 2 Util }  *)
 
-val obl_substitution :
-     bool
-  -> Obligation.t array
-  -> Int.Set.t
-  -> (Id.t * (Constr.types * Constr.types)) list
-
+val subst_deps_obl : Obligation.t array -> Obligation.t -> Obligation.t
 val dependencies : Obligation.t array -> int -> Int.Set.t
-val err_not_transp : unit -> unit
-val progmap_add : Id.t -> ProgramDecl.t CEphemeron.key -> State.t -> State.t
 
 (* This is a hack to make it possible for Obligations to craft a Qed
  * behind the scenes.  The fix_exn the Stm attaches to the Future proof

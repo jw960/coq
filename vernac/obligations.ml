@@ -30,53 +30,38 @@ let explain_no_obligations = function
   | None -> str "No obligations remaining"
 
 module Error = struct
-
-  let no_obligations n =
-    CErrors.user_err (explain_no_obligations n)
+  let no_obligations n = CErrors.user_err (explain_no_obligations n)
 
   let ambiguous_program id ids =
     CErrors.user_err
-      Pp.(str "More than one program with unsolved obligations: " ++ prlist Id.print ids
-          ++ str "; use the \"of\" clause to specify, as in \"Obligation 1 of " ++ Id.print id ++ str "\"")
+      Pp.(
+        str "More than one program with unsolved obligations: "
+        ++ prlist Id.print ids
+        ++ str "; use the \"of\" clause to specify, as in \"Obligation 1 of "
+        ++ Id.print id ++ str "\"")
 
   let unknown_obligation num =
-    CErrors.user_err (Pp.str (sprintf "Unknown obligation number %i" (succ num)))
+    CErrors.user_err
+      (Pp.str (sprintf "Unknown obligation number %i" (succ num)))
 
   let already_solved num =
     CErrors.user_err
       ( str "Obligation" ++ spc () ++ int num ++ str "already" ++ spc ()
-        ++ str "solved." )
+      ++ str "solved." )
 
   let depends num rem =
     CErrors.user_err
       ( str "Obligation " ++ int num
-        ++ str " depends on obligation(s) "
-        ++ pr_sequence (fun x -> int (succ x)) rem)
-
+      ++ str " depends on obligation(s) "
+      ++ pr_sequence (fun x -> int (succ x)) rem )
 end
 
-let assumption_message = Declare.assumption_message
 let default_tactic = ref (Proofview.tclUNIT ())
 
 let evar_of_obligation o =
   Evd.make_evar (Global.named_context_val ()) (EConstr.of_constr o.obl_type)
 
-let subst_deps expand obls deps t =
-  let osubst = DeclareObl.obl_substitution expand obls deps in
-  Vars.replace_vars (List.map (fun (n, (_, b)) -> (n, b)) osubst) t
-
-let subst_deps_obl obls obl =
-  let t' = subst_deps true obls obl.obl_deps obl.obl_type in
-  Obligation.set_type ~typ:t' obl
-
 open Evd
-
-let is_defined obls x = not (Option.is_empty obls.(x).obl_body)
-
-let deps_remaining obls deps =
-  Int.Set.fold
-    (fun x acc -> if is_defined obls x then acc else x :: acc)
-    deps []
 
 let goal_kind = Decls.(IsDefinition Definition)
 let goal_proof_kind = Decls.(IsProof Lemma)
@@ -120,21 +105,17 @@ let solve_by_tac ?loc name evi t poly uctx =
 let get_unique_prog pm prg =
   match State.get_unique_open_prog pm prg with
   | Ok prg -> prg
-  | Error [] ->
-    Error.no_obligations None
-  | Error ((id :: _) as ids) ->
-    Error.ambiguous_program id ids
+  | Error [] -> Error.no_obligations None
+  | Error (id :: _ as ids) -> Error.ambiguous_program id ids
 
 let rec solve_obligation prg num tac =
   let user_num = succ num in
   let {obls; remaining = rem} = prg.prg_obligations in
   let obl = obls.(num) in
-  let remaining = deps_remaining obls obl.obl_deps in
+  let remaining = deps_remaining obls obl in
   let () =
-    if not (Option.is_empty obl.obl_body)
-    then Error.already_solved user_num;
-    if not (List.is_empty remaining)
-    then Error.depends user_num remaining
+    if defined obl then Error.already_solved user_num;
+    if not (List.is_empty remaining) then Error.depends user_num remaining
   in
   let obl = subst_deps_obl obls obl in
   let scope = DeclareDef.(Global Declare.ImportNeedQualified) in
@@ -174,7 +155,7 @@ and solve_obligation_by_tac ~pm prg obls i tac =
   match obl.obl_body with
   | Some _ -> (pm, None)
   | None ->
-    if List.is_empty (deps_remaining obls obl.obl_deps) then (
+    if List.is_empty (deps_remaining obls obl) then (
       let obl = subst_deps_obl obls obl in
       let tac =
         match tac with
@@ -184,6 +165,7 @@ and solve_obligation_by_tac ~pm prg obls i tac =
       in
       let evd = Evd.from_ctx prg.prg_ctx in
       let evd = Evd.update_sigma_env evd (Global.env ()) in
+      (* Would maybe better to open a regular proof and use the std terminator? *)
       match
         solve_by_tac ?loc:(fst obl.obl_location) obl.obl_name
           (evar_of_obligation obl) tac prg.prg_poly
@@ -293,12 +275,11 @@ let show_obligations_of_prg ?(msg = true) prg =
 let show_obligations ~pm ?(msg = true) n =
   let progs =
     match n with
-    | None ->
-      State.all pm
-    | Some n ->
-      (match State.find pm n with
-       | Some prg -> [prg]
-       | None -> Error.no_obligations (Some n))
+    | None -> State.all pm
+    | Some n -> (
+      match State.find pm n with
+      | Some prg -> [prg]
+      | None -> Error.no_obligations (Some n) )
   in
   List.iter (fun x -> show_obligations_of_prg ~msg x) progs
 
@@ -316,10 +297,10 @@ let msg_generating_obl name obls =
   let len = Array.length obls in
   let info = Id.print name ++ str " has type-checked" in
   Feedback.msg_info
-    (if len = 0 then info ++ str "."
-     else
-       info ++ str ", generating " ++ int len ++
-       str (String.plural len " obligation"))
+    ( if len = 0 then info ++ str "."
+    else
+      info ++ str ", generating " ++ int len
+      ++ str (String.plural len " obligation") )
 
 let add_definition ~pm ~name ?term t ~uctx ?(udecl = UState.default_univ_decl)
     ?(impargs = []) ~poly
@@ -377,35 +358,13 @@ let add_mutual_definitions ~pm l ~uctx ?(udecl = UState.default_univ_decl)
   in
   pm
 
-let admit_prog ~pm prg =
-  let {obls; remaining} = prg.prg_obligations in
-  let obls = Array.copy obls in
-  Array.iteri
-    (fun i x ->
-      match x.obl_body with
-      | None ->
-        let x = subst_deps_obl obls x in
-        let ctx = UState.univ_entry ~poly:false prg.prg_ctx in
-        let kn =
-          Declare.declare_constant ~name:x.obl_name
-            ~local:Declare.ImportNeedQualified
-            (Declare.ParameterEntry (None, (x.obl_type, ctx), None))
-            ~kind:Decls.(IsAssumption Conjectural)
-        in
-        assumption_message x.obl_name;
-        obls.(i) <-
-          Obligation.set_body ~body:(DefinedObl (kn, Univ.Instance.empty)) x
-      | Some _ -> ())
-    obls;
-  DeclareObl.update_obls pm prg obls 0
-
 (* get_any_prog *)
 let rec admit_all_obligations ~pm =
   let prg = State.first_pending pm in
   match prg with
   | None -> pm
   | Some prg ->
-    let pm, _prog = admit_prog ~pm prg in
+    let pm, _prog = admit_obligations ~pm prg in
     admit_all_obligations ~pm
 
 let admit_obligations ~pm n =
@@ -413,7 +372,7 @@ let admit_obligations ~pm n =
   | None -> admit_all_obligations ~pm
   | Some _ ->
     let prg = get_unique_prog pm n in
-    admit_prog ~pm prg |> fst
+    admit_obligations ~pm prg |> fst
 
 let next_obligation ~pm n tac =
   let prg =
@@ -422,8 +381,8 @@ let next_obligation ~pm n tac =
     | Some _ -> get_unique_prog pm n
   in
   let {obls; remaining} = prg.prg_obligations in
-  let is_open _ x =
-    Option.is_empty x.obl_body && List.is_empty (deps_remaining obls x.obl_deps)
+  let is_open _ obl =
+    (not (defined obl)) && List.is_empty (deps_remaining obls obl)
   in
   let i =
     match Array.findi is_open obls with

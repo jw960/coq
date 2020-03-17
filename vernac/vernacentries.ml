@@ -1012,7 +1012,7 @@ let msg_of_subsection ss =
 let vernac_end_segment ~pm ({v=id} as lid) =
   let ss = Lib.find_opening_node id in
   let msg = msg_of_subsection ss in
-  DeclareObl.check_solved_obligations ~pm ~msg;
+  DeclareObl.State.check_solved_obligations ~pm ~msg;
   match ss with
   | Lib.OpenedModule (false,export,_,_) -> vernac_end_module export lid
   | Lib.OpenedModule (true,_,_,_) -> vernac_end_modtype lid
