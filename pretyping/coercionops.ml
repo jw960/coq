@@ -12,7 +12,6 @@ open CErrors
 open Util
 open Pp
 open Names
-open Constr
 open Libnames
 open Globnames
 open Mod_subst
@@ -286,7 +285,7 @@ let get_coercion_constructor env coe =
   let evd = Evd.from_env env in
   let red x = fst (Reductionops.whd_all_stack env evd x) in
   match EConstr.kind evd (red (mkNamed coe.coe_value)) with
-  | Constr.Construct (c, _) ->
+  | EConstr.Construct (c, _) ->
       c, Inductiveops.constructor_nrealargs env c -1
   | _ -> raise Not_found
 

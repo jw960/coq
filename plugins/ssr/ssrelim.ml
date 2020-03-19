@@ -13,7 +13,6 @@
 open Util
 open Names
 open Printer
-open Constr
 open Context
 open Termops
 open Tactypes
@@ -167,8 +166,8 @@ let ssrelim ?(is_case=false) deps what ?elim eqid elim_intro_tac =
               (EConstr.to_constr ~abort_on_undefined_evars:false (project gl)
                 elimty) r) in
         match EConstr.kind (project gl) elim with
-        | Constr.Var kn -> rename_elimty (GlobRef.VarRef kn)
-        | Constr.Const (kn,_) -> rename_elimty (GlobRef.ConstRef kn)
+        | EConstr.Var kn -> rename_elimty (GlobRef.VarRef kn)
+        | EConstr.Const (kn,_) -> rename_elimty (GlobRef.ConstRef kn)
         | _ -> elimty
       in
       let pred_id, n_elim_args, is_rec, elim_is_dep, n_pred_args,ctx_concl =
@@ -494,7 +493,7 @@ let equality_inj l b id c gl =
 let injectidl2rtac id c gl =
   Tacticals.tclTHEN (equality_inj None true id c) (revtoptac (pf_nb_prod gl)) gl
 
-let injectl2rtac sigma c = match EConstr.kind sigma c with
+let injectl2rtac sigma c = let open EConstr in match EConstr.kind sigma c with
 | Var id -> injectidl2rtac id (EConstr.mkVar id, NoBindings)
 | _ ->
   let id = injecteq_id in

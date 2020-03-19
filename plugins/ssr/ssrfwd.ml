@@ -53,7 +53,7 @@ let ssrsettac id ((_, (pat, pty)), (_, occ)) gl =
     pr_econstr_pat env sigma c++spc()++str"did not match and has holes."++spc()++
     str"Did you mean pose?") else
   let c, (gl, cty) =  match EConstr.kind sigma c with
-  | Cast(t, DEFAULTcast, ty) -> t, (gl, ty)
+  | EConstr.Cast(t, DEFAULTcast, ty) -> t, (gl, ty)
   | _ -> c, pfe_type_of gl c in
   let cl' = EConstr.mkLetIn (make_annot (Name id) Sorts.Relevant, c, cty, cl) in
   Tacticals.tclTHEN (Proofview.V82.of_tactic (convert_concl ~check:true cl')) (introid id) gl
@@ -203,6 +203,7 @@ let havetac ist
 ;;
 
 let destProd_or_LetIn sigma c =
+  let open EConstr in
   match EConstr.kind sigma c with
   | Prod (n,ty,c) -> RelDecl.LocalAssum (n, ty), c
   | LetIn (n,bo,ty,c) -> RelDecl.LocalDef (n, bo, ty), c
@@ -244,6 +245,7 @@ let wlogtac ist (((clr0, pats),_),_) (gens, ((_, ct))) hint suff ghave gl =
     let k, _ = EConstr.destEvar sigma ev in
     let fake_gl = {Evd.it = k; Evd.sigma = sigma} in
     let _, ct, _, uc = pf_interp_ty ist fake_gl ct in
+    let open EConstr in
     let rec var2rel c g s = match EConstr.kind sigma c, g with
       | Prod({binder_name=Anonymous} as x,_,c), [] -> EConstr.mkProd(x, EConstr.Vars.subst_vars s ct, c)
       | Sort _, [] -> EConstr.Vars.subst_vars s ct
@@ -323,10 +325,10 @@ open Proofview.Notations
 
 let is_app_evar sigma t =
   match EConstr.kind sigma t with
-  | Constr.Evar _ -> true
-  | Constr.App(t,_) ->
+  | EConstr.Evar _ -> true
+  | EConstr.App(t,_) ->
       begin match EConstr.kind sigma t with
-      | Constr.Evar _ -> true
+      | EConstr.Evar _ -> true
       | _ -> false end
   | _ -> false
 

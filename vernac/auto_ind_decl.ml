@@ -651,6 +651,7 @@ repeat ( apply andb_prop in z;let z1:= fresh "Z" in destruct z as [z1 z]).
                       Proofview.Goal.enter begin fun gl ->
                         let concl = Proofview.Goal.concl gl in
                         let sigma = Tacmach.New.project gl in
+                        let open EConstr in
                         match EConstr.kind sigma concl with
                         | App (c,ca) -> (
                           match EConstr.kind sigma c with
@@ -791,6 +792,7 @@ let compute_lb_tact mode lb_scheme_key ind lnamesparrec nparrec =
                         let concl = Proofview.Goal.concl gls in
                         let sigma = Tacmach.New.project gl in
                         (* assume the goal to be eq (eq_type ...) = true *)
+                        let open EConstr in
                         match EConstr.kind sigma concl with
                         | App(c,ca) -> (match (EConstr.kind sigma ca.(1)) with
                           | App(c',ca') ->

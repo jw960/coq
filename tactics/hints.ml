@@ -12,7 +12,6 @@ open Pp
 open Util
 open CErrors
 open Names
-open Constr
 open Context
 open Evd
 open EConstr

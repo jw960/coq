@@ -11,7 +11,6 @@
 open Pp
 open CErrors
 open Util
-open Constr
 open Context
 open Vars
 open Declare

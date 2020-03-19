@@ -526,7 +526,7 @@ let extract_mrectype sigma t =
 let find_mrectype_vect env sigma c =
   let (t, l) = Termops.decompose_app_vect sigma (whd_all env sigma c) in
   match EConstr.kind sigma t with
-    | Ind ind -> (ind, l)
+    | EConstr.Ind ind -> (ind, l)
     | _ -> raise Not_found
 
 let find_mrectype env sigma c =
@@ -573,6 +573,7 @@ let find_coinductive env sigma c =
 let is_predicate_explicitly_dep env sigma pred arsign =
   let rec srec env pval arsign =
     let pv' = whd_all env sigma pval in
+    let open EConstr in
     match EConstr.kind sigma pv', arsign with
       | Lambda (na,t,b), (LocalAssum _)::arsign ->
           srec (push_rel_assum (na, t) env) b arsign

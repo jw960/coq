@@ -207,7 +207,7 @@ val mkCoFix : cofixpoint -> constr
    the same order (i.e. last argument first) *)
 type 'constr pexistential = Evar.t * 'constr array
 
-type ('constr, 'types, 'sort, 'univs) kind_of_term =
+type kind_of_term =
   | Rel       of int                                  (** Gallina-variable introduced by [forall], [fun], [let-in], [fix], or [cofix]. *)
 
   | Var       of Id.t                                 (** Gallina-variable that was introduced by Vernacular-command that extends
@@ -215,27 +215,27 @@ type ('constr, 'types, 'sort, 'univs) kind_of_term =
                                                           (i.e. [Variable] or [Let]). *)
 
   | Meta      of metavariable
-  | Evar      of 'constr pexistential
-  | Sort      of 'sort
-  | Cast      of 'constr * cast_kind * 'types
-  | Prod      of Name.t Context.binder_annot * 'types * 'types             (** Concrete syntax ["forall A:B,C"] is represented as [Prod (A,B,C)]. *)
-  | Lambda    of Name.t Context.binder_annot * 'types * 'constr            (** Concrete syntax ["fun A:B => C"] is represented as [Lambda (A,B,C)].  *)
-  | LetIn     of Name.t Context.binder_annot * 'constr * 'types * 'constr  (** Concrete syntax ["let A:C := B in D"] is represented as [LetIn (A,B,C,D)]. *)
-  | App       of 'constr * 'constr array              (** Concrete syntax ["(F P1 P2 ...  Pn)"] is represented as [App (F, [|P1; P2; ...; Pn|])].
+  | Evar      of constr pexistential
+  | Sort      of Sorts.t
+  | Cast      of constr * cast_kind * types
+  | Prod      of Name.t Context.binder_annot * types * types             (** Concrete syntax ["forall A:B,C"] is represented as [Prod (A,B,C)]. *)
+  | Lambda    of Name.t Context.binder_annot * types * constr            (** Concrete syntax ["fun A:B => C"] is represented as [Lambda (A,B,C)].  *)
+  | LetIn     of Name.t Context.binder_annot * constr * types * constr  (** Concrete syntax ["let A:C := B in D"] is represented as [LetIn (A,B,C,D)]. *)
+  | App       of constr * constr array              (** Concrete syntax ["(F P1 P2 ...  Pn)"] is represented as [App (F, [|P1; P2; ...; Pn|])].
 
                                                           The {!mkApp} constructor also enforces the following invariant:
                                                           - [F] itself is not {!App}
                                                           - and [[|P1;..;Pn|]] is not empty. *)
 
-  | Const     of (Constant.t * 'univs)                  (** Gallina-variable that was introduced by Vernacular-command that extends the global environment
+  | Const     of (Constant.t * Univ.Instance.t)                  (** Gallina-variable that was introduced by Vernacular-command that extends the global environment
                                                           (i.e. [Parameter], or [Axiom], or [Definition], or [Theorem] etc.) *)
 
-  | Ind       of (inductive * 'univs)                 (** A name of an inductive type defined by [Variant], [Inductive] or [Record] Vernacular-commands. *)
-  | Construct of (constructor * 'univs)              (** A constructor of an inductive type defined by [Variant], [Inductive] or [Record] Vernacular-commands. *)
-  | Case      of case_info * 'constr * 'constr * 'constr array
-  | Fix       of ('constr, 'types) pfixpoint
-  | CoFix     of ('constr, 'types) pcofixpoint
-  | Proj      of Projection.t * 'constr
+  | Ind       of (inductive * Univ.Instance.t)                 (** A name of an inductive type defined by [Variant], [Inductive] or [Record] Vernacular-commands. *)
+  | Construct of (constructor * Univ.Instance.t)              (** A constructor of an inductive type defined by [Variant], [Inductive] or [Record] Vernacular-commands. *)
+  | Case      of case_info * constr * constr * constr array
+  | Fix       of (constr, types) pfixpoint
+  | CoFix     of (constr, types) pcofixpoint
+  | Proj      of Projection.t * constr
   | Int       of Uint63.t
   | Float     of Float64.t
 
@@ -243,13 +243,12 @@ type ('constr, 'types, 'sort, 'univs) kind_of_term =
    least one argument and the function is not itself an applicative
    term *)
 
-val kind : constr -> (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
-val of_kind : (constr, types, Sorts.t, Univ.Instance.t) kind_of_term -> constr
+val kind : constr -> kind_of_term
+val of_kind : kind_of_term -> constr
 
-val kind_nocast_gen : ('v -> ('v, 'v, 'sort, 'univs) kind_of_term) ->
-  ('v -> ('v, 'v, 'sort, 'univs) kind_of_term)
+val kind_nocast_gen : (t -> kind_of_term) -> (t -> kind_of_term)
 
-val kind_nocast : constr -> (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
+val kind_nocast : constr -> kind_of_term
 
 (** {6 Simple case analysis} *)
 val isRel  : constr -> bool
@@ -547,50 +546,50 @@ val iter_with_binders :
 val fold_constr_with_binders :
   ('a -> 'a) -> ('a -> 'b -> constr -> 'b) -> 'a -> 'b -> constr -> 'b
 
-type 'constr constr_compare_fn = int -> 'constr -> 'constr -> bool
+type constr_compare_fn = int -> t -> t -> bool
 
 (** [compare_head f c1 c2] compare [c1] and [c2] using [f] to compare
    the immediate subterms of [c1] of [c2] if needed; Cast's, binders
    name and Cases annotations are not taken into account *)
 
-val compare_head : constr constr_compare_fn -> constr constr_compare_fn
+val compare_head : constr_compare_fn -> constr_compare_fn
 
 (** Convert a global reference applied to 2 instances. The int says
    how many arguments are given (as we can only use cumulativity for
    fully applied inductives/constructors) .*)
-type 'univs instance_compare_fn = GlobRef.t -> int ->
-  'univs -> 'univs -> bool
+type instance_compare_fn = GlobRef.t -> int ->
+  Univ.Instance.t -> Univ.Instance.t -> bool
 
 (** [compare_head_gen u s f c1 c2] compare [c1] and [c2] using [f] to
    compare the immediate subterms of [c1] of [c2] if needed, [u] to
    compare universe instances, [s] to compare sorts; Cast's, binders
    name and Cases annotations are not taken into account *)
 
-val compare_head_gen : Univ.Instance.t instance_compare_fn ->
+val compare_head_gen : instance_compare_fn ->
   (Sorts.t -> Sorts.t -> bool) ->
-  constr constr_compare_fn ->
-  constr constr_compare_fn
+  constr_compare_fn ->
+  constr_compare_fn
 
 val compare_head_gen_leq_with :
-  ('v -> ('v, 'v, 'sort, 'univs) kind_of_term) ->
-  ('v -> ('v, 'v, 'sort, 'univs) kind_of_term) ->
-  'univs instance_compare_fn ->
-  ('sort -> 'sort -> bool) ->
-  'v constr_compare_fn ->
-  'v constr_compare_fn ->
-  'v constr_compare_fn
+  (t -> kind_of_term) ->
+  (t -> kind_of_term) ->
+  instance_compare_fn ->
+  (Sorts.t -> Sorts.t -> bool) ->
+  constr_compare_fn ->
+  constr_compare_fn ->
+  constr_compare_fn
 
 (** [compare_head_gen_with k1 k2 u s f c1 c2] compares [c1] and [c2]
     like [compare_head_gen u s f c1 c2], except that [k1] (resp. [k2])
     is used,rather than {!kind}, to expose the immediate subterms of
     [c1] (resp. [c2]). *)
 val compare_head_gen_with :
-  ('v -> ('v, 'v, 'sort, 'univs) kind_of_term) ->
-  ('v -> ('v, 'v, 'sort, 'univs) kind_of_term) ->
-  'univs instance_compare_fn ->
-  ('sort -> 'sort -> bool) ->
-  'v constr_compare_fn ->
-  'v constr_compare_fn
+  (t -> kind_of_term) ->
+  (t -> kind_of_term) ->
+  instance_compare_fn ->
+  (Sorts.t -> Sorts.t -> bool) ->
+  constr_compare_fn ->
+  constr_compare_fn
 
 (** [compare_head_gen_leq u s f fle c1 c2] compare [c1] and [c2] using
     [f] to compare the immediate subterms of [c1] of [c2] for
@@ -599,11 +598,11 @@ val compare_head_gen_with :
     [s] to compare sorts for for subtyping; Cast's, binders name and
     Cases annotations are not taken into account *)
 
-val compare_head_gen_leq : Univ.Instance.t instance_compare_fn ->
+val compare_head_gen_leq : instance_compare_fn ->
   (Sorts.t -> Sorts.t -> bool) ->
-  constr constr_compare_fn ->
-  constr constr_compare_fn ->
-  constr constr_compare_fn
+  constr_compare_fn ->
+  constr_compare_fn ->
+  constr_compare_fn
 
 (** {6 Hashconsing} *)
 

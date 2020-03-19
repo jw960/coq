@@ -175,7 +175,7 @@ let example_canonical n =
   let sigma, final_type = Typing.type_of env sigma test_term in
 (* The computed type has two parameters, the second one is the proof. *)
   let value = match EConstr.kind sigma final_type with
-      | Constr.App(_, [| _; the_half |]) -> the_half
+      | EConstr.App(_, [| _; the_half |]) -> the_half
       | _ -> failwith "expecting the whole type to be \"cmp _ the_half\"" in
   let _ = Feedback.msg_notice (Printer.pr_econstr_env env sigma value) in
 (* I wish for a nicer way to get the value of ev2 in the evar_map *)

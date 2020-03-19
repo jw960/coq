@@ -464,7 +464,7 @@ let push_named_rec_types (lna,typarray,_) env =
          let id = map_annot (function
              | Name id -> id
              | Anonymous -> anomaly (Pp.str "Fix declarations must be named.")) na
-         in  LocalAssum (id, lift i t))
+         in LocalAssum (id, lift i t))
       lna typarray in
   Array.fold_left
     (fun e assum -> push_named assum e) env ctxt
@@ -514,7 +514,9 @@ let it_mkLambda_or_LetIn_from_no_LetIn c decls =
 (* *)
 
 (* strips head casts and flattens head applications *)
-let rec strip_head_cast sigma c = match EConstr.kind sigma c with
+let rec strip_head_cast sigma c =
+  let open EConstr in
+  match kind sigma c with
   | App (f,cl) ->
       let rec collapse_rec f cl2 = match EConstr.kind sigma f with
         | App (g,cl1) -> collapse_rec g (Array.append cl1 cl2)
@@ -525,7 +527,9 @@ let rec strip_head_cast sigma c = match EConstr.kind sigma c with
   | Cast (c,_,_) -> strip_head_cast sigma c
   | _ -> c
 
-let rec drop_extra_implicit_args sigma c = match EConstr.kind sigma c with
+let rec drop_extra_implicit_args sigma c =
+  let open EConstr in
+  match EConstr.kind sigma c with
   (* Removed trailing extra implicit arguments, what improves compatibility
      for constants with recently added maximal implicit arguments *)
   | App (f,args) when EConstr.isEvar sigma (Array.last args) ->
@@ -535,14 +539,16 @@ let rec drop_extra_implicit_args sigma c = match EConstr.kind sigma c with
   | _ -> c
 
 (* Get the last arg of an application *)
-let last_arg sigma c = match EConstr.kind sigma c with
+let last_arg sigma c =
+  let open EConstr in
+  match EConstr.kind sigma c with
   | App (f,cl) -> Array.last cl
   | _ -> anomaly (Pp.str "last_arg.")
 
 (* Get the last arg of an application *)
 let decompose_app_vect sigma c =
   match EConstr.kind sigma c with
-  | App (f,cl) -> (f, cl)
+  | EConstr.App (f,cl) -> (f, cl)
   | _ -> (c,[||])
 
 let adjust_app_list_size f1 l1 f2 l2 =
@@ -770,33 +776,33 @@ exception Occur
 
 let occur_meta sigma c =
   let rec occrec c = match EConstr.kind sigma c with
-    | Meta _ -> raise Occur
+    | EConstr.Meta _ -> raise Occur
     | _ -> EConstr.iter sigma occrec c
   in try occrec c; false with Occur -> true
 
 let occur_existential sigma c =
   let rec occrec c = match EConstr.kind sigma c with
-    | Evar _ -> raise Occur
+    | EConstr.Evar _ -> raise Occur
     | _ -> EConstr.iter sigma occrec c
   in try occrec c; false with Occur -> true
 
 let occur_meta_or_existential sigma c =
   let rec occrec c = match EConstr.kind sigma c with
-    | Evar _ -> raise Occur
-    | Meta _ -> raise Occur
+    | EConstr.Evar _ -> raise Occur
+    | EConstr.Meta _ -> raise Occur
     | _ -> EConstr.iter sigma occrec c
   in try occrec c; false with Occur -> true
 
 let occur_metavariable sigma m c =
   let rec occrec c = match EConstr.kind sigma c with
-  | Meta m' -> if Int.equal m m' then raise Occur
+  | EConstr.Meta m' -> if Int.equal m m' then raise Occur
   | _ -> EConstr.iter sigma occrec c
   in
   try occrec c; false with Occur -> true
 
 let occur_evar sigma n c =
   let rec occur_rec c = match EConstr.kind sigma c with
-    | Evar (sp,_) when Evar.equal sp n -> raise Occur
+    | EConstr.Evar (sp,_) when Evar.equal sp n -> raise Occur
     | _ -> EConstr.iter sigma occur_rec c
   in
   try occur_rec c; false with Occur -> true
@@ -823,7 +829,7 @@ let occur_var_in_decl env sigma hyp decl =
 
 let local_occur_var sigma id c =
   let rec occur c = match EConstr.kind sigma c with
-  | Var id' -> if Id.equal id id' then raise Occur
+  | EConstr.Var id' -> if Id.equal id id' then raise Occur
   | _ -> EConstr.iter sigma occur c
   in
   try occur c; false with Occur -> true
@@ -832,13 +838,15 @@ let local_occur_var sigma id c =
 
 let free_rels sigma m =
   let rec frec depth acc c = match EConstr.kind sigma c with
-    | Rel n       -> if n >= depth then Int.Set.add (n-depth+1) acc else acc
+    | EConstr.Rel n       -> if n >= depth then Int.Set.add (n-depth+1) acc else acc
     | _ -> fold_constr_with_binders sigma succ frec depth acc c
   in
   frec 1 Int.Set.empty m
 
 (* collects all metavar occurrences, in left-to-right order, preserving
  * repetitions and all. *)
+
+open EConstr
 
 let collect_metas sigma c =
   let rec collrec acc c =
@@ -913,15 +921,15 @@ let pop t = EConstr.Vars.lift (-1) t
 (*  bindings functions *)
 (***************************)
 
-type meta_type_map = (metavariable * types) list
+type meta_type_map = (metavariable * Constr.types) list
 
-type meta_value_map = (metavariable * constr) list
+type meta_value_map = (metavariable * Constr.constr) list
 
 let isMetaOf sigma mv c =
   match EConstr.kind sigma c with Meta mv' -> Int.equal mv mv' | _ -> false
 
 let rec subst_meta bl c =
-  match kind c with
+  match Constr.kind c with
     | Meta i -> (try Int.List.assoc i bl with Not_found -> c)
     | _ -> Constr.map (subst_meta bl) c
 
@@ -1268,7 +1276,7 @@ let assums_of_rel_context sign =
 let map_rel_context_in_env f env sign =
   let rec aux env acc = function
     | d::sign ->
-        aux (push_rel d env) (RelDecl.map_constr (f env) d :: acc) sign
+        aux (Environ.push_rel d env) (RelDecl.map_constr (f env) d :: acc) sign
     | [] ->
         acc
   in
@@ -1334,8 +1342,9 @@ let compact_named_context sign =
 let clear_named_body id env =
   let open NamedDecl in
   let aux _ = function
-  | LocalDef (id',c,t) when Id.equal id id'.binder_name -> push_named (LocalAssum (id',t))
-  | d -> push_named d in
+  | LocalDef (id',c,t) when Id.equal id id'.binder_name ->
+    Environ.push_named (LocalAssum (id',t))
+  | d -> Environ.push_named d in
   fold_named_context aux env ~init:(reset_context env)
 
 let global_vars_set env sigma constr =

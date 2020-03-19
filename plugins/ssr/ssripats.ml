@@ -12,7 +12,6 @@ open Ssrmatching_plugin
 
 open Util
 open Names
-open Constr
 open Context
 
 open Proofview
@@ -225,6 +224,7 @@ open State
 (** [nb_assums] returns the number of dependent premises
     Warning: unlike [nb_deps_assums], it does not perform reduction *)
 let rec nb_assums cur env sigma t =
+  let open EConstr in
   match EConstr.kind sigma t with
   | Prod(name,ty,body) ->
      nb_assums (cur+1) env sigma body
@@ -248,13 +248,13 @@ end
 let rec nb_deps_assums cur env sigma t =
   let t' = Reductionops.whd_allnolet env sigma t in
   match EConstr.kind sigma t' with
-  | Constr.Prod(name,ty,body) ->
+  | EConstr.Prod(name,ty,body) ->
      if EConstr.Vars.noccurn sigma 1 body &&
         not (Typeclasses.is_class_type sigma ty) then cur
      else nb_deps_assums (cur+1) env sigma body
-  | Constr.LetIn(name,ty,t1,t2) ->
+  | EConstr.LetIn(name,ty,t1,t2) ->
      nb_deps_assums (cur+1) env sigma t2
-  | Constr.Cast(t,_,_) ->
+  | EConstr.Cast(t,_,_) ->
      nb_deps_assums cur env sigma t
   | _ -> cur
 let nb_deps_assums = nb_deps_assums 0
@@ -860,6 +860,7 @@ let rec eqmoveipats eqpat = function
 
 let ssrsmovetac = Goal.enter begin fun g ->
   let sigma, concl = Goal.(sigma g, concl g) in
+  let open EConstr in
   match EConstr.kind sigma concl with
   | Prod _ | LetIn _ -> tclUNIT ()
   | _ -> Tactics.hnf_in_concl
@@ -897,6 +898,7 @@ let rec is_Evar_or_CastedMeta sigma x =
     is_Evar_or_CastedMeta sigma (pi1 (EConstr.destCast sigma x)))
 
 let occur_existential_or_casted_meta sigma c =
+  let open EConstr in
   let rec occrec c = match EConstr.kind sigma c with
     | Evar _ -> raise Not_found
     | Cast (m,_,_) when EConstr.isMeta sigma m -> raise Not_found
@@ -928,6 +930,7 @@ let tacFIND_ABSTRACT_PROOF check_lock abstract_n =
   Goal.enter_one ~__LOC__ begin fun g ->
     let sigma, env = Goal.(sigma g, env g) in
     let l = Evd.fold_undefined (fun e ei l ->
+      let open EConstr in
       match EConstr.kind sigma ei.Evd.evar_concl with
       | App(hd, [|ty; n; lock|])
         when (not check_lock ||
@@ -957,6 +960,7 @@ let ssrabstract dgens =
     let tacFIND_HOLE = Goal.enter_one ~__LOC__ begin fun g ->
       let sigma, env, concl = Goal.(sigma g, env g, concl g) in
       let t = args_id.(0) in
+      let open EConstr in
       match EConstr.kind sigma t with
       | (Evar _ | Meta _) -> Ssrcommon.tacUNIFY concl t <*> tclUNIT id
       | Cast(m,_,_)

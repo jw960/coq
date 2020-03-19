@@ -329,6 +329,7 @@ let lookup_canonical_conversion (proj,pat) =
   assoc_pat pat (GlobRef.Map.find proj !object_table)
 
 let decompose_projection sigma c args =
+  let open EConstr in
   match EConstr.kind sigma c with
   | Const (c, u) ->
      let n = find_projection_nparams (GlobRef.ConstRef c) in

@@ -10,7 +10,6 @@
 
 open Util
 open Names
-open Constr
 open EConstr
 open Tacmach.New
 open Tactics

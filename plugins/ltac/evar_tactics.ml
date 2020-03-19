@@ -10,7 +10,6 @@
 
 open Util
 open Names
-open Constr
 open Context
 open CErrors
 open Evar_refiner
@@ -41,6 +40,7 @@ let instantiate_evar evk (ist,rawc) env sigma =
 
 let evar_list sigma c =
   let rec evrec acc c =
+    let open EConstr in
     match EConstr.kind sigma c with
     | Evar (evk, _ as ev) -> ev :: acc
     | _ -> EConstr.fold sigma evrec acc c in

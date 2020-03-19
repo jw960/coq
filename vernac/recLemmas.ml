@@ -9,12 +9,12 @@
 (************************************************************************)
 
 open Util
-open Constr
 open Declarations
 
 module RelDecl = Context.Rel.Declaration
 
 let find_mutually_recursive_statements sigma thms =
+  let open EConstr in
     let n = List.length thms in
     let inds = List.map (fun (id,(t,impls)) ->
       let (hyps,ccl) = EConstr.decompose_prod_assum sigma t in
@@ -25,6 +25,7 @@ let find_mutually_recursive_statements sigma thms =
       let ind_hyps =
         List.flatten (List.map_i (fun i decl ->
           let t = RelDecl.get_type decl in
+          let open EConstr in
           match EConstr.kind sigma t with
           | Ind ((kn,_ as ind),u) when
                 let mind = Global.lookup_mind kn in

@@ -1745,7 +1745,8 @@ let keyed_unify env evd kop =
     | None -> fun _ -> true
     | Some kop ->
       fun cl ->
-        let kc = Keys.constr_key (fun c -> EConstr.kind evd c) cl in
+        let kind = Obj.magic (fun c -> EConstr.kind evd c) in
+        let kc = Keys.constr_key kind (Obj.magic cl) in
           match kc with
           | None -> false
           | Some kc -> Keys.equiv_keys kop kc
@@ -1755,7 +1756,8 @@ let keyed_unify env evd kop =
    Fails if no match is found *)
 let w_unify_to_subterm env evd ?(flags=default_unify_flags ()) (op,cl) =
   let bestexn = ref None in
-  let kop = Keys.constr_key (fun c -> EConstr.kind evd c) op in
+  let kind = Obj.magic (fun c -> EConstr.kind evd c) in
+  let kop = Keys.constr_key kind (Obj.magic op) in
   let rec matchrec cl =
     let cl = strip_outer_cast evd cl in
     (try

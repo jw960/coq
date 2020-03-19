@@ -363,7 +363,7 @@ let () = define2 "constr_equal" constr constr begin fun c1 c2 ->
 end
 
 let () = define1 "constr_kind" constr begin fun c ->
-  let open Constr in
+  let open EConstr in
   Proofview.tclEVARMAP >>= fun sigma ->
   return begin match EConstr.kind sigma c with
   | Rel n ->
@@ -916,7 +916,7 @@ end
 let () = define1 "fresh_free_of_constr" constr begin fun c ->
   Proofview.tclEVARMAP >>= fun sigma ->
   let rec fold accu c = match EConstr.kind sigma c with
-  | Constr.Var id -> Id.Set.add id accu
+  | EConstr.Var id -> Id.Set.add id accu
   | _ -> EConstr.fold sigma fold accu c
   in
   let ans = fold Id.Set.empty c in

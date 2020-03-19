@@ -106,7 +106,7 @@ let nf_evar_map_undefined evm =
 let has_undefined_evars evd t =
   let rec has_ev t =
     match EConstr.kind evd t with
-    | Evar _ -> raise NotInstantiatedEvar
+    | EConstr.Evar _ -> raise NotInstantiatedEvar
     | _ -> EConstr.iter evd has_ev t in
   try let _ = has_ev t in false
   with (Not_found | NotInstantiatedEvar) -> true
@@ -157,8 +157,8 @@ let head_evar sigma c =
 let whd_head_evar_stack sigma c =
   let rec whrec (c, l) =
     match EConstr.kind sigma c with
-      | Cast (c,_,_) -> whrec (c, l)
-      | App (f,args) -> whrec (f, args :: l)
+      | EConstr.Cast (c,_,_) -> whrec (c, l)
+      | EConstr.App (f,args) -> whrec (f, args :: l)
       | c -> (EConstr.of_kind c, l)
   in
   whrec (c, [])
@@ -734,7 +734,7 @@ let rec advance sigma evk =
 let undefined_evars_of_term evd t =
   let rec evrec acc c =
     match EConstr.kind evd c with
-      | Evar (n, l) ->
+      | EConstr.Evar (n, l) ->
         let acc = Evar.Set.add n acc in
         Array.fold_left evrec acc l
       | _ -> EConstr.fold evd evrec acc c
@@ -877,8 +877,8 @@ let eq_constr_univs_test ~evd ~extended_evd t u =
   in
   let ans =
     UnivProblem.eq_constr_univs_infer_with
-      (fun t -> kind_of_term_upto evd t)
-      (fun u -> kind_of_term_upto extended_evd u)
+      (fun t -> Obj.magic (kind_of_term_upto evd t))
+      (fun u -> Obj.magic (kind_of_term_upto extended_evd u))
       (universes extended_evd) fold t u extended_evd
   in
   match ans with None -> false | Some _ -> true

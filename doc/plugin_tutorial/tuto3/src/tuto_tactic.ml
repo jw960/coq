@@ -69,7 +69,7 @@ let unpack_type sigma term =
   let report () =
     CErrors.user_err (Pp.str "expecting a packed type") in
   match EConstr.kind sigma term with
-  | Constr.App (_, [| ty |]) -> ty
+  | EConstr.App (_, [| ty |]) -> ty
   | _ -> report ()
 
 (* This function is meant to observe a type of shape
@@ -83,10 +83,10 @@ let two_lambda_pattern sigma term =
    which only provides one-level deep patterns. *)
   match EConstr.kind sigma term with
   (* Here we recognize the outer implication *)
-  | Constr.Prod (_, ty1, l1) ->
+  | EConstr.Prod (_, ty1, l1) ->
       (* Here we recognize the inner implication *)
       (match EConstr.kind sigma l1 with
-      | Constr.Prod (n2, packed_ty2, deep_conclusion) ->
+      | EConstr.Prod (n2, packed_ty2, deep_conclusion) ->
         (* Here we recognized that the second type is an application *)
         ty1, unpack_type sigma packed_ty2, deep_conclusion
       | _ -> report ())

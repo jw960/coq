@@ -106,6 +106,7 @@ end
  *)
 
 let get_projections_from_constant (evd, i) =
+  let open EConstr in
   match EConstr.kind evd (whd (Global.env ()) evd i) with
   | App (c, a) -> Some a
   | _ ->
@@ -545,6 +546,7 @@ module MakeTable (E : Elt) = struct
     | Some a -> E.mk_elt evd i a
 
   let register_hint evd t elt =
+    let open EConstr in
     match EConstr.kind evd t with
     | App (c, _) ->
       E.table := HConstr.add c (Application t, E.cast elt) !E.table
@@ -553,6 +555,7 @@ module MakeTable (E : Elt) = struct
   let register_constr env evd c =
     let c = EConstr.of_constr c in
     let t = get_type_of env evd c in
+    let open EConstr in
     match EConstr.kind evd t with
     | App (intyp, args) ->
       let styp = args.(E.get_key) in
@@ -925,6 +928,7 @@ let is_arrow env evd a p1 p2 =
      where c is the head symbol and [a] is the array of arguments.
      The function also transforms (x -> y) as (arrow x y) *)
 let get_operator barrow env evd e =
+  let open EConstr in
   match EConstr.kind evd e with
   | Prod (a, p1, p2) ->
     if barrow && is_arrow env evd a p1 p2 then (arrow, [|p1; p2|])
@@ -939,6 +943,7 @@ let get_operator barrow env evd e =
   | _ -> raise Not_found
 
 let decompose_app env evd e =
+  let open EConstr in
   match EConstr.kind evd e with
   | Prod (a, p1, p2) when is_arrow env evd a p1 p2 -> (arrow, [|p1; p2|])
   | App (c, a) -> (c, a)
@@ -957,6 +962,7 @@ type prop_op =
   | OTHEROP of EConstr.t * EConstr.t array
 
 let classify_prop env evd e =
+  let open EConstr in
   match EConstr.kind evd e with
   | Prod (a, p1, p2) when is_arrow env evd a p1 p2 ->
     BINOP (mk_propop IMPL arrow (force op_impl_morph), p1, p2)
@@ -1413,6 +1419,7 @@ let sat_constr c d =
       let evd = Tacmach.New.project gl in
       let env = Tacmach.New.pf_env gl in
       let hyps = Tacmach.New.pf_hyps_types gl in
+      let open EConstr in
       match EConstr.kind evd c with
       | App (c, args) ->
         if Array.length args = 2 then
@@ -1456,6 +1463,7 @@ let saturate =
       let evd = Tacmach.New.project gl in
       let env = Tacmach.New.pf_env gl in
       let rec sat t =
+        let open EConstr in
         match EConstr.kind evd t with
         | App (c, args) ->
           sat c;

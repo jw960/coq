@@ -375,8 +375,18 @@ let fold sigma f acc c =
   let f acc c = f acc (of_constr c) in
   Constr.fold f acc (unsafe_to_constr (whd_evar sigma c))
 
+let compare_head_gen_with k u eq_inst eq_sort eq_constr nargs c1 c2 =
+  let c1, c2, k = Obj.magic c1, Obj.magic c2, Obj.magic k in
+  let eq_inst, eq_sort, eq_constr = Obj.magic eq_inst, Obj.magic eq_sort, Obj.magic eq_constr in
+  compare_head_gen_with k k eq_inst eq_sort eq_constr nargs c1 c2
+
+let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq leq nargs t1 t2 =
+  let t1, t2, kind1, kind2 = Obj.(magic t1, magic t2, magic kind1, magic kind2) in
+  let leq_universes, leq_sorts, eq, leq = Obj.(magic leq_universes, magic leq_sorts, magic eq, magic leq) in
+  compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq leq nargs t1 t2
+
 let compare_gen k eq_inst eq_sort eq_constr nargs c1 c2 =
-  (c1 == c2) || Constr.compare_head_gen_with k k eq_inst eq_sort eq_constr nargs c1 c2
+  (c1 == c2) || compare_head_gen_with k k eq_inst eq_sort eq_constr nargs c1 c2
 
 let eq_constr sigma c1 c2 =
   let kind c = kind sigma c in
@@ -492,12 +502,12 @@ let test_constr_universes env sigma leq m n =
     let res =
       if leq then
         let rec compare_leq nargs m n =
-          Constr.compare_head_gen_leq_with kind kind leq_universes leq_sorts
+          compare_head_gen_leq_with kind kind leq_universes leq_sorts
             eq_constr' leq_constr' nargs m n
         and leq_constr' nargs m n = m == n || compare_leq nargs m n in
         compare_leq 0 m n
       else
-        Constr.compare_head_gen_with kind kind eq_universes eq_sorts eq_constr' 0 m n
+        compare_head_gen_with kind kind eq_universes eq_sorts eq_constr' 0 m n
     in
     if res then Some !cstrs else None
 
@@ -518,7 +528,7 @@ let compare_head_gen_proj env sigma equ eqs eqc' nargs m n =
             eqc' 0 c args.(npars)
           else false
       | _ -> false)
-  | _ -> Constr.compare_head_gen_with kind kind equ eqs eqc' nargs m n
+  | _ -> compare_head_gen_with kind kind equ eqs eqc' nargs m n
 
 let eq_constr_universes_proj env sigma m n =
   let open UnivProblem in

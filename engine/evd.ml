@@ -1333,6 +1333,37 @@ module MiniEConstr = struct
     let unsafe_to_instance t = t
   end
 
+  type kind_of_term = Constr.kind_of_term =
+    | Rel       of int                                  (** Gallina-variable introduced by [forall], [fun], [let-in], [fix], or [cofix]. *)
+    | Var       of Id.t                                 (** Gallina-variable that was introduced by Vernacular-command that extends
+                                                            the local context of the currently open section
+                                                            (i.e. [Variable] or [Let]). *)
+
+    | Meta      of metavariable
+    | Evar      of econstr pexistential
+    | Sort      of ESorts.t
+    | Cast      of econstr * cast_kind * etypes
+    | Prod      of Name.t Context.binder_annot * etypes * etypes             (** Concrete syntax ["forall A:B,C"] is represented as [Prod (A,B,C)]. *)
+    | Lambda    of Name.t Context.binder_annot * etypes * econstr            (** Concrete syntax ["fun A:B => C"] is represented as [Lambda (A,B,C)].  *)
+    | LetIn     of Name.t Context.binder_annot * econstr * etypes * econstr  (** Concrete syntax ["let A:C := B in D"] is represented as [LetIn (A,B,C,D)]. *)
+    | App       of econstr * econstr array              (** Concrete syntax ["(F P1 P2 ...  Pn)"] is represented as [App (F, [|P1; P2; ...; Pn|])].
+
+                                                            The {!mkApp} constructor also enforces the following invariant:
+                                                          - [F] itself is not {!App}
+                                                          - and [[|P1;..;Pn|]] is not empty. *)
+
+    | Const     of (Constant.t * EInstance.t)                  (** Gallina-variable that was introduced by Vernacular-command that extends the global environment
+                                                                       (i.e. [Parameter], or [Axiom], or [Definition], or [Theorem] etc.) *)
+
+    | Ind       of (inductive * EInstance.t)                 (** A name of an inductive type defined by [Variant], [Inductive] or [Record] Vernacular-commands. *)
+    | Construct of (constructor * EInstance.t)              (** A constructor of an inductive type defined by [Variant], [Inductive] or [Record] Vernacular-commands. *)
+    | Case      of case_info * econstr * econstr * econstr array
+    | Fix       of (econstr, etypes) pfixpoint
+    | CoFix     of (econstr, etypes) pcofixpoint
+    | Proj      of Projection.t * econstr
+    | Int       of Uint63.t
+    | Float     of Float64.t
+
   type t = econstr
 
   let safe_evar_value sigma ev =

@@ -60,13 +60,44 @@ end
 
 type 'a puniverses = 'a * EInstance.t
 
+type kind_of_term =
+    | Rel       of int                                  (** Gallina-variable introduced by [forall], [fun], [let-in], [fix], or [cofix]. *)
+    | Var       of Id.t                                 (** Gallina-variable that was introduced by Vernacular-command that extends
+                                                            the local context of the currently open section
+                                                            (i.e. [Variable] or [Let]). *)
+
+    | Meta      of metavariable
+    | Evar      of constr pexistential
+    | Sort      of ESorts.t
+    | Cast      of constr * cast_kind * types
+    | Prod      of Name.t Context.binder_annot * types * types             (** Concrete syntax ["forall A:B,C"] is represented as [Prod (A,B,C)]. *)
+    | Lambda    of Name.t Context.binder_annot * types * constr            (** Concrete syntax ["fun A:B => C"] is represented as [Lambda (A,B,C)].  *)
+    | LetIn     of Name.t Context.binder_annot * constr * types * constr  (** Concrete syntax ["let A:C := B in D"] is represented as [LetIn (A,B,C,D)]. *)
+    | App       of constr * constr array              (** Concrete syntax ["(F P1 P2 ...  Pn)"] is represented as [App (F, [|P1; P2; ...; Pn|])].
+
+                                                            The {!mkApp} constructor also enforces the following invariant:
+                                                          - [F] itself is not {!App}
+                                                          - and [[|P1;..;Pn|]] is not empty. *)
+
+    | Const     of (Constant.t * EInstance.t)                  (** Gallina-variable that was introduced by Vernacular-command that extends the global environment
+                                                                       (i.e. [Parameter], or [Axiom], or [Definition], or [Theorem] etc.) *)
+
+    | Ind       of (inductive * EInstance.t)                 (** A name of an inductive type defined by [Variant], [Inductive] or [Record] Vernacular-commands. *)
+    | Construct of (constructor * EInstance.t)              (** A constructor of an inductive type defined by [Variant], [Inductive] or [Record] Vernacular-commands. *)
+    | Case      of case_info * constr * constr * constr array
+    | Fix       of (constr, types) pfixpoint
+    | CoFix     of (constr, types) pcofixpoint
+    | Proj      of Projection.t * constr
+    | Int       of Uint63.t
+    | Float     of Float64.t
+
 (** {5 Destructors} *)
 
-val kind : Evd.evar_map -> t -> (t, t, ESorts.t, EInstance.t) Constr.kind_of_term
+val kind : Evd.evar_map -> t -> kind_of_term
 (** Same as {!Constr.kind} except that it expands evars and normalizes
     universes on the fly. *)
 
-val kind_upto : Evd.evar_map -> Constr.t -> (Constr.t, Constr.t, Sorts.t, Univ.Instance.t) Constr.kind_of_term
+val kind_upto : Evd.evar_map -> Constr.t -> kind_of_term
 
 val to_constr : ?abort_on_undefined_evars:bool -> Evd.evar_map -> t -> Constr.t
 (** Returns the evar-normal form of the argument. Note that this
@@ -91,7 +122,7 @@ val kind_of_type : Evd.evar_map -> t -> kind_of_type
 
 (** {5 Constructors} *)
 
-val of_kind : (t, t, ESorts.t, EInstance.t) Constr.kind_of_term -> t
+val of_kind : kind_of_term -> t
 (** Construct a term from a view. *)
 
 val of_constr : Constr.t -> t

@@ -138,12 +138,11 @@ let construct_of_constr_notnative const env tag (mind, _ as ind) u allargs =
   let ctyp = type_constructor mind mib u (mip.mind_nf_lc.(i-1)) params in
   (mkApp(mkConstructU((ind,i),u), params), ctyp)
 
-
 let construct_of_constr const env sigma tag typ =
   let t, l = app_type env typ in
   match EConstr.kind_upto sigma t with
-  | Ind (ind,u) ->
-      construct_of_constr_notnative const env tag ind u l
+  | EConstr.Ind (ind,u) ->
+    construct_of_constr_notnative const env tag ind (Obj.magic u) l
   | _ ->
     assert (Constr.equal t (Typeops.type_of_int env));
     (mkInt (Uint63.of_int tag), t)

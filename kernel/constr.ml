@@ -85,35 +85,33 @@ type pconstructor = constructor puniverses
 
 (* [Var] is used for named variables and [Rel] for variables as
    de Bruijn indices. *)
-type ('constr, 'types, 'sort, 'univs) kind_of_term =
+type kind_of_term =
   | Rel       of int
   | Var       of Id.t
   | Meta      of metavariable
-  | Evar      of 'constr pexistential
-  | Sort      of 'sort
-  | Cast      of 'constr * cast_kind * 'types
-  | Prod      of Name.t binder_annot * 'types * 'types
-  | Lambda    of Name.t binder_annot * 'types * 'constr
-  | LetIn     of Name.t binder_annot * 'constr * 'types * 'constr
-  | App       of 'constr * 'constr array
-  | Const     of (Constant.t * 'univs)
-  | Ind       of (inductive * 'univs)
-  | Construct of (constructor * 'univs)
-  | Case      of case_info * 'constr * 'constr * 'constr array
-  | Fix       of ('constr, 'types) pfixpoint
-  | CoFix     of ('constr, 'types) pcofixpoint
-  | Proj      of Projection.t * 'constr
+  | Evar      of kind_of_term pexistential
+  | Sort      of Sorts.t
+  | Cast      of kind_of_term * cast_kind * kind_of_term
+  | Prod      of Name.t binder_annot * kind_of_term * kind_of_term
+  | Lambda    of Name.t binder_annot * kind_of_term * kind_of_term
+  | LetIn     of Name.t binder_annot * kind_of_term * kind_of_term * kind_of_term
+  | App       of kind_of_term * kind_of_term array
+  | Const     of (Constant.t * Univ.Instance.t)
+  | Ind       of (inductive * Univ.Instance.t)
+  | Construct of (constructor * Univ.Instance.t)
+  | Case      of case_info * kind_of_term * kind_of_term * kind_of_term array
+  | Fix       of (kind_of_term, kind_of_term) pfixpoint
+  | CoFix     of (kind_of_term, kind_of_term) pcofixpoint
+  | Proj      of Projection.t * kind_of_term
   | Int       of Uint63.t
   | Float     of Float64.t
 (* constr is the fixpoint of the previous type. Requires option
    -rectypes of the Caml compiler to be set *)
-type t = (t, t, Sorts.t, Instance.t) kind_of_term
+type t = kind_of_term
 type constr = t
-
-type existential = existential_key * constr array
-
 type types = constr
 
+type existential = existential_key * constr array
 type rec_declaration = (constr, types) prec_declaration
 type fixpoint = (constr, types) pfixpoint
 type cofixpoint = (constr, types) pcofixpoint
@@ -846,10 +844,10 @@ let fold_with_full_binders g f n acc c =
       Array.fold_left (fun acc (t,b) -> f n' (f n acc t) b) acc fd
 
 
-type 'univs instance_compare_fn = GlobRef.t -> int ->
-  'univs -> 'univs -> bool
+type instance_compare_fn = GlobRef.t -> int ->
+  Univ.Instance.t -> Univ.Instance.t -> bool
 
-type 'constr constr_compare_fn = int -> 'constr -> 'constr -> bool
+type constr_compare_fn = int -> constr -> constr -> bool
 
 (* [compare_head_gen_evar k1 k2 u s e eq leq c1 c2] compare [c1] and
    [c2] (using [k1] to expose the structure of [c1] and [k2] to expose

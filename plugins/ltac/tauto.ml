@@ -8,7 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-open Constr
 open EConstr
 open Hipattern
 open Names

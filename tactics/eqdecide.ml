@@ -17,7 +17,6 @@
 open Util
 open Names
 open Namegen
-open Constr
 open Context
 open EConstr
 open Declarations

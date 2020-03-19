@@ -14,7 +14,6 @@ open Util
 open Names
 open Termops
 open Environ
-open Constr
 open Context
 open EConstr
 open Vars

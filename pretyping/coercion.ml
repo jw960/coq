@@ -20,7 +20,6 @@ open CErrors
 open Util
 open Names
 open Term
-open Constr
 open Context
 open Environ
 open EConstr

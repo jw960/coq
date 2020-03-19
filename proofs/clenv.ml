@@ -14,7 +14,6 @@ open Util
 open Names
 open Nameops
 open Termops
-open Constr
 open Context
 open Namegen
 open Environ

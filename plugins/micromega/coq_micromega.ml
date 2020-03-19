@@ -22,7 +22,6 @@ open Pp
 open Names
 open Goptions
 open Mutils
-open Constr
 open Context
 open Tactypes
 
@@ -429,6 +428,7 @@ module M = struct
   (* A simple but useful getter function *)
 
   let get_left_construct sigma term =
+    let open EConstr in
     match EConstr.kind sigma term with
     | Construct ((_, i), _) -> (i, [||])
     | App (l, rst) -> (
@@ -484,6 +484,7 @@ module M = struct
    *)
 
   let is_declared_term env evd t =
+    let open EConstr in
     match EConstr.kind evd t with
     | Const _ | Construct _ -> (
       (* Restrict typeclass resolution to trivial cases *)
@@ -497,6 +498,7 @@ module M = struct
     | _ -> false
 
   let rec is_ground_term env evd term =
+    let open EConstr in
     match EConstr.kind evd term with
     | App (c, args) ->
       is_declared_term env evd c && Array.for_all (is_ground_term env evd) args
@@ -526,6 +528,7 @@ module M = struct
       , [|dump_z q.Micromega.qnum; dump_positive q.Micromega.qden|] )
 
   let parse_q sigma term =
+    let open EConstr in
     match EConstr.kind sigma term with
     | App (c, args) ->
       if EConstr.eq_constr sigma c (Lazy.force coq_Qmake) then
@@ -864,6 +867,7 @@ module M = struct
       in
       try (Mc.PEc (parse_constant gl term), env)
       with ParseError -> (
+        let open EConstr in
         match EConstr.kind gl.sigma term with
         | App (t, args) -> (
           match EConstr.kind gl.sigma t with
@@ -962,6 +966,7 @@ module M = struct
   let rconstant gl term =
     let sigma = gl.sigma in
     let rec rconstant term =
+      let open EConstr in
       match EConstr.kind sigma term with
       | Const x ->
         if EConstr.eq_constr sigma term (Lazy.force coq_R0) then Mc.C0
@@ -1035,6 +1040,7 @@ module M = struct
         ( Pp.str "parse_arith: "
         ++ Printer.pr_leconstr_env gl.env sigma cstr
         ++ fnl () );
+    let open EConstr in
     match EConstr.kind sigma cstr with
     | App (op, args) ->
       let op, lhs, rhs = parse_op gl (op, args) in
@@ -1076,6 +1082,7 @@ module M = struct
         if is_prop t then (Mc.X t, env, tg) else raise ParseError
     in
     let rec xparse_formula env tg term =
+      let open EConstr in
       match EConstr.kind sigma term with
       | App (l, rst) -> (
         match rst with

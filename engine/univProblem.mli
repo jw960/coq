@@ -50,6 +50,6 @@ val to_constraints : force_weak:bool -> UGraph.t -> Set.t -> Constraint.t
     {!eq_constr_univs_infer} taking kind-of-term functions, to expose
     subterms of [m] and [n], arguments. *)
 val eq_constr_univs_infer_with :
-  (constr -> (constr, types, Sorts.t, Univ.Instance.t) kind_of_term) ->
-  (constr -> (constr, types, Sorts.t, Univ.Instance.t) kind_of_term) ->
+  (constr -> kind_of_term) ->
+  (constr -> kind_of_term) ->
   UGraph.t -> 'a accumulator -> constr -> constr -> 'a -> 'a option

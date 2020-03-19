@@ -12,7 +12,6 @@ open Sorts
 open Util
 open Pp
 open Names
-open Constr
 open Context
 open Termops
 open EConstr

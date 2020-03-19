@@ -9,7 +9,6 @@
 (************************************************************************)
 
 open Miniml
-open Constr
 open Declarations
 open Names
 open ModPath
@@ -120,6 +119,7 @@ let get_body lbody =
 let check_fix env sg cb i =
   match cb.const_body with
     | Def lbody ->
+      let open EConstr in
         (match EConstr.kind sg (get_body lbody) with
           | Fix ((_,j),recd) when Int.equal i j -> check_arity env cb; (true,recd)
           | CoFix (j,recd) when Int.equal i j -> check_arity env cb; (false,recd)

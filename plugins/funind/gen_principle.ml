@@ -499,7 +499,7 @@ let generate_type evd g_to_f f graph i =
 *)
 let find_induction_principle evd f =
   let f_as_constant,u =  match EConstr.kind !evd f with
-    | Constr.Const c' -> c'
+    | EConstr.Const c' -> c'
     | _ -> CErrors.user_err Pp.(str "Must be used with a function")
   in
   match find_Function_infos f_as_constant with
@@ -546,7 +546,6 @@ let rec generate_fresh_id x avoid i =
     id::(generate_fresh_id x (id::avoid) (pred i))
 
 let prove_fun_correct evd funs_constr graphs_constr schemes lemmas_types_infos i : Tacmach.tactic =
-  let open Constr in
   let open EConstr in
   let open Context.Rel.Declaration in
   let open Tacmach in
@@ -830,7 +829,6 @@ let generalize_dependent_of x hyp g =
 let rec intros_with_rewrite g =
   observe_tac "intros_with_rewrite" intros_with_rewrite_aux g
 and intros_with_rewrite_aux : Tacmach.tactic =
-  let open Constr in
   let open EConstr in
   let open Tacmach in
   let open Tactics in
@@ -924,7 +922,6 @@ and intros_with_rewrite_aux : Tacmach.tactic =
     | _ -> tclIDTAC g
 
 let rec reflexivity_with_destruct_cases g =
-  let open Constr in
   let open EConstr in
   let open Tacmach in
   let open Tactics in

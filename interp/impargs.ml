@@ -12,7 +12,6 @@ open CErrors
 open Pp
 open Util
 open Names
-open Constr
 open Globnames
 open Glob_term
 open Declarations
