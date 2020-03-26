@@ -148,7 +148,7 @@ let prepare_proof { proof } =
   let eff = Evd.eval_side_effects evd in
   let evd = Evd.minimize_universes evd in
   let proof_opt c =
-    match EConstr.to_constr_opt evd c with
+    match EConstr.to_constr_opt_and_univs evd c with
     | Some p -> p
     | None -> CErrors.user_err Pp.(str "Some unresolved existential variables remain")
   in
@@ -173,13 +173,11 @@ let close_proof ~opaque ~keep_body_ucst_separate ps =
   let { Proof.name; poly } = Proof.data proof in
   let opaque = match opaque with Opaque -> true | Transparent -> false in
 
-  let make_entry ((body, eff), typ) =
+  let make_entry (((used_univs_body,body), eff), (used_univs_typ,typ)) =
     let allow_deferred =
       not poly && (keep_body_ucst_separate ||
                    not (Safe_typing.empty_private_constants = eff.Evd.seff_private))
     in
-    let used_univs_body = Vars.universes_of_constr body in
-    let used_univs_typ = Vars.universes_of_constr typ in
     let used_univs = Univ.LSet.union used_univs_body used_univs_typ in
     let utyp, ubody =
       if allow_deferred then
@@ -266,7 +264,7 @@ let return_partial_proof { proof } =
 
 let return_proof ps =
   let p, uctx = prepare_proof ps in
-  List.map fst p, uctx
+  List.map (fun (((_,b),eff),_) -> (b,eff)) p, uctx
 
 let close_future_proof ~opaque ~feedback_id ps proof =
   close_proof_delayed ~opaque ~keep_body_ucst_separate:true ~feedback_id proof ps
