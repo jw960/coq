@@ -440,7 +440,7 @@ let finalize_proof idopt proof_obj proof_info =
 
 let save_lemma_proved ~lemma ~opaque ~idopt =
   (* Env and sigma are just used for error printing in save_remaining_recthms *)
-  let proof_obj = Proof_global.close_proof ~opaque ~keep_body_ucst_separate:false (fun x -> x) lemma.proof in
+  let proof_obj = Proof_global.close_proof ~opaque ~keep_body_ucst_separate:false lemma.proof in
   finalize_proof idopt proof_obj lemma.info
 
 (***********************************************************************)
