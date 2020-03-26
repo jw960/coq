@@ -372,9 +372,8 @@ let declare_definition prg =
   let obls = List.map (fun (id, (_, c)) -> (id, c)) varsubst in
   (* XXX: This is doing normalization twice *)
   let () = progmap_remove prg in
-  let kn =
-    DeclareDef.declare_definition ~name ~scope ~kind ~impargs ?hook ~obls
-      ~fix_exn ~opaque ~poly ~udecl ~types ~body sigma
+  let info = DeclareDef.Info.make ~scope ~kind ~impargs ?hook ~obls ~fix_exn ~opaque ~poly ~udecl () in
+  let kn = DeclareDef.declare_definition ~name ~info ~types ~body sigma
   in
   kn
 
@@ -444,10 +443,10 @@ let declare_mutual_definition l =
   let poly, scope, ntns, opaque = first.prg_poly, first.prg_scope, first.prg_notations, first.prg_opaque in
   let kind = if fixkind != IsCoFixpoint then Decls.(IsDefinition Fixpoint) else Decls.(IsDefinition CoFixpoint) in
   (* Declare the recursive definitions *)
-  let udecl = UState.default_univ_decl in
+  let info = DeclareDef.Info.make ~scope ~opaque ~kind ~poly () in
   let kns =
-    DeclareDef.declare_mutually_recursive ~scope ~opaque ~kind
-      ~udecl ~ntns ~uctx:first.prg_ctx ~rec_declaration ~possible_indexes ~poly
+    DeclareDef.declare_mutually_recursive ~info
+      ~ntns ~uctx:first.prg_ctx ~rec_declaration ~possible_indexes
       ~restrict_ucontext:false fixitems
   in
   (* Only for the first constant *)

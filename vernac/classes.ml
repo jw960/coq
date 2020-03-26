@@ -311,12 +311,12 @@ let instance_hook info global ?hook cst =
   declare_instance env sigma (Some info) (not global) cst;
   (match hook with Some h -> h cst | None -> ())
 
-let declare_instance_constant info global impargs ?hook name udecl poly sigma term termtype =
+let declare_instance_constant instance_info global impargs ?hook name udecl poly sigma body termtype =
   let kind = Decls.(IsDefinition Instance) in
   let scope = DeclareDef.Global Declare.ImportDefaultBehavior in
-  let kn = DeclareDef.declare_definition ~name ~kind ~scope ~impargs
-      ~opaque:false ~poly sigma ~udecl ~types:(Some termtype) ~body:term in
-  instance_hook info global ?hook kn
+  let info = DeclareDef.Info.make ~kind ~scope ~impargs ~opaque:false ~poly ~udecl () in
+  let kn = DeclareDef.declare_definition ~name ~info ~types:(Some termtype) ~body sigma in
+  instance_hook instance_info global ?hook kn
 
 let do_declare_instance sigma ~global ~poly k u ctx ctx' pri udecl impargs subst name =
   let subst = List.fold_left2

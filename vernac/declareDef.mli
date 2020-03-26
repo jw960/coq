@@ -51,6 +51,25 @@ val declare_entry
   -> Evd.side_effects Declare.proof_entry
   -> GlobRef.t
 
+module Info : sig
+
+  type t
+
+  val make :
+    ?poly:bool
+    -> ?opaque : bool
+    -> ?inline : bool
+    -> ?kind : Decls.logical_kind
+    -> ?udecl : UState.universe_decl
+    -> ?scope : locality
+    -> ?impargs : Impargs.manual_implicits
+    -> ?hook : Hook.t
+    -> ?obls : (Id.t * Constr.t) list
+    -> ?fix_exn : (Exninfo.iexn -> Exninfo.iexn)
+    -> unit -> t
+
+end
+
 (** Declares a non-interactive constant; [body] and [types] will be
    normalized w.r.t. the passed [evar_map] [sigma]. Universes should
    be handled properly, including minimization and restriction. Note
@@ -58,19 +77,10 @@ val declare_entry
    careful not to submit open terms or evar maps with stale,
    unresolved existentials *)
 val declare_definition
-  :  name:Id.t
-  -> scope:locality
-  -> kind:Decls.logical_kind
-  -> opaque:bool
-  -> impargs:Impargs.manual_implicits
-  -> udecl:UState.universe_decl
-  -> ?hook:Hook.t
-  -> ?obls:(Id.t * Constr.t) list
-  -> poly:bool
-  -> ?inline:bool
+  : name:Id.t
+  -> info:Info.t
   -> types:EConstr.t option
   -> body:EConstr.t
-  -> ?fix_exn:(Exninfo.iexn -> Exninfo.iexn)
   -> Evd.evar_map
   -> GlobRef.t
 
@@ -98,15 +108,11 @@ module Recthm : sig
 end
 
 val declare_mutually_recursive
-  : opaque:bool
-  -> scope:locality
-  -> kind:Decls.logical_kind
-  -> poly:bool
-  -> uctx:UState.t
-  -> udecl:UState.universe_decl
+  : info:Info.t
   -> ntns:Vernacexpr.decl_notation list
-  -> rec_declaration:Constr.rec_declaration
+  -> uctx:UState.t
   -> possible_indexes:int list list option
+  -> rec_declaration:Constr.rec_declaration
   -> ?restrict_ucontext:bool
   (** XXX: restrict_ucontext should be always true, this seems like a
      bug in obligations, so this parameter should go away *)
