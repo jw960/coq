@@ -141,7 +141,7 @@ let private_poly_univs =
   fun () -> !b
 
 (* XXX: This is still separate from close_proof below due to drop_pt in the STM *)
-let return_proof { proof } =
+let prepare_proof { proof } =
   let Proof.{name=pid;entry} = Proof.data proof in
   let initial_goals = Proofview.initial_goals entry in
   let evd = Proof.return ~pid proof in
@@ -164,31 +164,20 @@ let return_proof { proof } =
      equations and so far there is no code in the CI that will
      actually call those and do a side-effect, TTBOMK *)
   (* EJGA: likely the right solution is to attach side effects to the first constant only? *)
-  let proofs = List.map (fun (c, _) -> (proof_opt c, eff)) initial_goals in
+  let proofs = List.map (fun (body, typ) -> (proof_opt body, eff), proof_opt typ) initial_goals in
   proofs, Evd.evar_universe_context evd
 
 let close_proof ~opaque ~keep_body_ucst_separate ps =
-  let elist, uctx = return_proof ps in
+  let elist, uctx = prepare_proof ps in
   let { section_vars; proof; udecl; initial_euctx } = ps in
-  let { Proof.name; poly; entry; sigma } = Proof.data proof in
+  let { Proof.name; poly } = Proof.data proof in
   let opaque = match opaque with Opaque -> true | Transparent -> false in
 
-  (* Because of dependent subgoals at the beginning of proofs, we could
-     have existential variables in the initial types of goals, we need to
-     normalise them for the kernel. *)
-  let subst_evar k = Evd.existential_opt_value0 sigma k in
-  let nf = UnivSubst.nf_evars_and_universes_opt_subst subst_evar (UState.subst uctx) in
-
-  let make_entry (body, eff) (_, typ) =
+  let make_entry ((body, eff), typ) =
     let allow_deferred =
       not poly && (keep_body_ucst_separate ||
                    not (Safe_typing.empty_private_constants = eff.Evd.seff_private))
     in
-    (* EJGA: Why are we doing things this way? *)
-    let typ = EConstr.Unsafe.to_constr typ in
-    let typ = if allow_deferred then typ else nf typ in
-    (* EJGA: End "Why are we doing things this way?" *)
-
     let used_univs_body = Vars.universes_of_constr body in
     let used_univs_typ = Vars.universes_of_constr typ in
     let used_univs = Univ.LSet.union used_univs_body used_univs_typ in
@@ -223,7 +212,7 @@ let close_proof ~opaque ~keep_body_ucst_separate ps =
     in
     Declare.definition_entry ~opaque ?section_vars ~univs:utyp ~univc:ubody ~types:typ ~eff body
   in
-  let entries = CList.map2 make_entry elist (Proofview.initial_goals entry) in
+  let entries = CList.map make_entry elist  in
   { name; entries; uctx; udecl }
 
 let close_proof_delayed ~opaque ~keep_body_ucst_separate ?feedback_id
@@ -274,6 +263,10 @@ let return_partial_proof { proof } =
      thereafter... *)
  let proofs = List.map (fun c -> EConstr.Unsafe.to_constr c, eff) proofs in
  proofs, Evd.evar_universe_context evd
+
+let return_proof ps =
+  let p, uctx = prepare_proof ps in
+  List.map fst p, uctx
 
 let close_future_proof ~opaque ~feedback_id ps proof =
   close_proof_delayed ~opaque ~keep_body_ucst_separate:true ~feedback_id proof ps
