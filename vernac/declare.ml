@@ -194,57 +194,61 @@ let prepare_proof ~unsafe_typ { proof } =
   let proofs = List.map (fun (body, typ) -> (to_constr_body body, eff), to_constr_typ typ) initial_goals in
   proofs, Evd.evar_universe_context evd
 
-let close_proof ~opaque ~keep_body_ucst_separate ps =
-
-  let { section_vars; proof; udecl; initial_euctx } = ps in
+let close_proof_gen ~make_entry ~opaque ~keep_body_ucst_separate ps =
+  let { proof; _ } = ps in
   let { Proof.name; poly } = Proof.data proof in
   let unsafe_typ = keep_body_ucst_separate && not poly in
   let elist, uctx = prepare_proof ~unsafe_typ ps in
   let opaque = match opaque with Opaque -> true | Transparent -> false in
-
-  let make_entry ((body, eff), typ) =
-
-    let allow_deferred =
-      not poly &&
-      (keep_body_ucst_separate
-       || not (Safe_typing.is_empty_private_constants eff.Evd.seff_private))
-    in
-    let used_univs_body = Vars.universes_of_constr body in
-    let used_univs_typ = Vars.universes_of_constr typ in
-    let used_univs = Univ.LSet.union used_univs_body used_univs_typ in
-    let utyp, ubody =
-      if allow_deferred then
-        let utyp = UState.univ_entry ~poly initial_euctx in
-        let uctx = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
-        (* For vi2vo compilation proofs are computed now but we need to
-           complement the univ constraints of the typ with the ones of
-           the body.  So we keep the two sets distinct. *)
-        let uctx_body = UState.restrict uctx used_univs in
-        let ubody = UState.check_mono_univ_decl uctx_body udecl in
-        utyp, ubody
-      else if poly && opaque && private_poly_univs () then
-        let universes = UState.restrict uctx used_univs in
-        let typus = UState.restrict universes used_univs_typ in
-        let utyp = UState.check_univ_decl ~poly typus udecl in
-        let ubody = Univ.ContextSet.diff
-            (UState.context_set universes)
-            (UState.context_set typus)
-        in
-        utyp, ubody
-      else
-        (* Since the proof is computed now, we can simply have 1 set of
-           constraints in which we merge the ones for the body and the ones
-           for the typ. We recheck the declaration after restricting with
-           the actually used universes.
-           TODO: check if restrict is really necessary now. *)
-        let ctx = UState.restrict uctx used_univs in
-        let utyp = UState.check_univ_decl ~poly ctx udecl in
-        utyp, Univ.ContextSet.empty
-    in
-    definition_entry ~opaque ?section_vars ~univs:utyp ~univsbody:ubody ~types:typ ~eff body
-  in
+  let make_entry = make_entry ~ps ~poly ~opaque ~uctx in
   let entries = CList.map make_entry elist  in
   { name; entries; uctx }
+
+let regular_entry ~ps ~poly ~opaque ~uctx ((body, eff), typ) : _ proof_entry =
+
+  let { section_vars; proof; udecl; initial_euctx } = ps in
+
+  let used_univs_body = Vars.universes_of_constr body in
+  let used_univs_typ = Vars.universes_of_constr typ in
+  let used_univs = Univ.LSet.union used_univs_body used_univs_typ in
+  let utyp, ubody =
+    if poly && opaque && private_poly_univs () then
+      let universes = UState.restrict uctx used_univs in
+      let typus = UState.restrict universes used_univs_typ in
+      let utyp = UState.check_univ_decl ~poly typus udecl in
+      let ubody = Univ.ContextSet.diff
+          (UState.context_set universes)
+          (UState.context_set typus)
+      in
+      utyp, ubody
+    else
+      (* Since the proof is computed now, we can simply have 1 set of
+         constraints in which we merge the ones for the body and the ones
+         for the typ. We recheck the declaration after restricting with
+         the actually used universes.
+         TODO: check if restrict is really necessary now. *)
+      let ctx = UState.restrict uctx used_univs in
+      let utyp = UState.check_univ_decl ~poly ctx udecl in
+      utyp, Univ.ContextSet.empty
+  in
+  definition_entry ~opaque ?section_vars ~univs:utyp ~univsbody:ubody ~types:typ ~eff body
+
+let vio_entry ~ps ~poly ~opaque ~uctx ((body, eff), typ) =
+  let { section_vars; udecl; initial_euctx } = ps in
+  let used_univs_body = Vars.universes_of_constr body in
+  let used_univs_typ = Vars.universes_of_constr typ in
+  let used_univs = Univ.LSet.union used_univs_body used_univs_typ in
+  let utyp = UState.univ_entry ~poly initial_euctx in
+  let uctx = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
+  (* For vi2vo compilation proofs are computed now but we need to
+     complement the univ constraints of the typ with the ones of
+     the body.  So we keep the two sets distinct. *)
+  let uctx_body = UState.restrict uctx used_univs in
+  let ubody = UState.check_mono_univ_decl uctx_body udecl in
+  definition_entry ~opaque ?section_vars ~univs:utyp ~univsbody:ubody ~types:typ ~eff body
+
+let close_proof = close_proof_gen ~make_entry:regular_entry ~keep_body_ucst_separate:false
+let close_vio_proof = close_proof_gen ~make_entry:vio_entry ~keep_body_ucst_separate:true ~opaque:Opaque
 
 type 'a constant_entry =
   | DefinitionEntry of 'a proof_entry
@@ -752,7 +756,7 @@ let build_constant_by_tactic ~name ?(opaque=Transparent) ~uctx ~sign ~poly typ t
   let goals = [ (Global.env_of_context sign , typ) ] in
   let pf = start_proof ~name ~poly ~udecl:UState.default_univ_decl evd goals in
   let pf, status = by tac pf in
-  let { entries; uctx } = close_proof ~opaque ~keep_body_ucst_separate:false pf in
+  let { entries; uctx } = close_proof ~opaque pf in
   match entries with
   | [entry] ->
     entry, status, uctx
@@ -1970,7 +1974,7 @@ let process_idopt_for_save ~idopt info =
 
 let save_lemma_proved ~proof ~info ~opaque ~idopt =
   (* Env and sigma are just used for error printing in save_remaining_recthms *)
-  let proof_obj = close_proof ~opaque ~keep_body_ucst_separate:false proof in
+  let proof_obj = close_proof ~opaque proof in
   let proof_info = process_idopt_for_save ~idopt info in
   finalize_proof proof_obj proof_info
 
