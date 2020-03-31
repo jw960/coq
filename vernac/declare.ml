@@ -171,13 +171,17 @@ let prepare_proof ~unsafe_typ { proof } =
   let evd = Proof.return ~pid proof in
   let eff = Evd.eval_side_effects evd in
   let evd = Evd.minimize_universes evd in
-  let to_constr_body c =
+  let to_constr_and_uvars_body c =
     match EConstr.to_constr_opt evd c with
-    | Some p -> p
-    | None -> CErrors.user_err Pp.(str "Some unresolved existential variables remain")
+    | Some p -> Vars.universes_of_constr p, p
+    | None ->
+      CErrors.user_err Pp.(str "Some unresolved existential variables remain")
   in
-  let to_constr_typ t =
-    if unsafe_typ then EConstr.Unsafe.to_constr t else to_constr_body t
+  let to_constr_and_uvars_typ typ =
+    if unsafe_typ then
+      let typ = EConstr.Unsafe.to_constr typ in
+      Vars.universes_of_constr typ, typ
+    else to_constr_and_uvars_body typ
   in
   (* ppedrot: FIXME, this is surely wrong. There is no reason to duplicate
      side-effects... This may explain why one need to uniquize side-effects
@@ -191,7 +195,9 @@ let prepare_proof ~unsafe_typ { proof } =
      equations and so far there is no code in the CI that will
      actually call those and do a side-effect, TTBOMK *)
   (* EJGA: likely the right solution is to attach side effects to the first constant only? *)
-  let proofs = List.map (fun (body, typ) -> (to_constr_body body, eff), to_constr_typ typ) initial_goals in
+  let proofs = List.map (fun (body, typ) ->
+    ( to_constr_and_uvars_body body, eff)
+    , to_constr_and_uvars_typ typ) initial_goals in
   proofs, Evd.evar_universe_context evd
 
 let close_proof_gen ~make_entry ~opaque ~keep_body_ucst_separate ps =
@@ -204,12 +210,11 @@ let close_proof_gen ~make_entry ~opaque ~keep_body_ucst_separate ps =
   let entries = CList.map make_entry elist  in
   { name; entries; uctx }
 
-let regular_entry ~ps ~poly ~opaque ~uctx ((body, eff), typ) : _ proof_entry =
+let regular_entry ~ps ~poly ~opaque ~uctx
+    (((used_univs_body,body), eff), (used_univs_typ, typ)) =
 
   let { section_vars; proof; udecl; initial_euctx } = ps in
 
-  let used_univs_body = Vars.universes_of_constr body in
-  let used_univs_typ = Vars.universes_of_constr typ in
   let used_univs = Univ.LSet.union used_univs_body used_univs_typ in
   let utyp, ubody =
     if poly && opaque && private_poly_univs () then
@@ -233,10 +238,9 @@ let regular_entry ~ps ~poly ~opaque ~uctx ((body, eff), typ) : _ proof_entry =
   in
   definition_entry ~opaque ?section_vars ~univs:utyp ~univsbody:ubody ~types:typ ~eff body
 
-let vio_entry ~ps ~poly ~opaque ~uctx ((body, eff), typ) =
+let vio_entry ~ps ~poly ~opaque ~uctx
+    (((used_univs_body,body), eff), (used_univs_typ, typ)) =
   let { section_vars; udecl; initial_euctx } = ps in
-  let used_univs_body = Vars.universes_of_constr body in
-  let used_univs_typ = Vars.universes_of_constr typ in
   let used_univs = Univ.LSet.union used_univs_body used_univs_typ in
   let utyp = UState.univ_entry ~poly initial_euctx in
   let uctx = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
@@ -744,7 +748,7 @@ let return_partial_proof { proof } =
 
 let return_proof ps =
   let p, uctx = prepare_proof ~unsafe_typ:false ps in
-  List.map fst p, uctx
+  List.map (fun (((_,body),eff),_) -> body, eff) p, uctx
 
 let update_global_env =
   map_proof (fun p ->
