@@ -216,14 +216,14 @@ let regular_entry ~ps ~poly ~opaque ~uctx
   let { section_vars; proof; udecl; initial_euctx } = ps in
 
   let used_univs = Univ.LSet.union used_univs_body used_univs_typ in
+  let uctx = UState.restrict uctx used_univs in
   let utyp, ubody =
     if poly && opaque && private_poly_univs () then
-      let universes = UState.restrict uctx used_univs in
-      let typus = UState.restrict universes used_univs_typ in
-      let utyp = UState.check_univ_decl ~poly typus udecl in
+      let uctx_typ = UState.restrict uctx used_univs_typ in
+      let utyp = UState.check_univ_decl ~poly uctx_typ udecl in
       let ubody = Univ.ContextSet.diff
-          (UState.context_set universes)
-          (UState.context_set typus)
+          (UState.context_set uctx)
+          (UState.context_set uctx_typ)
       in
       utyp, ubody
     else
@@ -232,8 +232,7 @@ let regular_entry ~ps ~poly ~opaque ~uctx
          for the typ. We recheck the declaration after restricting with
          the actually used universes.
          TODO: check if restrict is really necessary now. *)
-      let ctx = UState.restrict uctx used_univs in
-      let utyp = UState.check_univ_decl ~poly ctx udecl in
+      let utyp = UState.check_univ_decl ~poly uctx udecl in
       utyp, Univ.ContextSet.empty
   in
   definition_entry ~opaque ?section_vars ~univs:utyp ~univsbody:ubody ~types:typ ~eff body
