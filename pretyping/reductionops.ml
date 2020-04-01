@@ -45,8 +45,8 @@ let effect_table = ref String.Map.empty
 let reduction_effect_hook env sigma con c =
   try
     let funkey = Cmap.find con !constant_effect_table in
-    let effect = String.Map.find funkey !effect_table in
-    effect env sigma (Lazy.force c)
+    let perform_effect = String.Map.find funkey !effect_table in
+    perform_effect env sigma (Lazy.force c)
   with Not_found -> ()
 
 let cache_reduction_effect (_,(con,funkey)) =
