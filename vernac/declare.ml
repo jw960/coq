@@ -247,6 +247,12 @@ let vio_entry ~ps ~poly ~opaque ~uctx ((body, eff), typ) =
   let ubody = UState.check_mono_univ_decl uctx_body udecl in
   definition_entry ~opaque ?section_vars ~univs:utyp ~univsbody:ubody ~types:typ ~eff body
 
+let vio_entry ~ps ~poly ~opaque ~uctx (((body, eff), typ) as e) =
+  (* This needs a fallback due to poly *)
+  if poly || Safe_typing.is_empty_private_constants eff.Evd.seff_private
+  then regular_entry ~ps ~poly ~opaque ~uctx e
+  else vio_entry ~ps ~poly ~opaque ~uctx e
+
 let close_proof = close_proof_gen ~make_entry:regular_entry ~keep_body_ucst_separate:false
 let close_vio_proof = close_proof_gen ~make_entry:vio_entry ~keep_body_ucst_separate:true ~opaque:Opaque
 
