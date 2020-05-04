@@ -84,7 +84,7 @@ val add_definition :
   -> ?hook:Declare.Hook.t
   -> ?opaque:bool
   -> RetrieveObl.obligation_info
-  -> DeclareObl.progress
+  -> Declare.Obls.progress
 
 (* XXX: unify with MutualEntry *)
 
@@ -102,7 +102,7 @@ val add_mutual_definitions :
   -> ?hook:Declare.Hook.t
   -> ?opaque:bool
   -> Vernacexpr.decl_notation list
-  -> DeclareObl.fixpoint_kind
+  -> Declare.Obls.fixpoint_kind
   -> unit
 
 (** Implementation of the [Obligation] command *)
@@ -121,7 +121,7 @@ val next_obligation :
 val solve_obligations :
      Names.Id.t option
   -> unit Proofview.tactic option
-  -> DeclareObl.progress
+  -> Declare.Obls.progress
 
 val solve_all_obligations :
   unit Proofview.tactic option -> unit
