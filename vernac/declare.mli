@@ -41,11 +41,6 @@ module Proof : sig
   val get_proof : t -> Proof.t
   val get_proof_name : t -> Names.Id.t
 
-  (** XXX: These 3 are only used in lemmas  *)
-  val get_used_variables : t -> Names.Id.Set.t option
-  val get_universe_decl : t -> UState.universe_decl
-  val get_initial_euctx : t -> UState.t
-
   val map_proof : (Proof.t -> Proof.t) -> t -> t
   val map_fold_proof : (Proof.t -> Proof.t * 'a) -> t -> t * 'a
   val map_fold_proof_endline : (unit Proofview.tactic -> Proof.t -> Proof.t * 'a) -> t -> t * 'a
@@ -98,27 +93,13 @@ val start_dependent_proof
    not registered with the kernel.
 
    XXX: Scheduled for removal from public API, don't rely on it *)
-type 'a proof_entry = private {
-  proof_entry_body   : 'a Entries.const_entry_body;
-  (* List of section variables *)
-  proof_entry_secctx : Id.Set.t option;
-  (* State id on which the completion of type checking is reported *)
-  proof_entry_feedback : Stateid.t option;
-  proof_entry_type        : Constr.types option;
-  proof_entry_universes   : Entries.universes_entry;
-  proof_entry_opaque      : bool;
-  proof_entry_inline_code : bool;
-}
+type 'a proof_entry
 
 (** XXX: Scheduled for removal from public API, don't rely on it *)
-type proof_object = private
-  { name : Names.Id.t
-  (** name of the proof *)
-  ; entries : Evd.side_effects proof_entry list
-  (** list of the proof terms (in a form suitable for definitions). *)
-  ; uctx: UState.t
-  (** universe state *)
-  }
+type proof_object
+
+(** Used by the STM only to store info, should go away *)
+val get_po_name : proof_object -> Id.t
 
 val close_proof : opaque:opacity_flag -> keep_body_ucst_separate:bool -> Proof.t -> proof_object
 
@@ -144,7 +125,7 @@ val declare_variable
 (** Declaration of global constructions
    i.e. Definition/Theorem/Axiom/Parameter/...
 
-   XXX: Scheduled for removal from public API, use `DeclareDef` instead *)
+   XXX: Scheduled for removal from public API, use `declare_definition` instead *)
 val definition_entry
   : ?fix_exn:Future.fix_exn
   -> ?opaque:bool
@@ -169,7 +150,7 @@ type import_status = Locality.import_status = ImportDefaultBehavior | ImportNeed
   internal specify if the constant has been created by the kernel or by the
   user, and in the former case, if its errors should be silent
 
-  XXX: Scheduled for removal from public API, use `DeclareDef` instead *)
+  XXX: Scheduled for removal from public API, use `declare_definition` instead *)
 val declare_constant
   :  ?local:import_status
   -> name:Id.t
@@ -189,13 +170,6 @@ val check_exists : Id.t -> unit
 (** {6 For legacy support, do not use}  *)
 
 module Internal : sig
-
-  val map_entry_body : f:('a Entries.proof_output -> 'b Entries.proof_output) -> 'a proof_entry -> 'b proof_entry
-  val map_entry_type : f:(Constr.t option -> Constr.t option) -> 'a proof_entry -> 'a proof_entry
-  (* Overriding opacity is indeed really hacky *)
-  val set_opacity : opaque:bool -> 'a proof_entry -> 'a proof_entry
-
-  val shrink_entry : EConstr.named_context -> 'a proof_entry -> 'a proof_entry * Constr.constr list
 
   type constant_obj
 
@@ -260,6 +234,7 @@ val build_constant_by_tactic :
   EConstr.types ->
   unit Proofview.tactic ->
   Evd.side_effects proof_entry * bool * UState.t
+[@@ocaml.deprecated "This function is deprecated, used newer API in declare"]
 
 val declare_universe_context : poly:bool -> Univ.ContextSet.t -> unit
 [@@ocaml.deprecated "Use DeclareUctx.declare_universe_context"]
@@ -293,7 +268,8 @@ module Hook : sig
   val call : ?hook:t -> S.t -> unit
 end
 
-(** Declare an interactively-defined constant *)
+(** XXX: This function is scheduled for removal from the public API,
+   do not use *)
 val declare_entry
   :  name:Id.t
   -> scope:locality
@@ -351,6 +327,8 @@ module Recthm : sig
     }
 end
 
+type lemma_possible_guards = int list list
+
 val declare_mutually_recursive
   : opaque:bool
   -> scope:locality
@@ -360,13 +338,14 @@ val declare_mutually_recursive
   -> udecl:UState.universe_decl
   -> ntns:Vernacexpr.decl_notation list
   -> rec_declaration:Constr.rec_declaration
-  -> possible_indexes:int list list option
+  -> possible_indexes:lemma_possible_guards option
   -> ?restrict_ucontext:bool
   (** XXX: restrict_ucontext should be always true, this seems like a
      bug in obligations, so this parameter should go away *)
   -> Recthm.t list
   -> Names.GlobRef.t list
 
+(** Prepare API, to be removed once we provide the corresponding 1-step API *)
 val prepare_obligation
   :  ?opaque:bool
   -> ?inline:bool
@@ -505,17 +484,6 @@ type obligation_resolver =
 
 type obligation_qed_info = {name : Id.t; num : int; auto : obligation_resolver}
 
-(** [obligation_terminator] part 2 of saving an obligation, proof mode *)
-val obligation_terminator :
-    Evd.side_effects proof_entry list
-  -> UState.t
-  -> obligation_qed_info
-  -> unit
-
-(** [obligation_admitted_terminator] part 2 of saving an obligation, non-interactive mode *)
-val obligation_admitted_terminator :
-  obligation_qed_info -> UState.t -> GlobRef.t -> unit
-
 (** [update_obls prg obls n progress] What does this do? *)
 val update_obls :
   ProgramDecl.t -> Obligation.t array -> int -> progress
@@ -540,3 +508,71 @@ val err_not_transp : unit -> unit
 val stm_get_fix_exn : (unit -> Exninfo.iexn -> Exninfo.iexn) ref
 
 end
+
+(** Creating high-level proofs with an associated constant *)
+module Proof_ending : sig
+
+  type t =
+    | Regular
+    | End_obligation of Obls.obligation_qed_info
+    | End_derive of { f : Id.t; name : Id.t }
+    | End_equations of
+        { hook : Constant.t list -> Evd.evar_map -> unit
+        ; i : Id.t
+        ; types : (Environ.env * Evar.t * Evd.evar_info * EConstr.named_context * Evd.econstr) list
+        ; sigma : Evd.evar_map
+        }
+
+end
+
+module Info : sig
+  type t
+  val make
+    :  ?hook: Hook.t
+    (** Callback to be executed at the end of the proof *)
+    -> ?proof_ending : Proof_ending.t
+    (** Info for special constants *)
+    -> ?scope : locality
+    (** locality  *)
+    -> ?kind:Decls.logical_kind
+    (** Theorem, etc... *)
+    -> ?compute_guard:lemma_possible_guards
+    -> ?thms:Recthm.t list
+    (** Both of those are internal, used by the upper layers but will
+       become handled natively here in the future *)
+    -> unit
+    -> t
+
+  (* Internal; used to initialize non-mutual proofs *)
+  val add_first_thm :
+    info:t
+    -> name:Id.t
+    -> typ:EConstr.t
+    -> impargs:Impargs.manual_implicits
+    -> t
+end
+
+val save_lemma_proved
+  : proof:Proof.t
+  -> info:Info.t
+  -> opaque:opacity_flag
+  -> idopt:Names.lident option
+  -> unit
+
+val save_lemma_admitted :
+     proof:Proof.t
+  -> info:Info.t
+  -> unit
+
+(** Special cases for delayed proofs, in this case we must provide the
+   proof information so the proof won't be forced. *)
+val save_lemma_admitted_delayed :
+     proof:proof_object
+  -> info:Info.t
+  -> unit
+
+val save_lemma_proved_delayed
+  : proof:proof_object
+  -> info:Info.t
+  -> idopt:Names.lident option
+  -> unit
