@@ -302,10 +302,11 @@ let check_not_nested env sigma forbidden e =
     | Lambda (_, t, b) -> check_not_nested t; check_not_nested b
     | LetIn (_, v, t, b) ->
       check_not_nested t; check_not_nested b; check_not_nested v
-    | App (f, l) ->
-      check_not_nested f;
-    | Array(_u,t,def,ty) ->
-      Array.iter check_not_nested t; check_not_nested def; check_not_nested ty
+    | App (f, l) -> check_not_nested f
+    | Array (_u, t, def, ty) ->
+      Array.iter check_not_nested t;
+      check_not_nested def;
+      check_not_nested ty
     | Proj (p, c) -> check_not_nested c
     | Const _ -> ()
     | Ind _ -> ()
