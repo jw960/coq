@@ -46,7 +46,7 @@ let load_objs libs =
 
 let require_libs = ["Coq.Init.Prelude", None, Some false]
 
-let init_coq ~vo_path in_file =
+let init_coq ~vo_path ~ml_path in_file =
   Lib.init ();
   Global.set_engagement Declarations.PredicativeSet;
   Flags.set_native_compiler false;
@@ -55,6 +55,7 @@ let init_coq ~vo_path in_file =
 
   ignore (Feedback.add_feeder fb_handler);
 
+  List.iter Mltop.add_ml_dir ml_path;
   List.iter Loadpath.add_vo_path vo_path;
 
   (* Get logical name *)
@@ -81,9 +82,9 @@ let save_library ldir in_file =
   let todo_proofs = Library.ProofsTodoNone in
   Library.save_library_to todo_proofs ~output_native_objects:false ldir out_vo (Global.opaque_tables ())
 
-let compile ~vo_path ~in_file =
+let compile ~vo_path ~ml_path ~in_file =
   let f_in = open_in in_file in
-  let st, ldir = init_coq ~vo_path in_file in
+  let st, ldir = init_coq ~vo_path ~ml_path in_file in
   let pa = Pcoq.Parsable.make (Stream.of_channel f_in) in
   let () = cloop ~st pa in
   let () = save_library ldir in_file in
@@ -94,33 +95,41 @@ let add_vo_include unix_path coq_path implicit =
   let coq_path = Libnames.dirpath_of_string coq_path in
   { unix_path; coq_path; has_ml = false; implicit; recursive = true }
 
-let rec parse_args (args : string list) acc : _ * string =
+let rec parse_args (args : string list) vo_acc ml_acc : _ * _ * string =
   match args with
   | [] -> CErrors.user_err (Pp.str "parse args error")
   | "-Q" :: rem ->
     begin match rem with
       | d :: p :: rem ->
-        let acc = add_vo_include d p false :: acc in
-        parse_args rem acc
+        let vo_acc = add_vo_include d p false :: vo_acc in
+        parse_args rem vo_acc ml_acc
       | _ ->
         CErrors.user_err (Pp.str "parse args error")
     end
   | "-R" :: rem ->
     begin match rem with
       | d :: p :: rem ->
-        let acc = add_vo_include d p true :: acc in
-        parse_args rem acc
+        let vo_acc = add_vo_include d p true :: vo_acc in
+        parse_args rem vo_acc ml_acc
+      | _ ->
+        CErrors.user_err (Pp.str "parse args error")
+    end
+  | "-I" :: rem ->
+    begin match rem with
+      | d :: rem ->
+        let ml_acc = d :: ml_acc in
+        parse_args rem vo_acc ml_acc
       | _ ->
         CErrors.user_err (Pp.str "parse args error")
     end
   | [file] ->
-    List.rev acc, file
+    List.rev vo_acc, List.rev ml_acc, file
   | _ ->
     CErrors.user_err (Pp.str "parse args error")
 
 let () =
   try
-    let vo_path, in_file = parse_args (List.tl @@ Array.to_list Sys.argv) vo_load_path in
-    compile ~vo_path ~in_file
+    let vo_path, ml_path, in_file = parse_args (List.tl @@ Array.to_list Sys.argv) vo_load_path [] in
+    compile ~vo_path ~ml_path ~in_file
   with exn ->
     Format.eprintf "Error: @[%a@]@\n%!" Pp.pp_with (CErrors.print exn)
