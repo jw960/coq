@@ -46,7 +46,7 @@ let load_objs libs =
 
 let require_libs = ["Coq.Init.Prelude", None, Some false]
 
-let init_coq in_file =
+let init_coq ~vo_path in_file =
   Lib.init ();
   Global.set_engagement Declarations.PredicativeSet;
   Flags.set_native_compiler false;
@@ -55,8 +55,7 @@ let init_coq in_file =
 
   ignore (Feedback.add_feeder fb_handler);
 
-  List.iter Loadpath.add_vo_path vo_load_path;
-  List.iter Loadpath.add_vo_path vo_load_path;
+  List.iter Loadpath.add_vo_path vo_path;
 
   (* Get logical name *)
   let libname = dirpath_of_file in_file in
@@ -82,17 +81,46 @@ let save_library ldir in_file =
   let todo_proofs = Library.ProofsTodoNone in
   Library.save_library_to todo_proofs ~output_native_objects:false ldir out_vo (Global.opaque_tables ())
 
-let compile ~in_file =
+let compile ~vo_path ~in_file =
   let f_in = open_in in_file in
-  let st, ldir = init_coq in_file in
+  let st, ldir = init_coq ~vo_path in_file in
   let pa = Pcoq.Parsable.make (Stream.of_channel f_in) in
   let () = cloop ~st pa in
   let () = save_library ldir in_file in
   ()
 
+let add_vo_include unix_path coq_path implicit =
+  let open Loadpath in
+  let coq_path = Libnames.dirpath_of_string coq_path in
+  { unix_path; coq_path; has_ml = false; implicit; recursive = true }
+
+let rec parse_args (args : string list) acc : _ * string =
+  match args with
+  | [] -> CErrors.user_err (Pp.str "parse args error")
+  | "-Q" :: rem ->
+    begin match rem with
+      | d :: p :: rem ->
+        let acc = add_vo_include d p false :: acc in
+        parse_args rem acc
+      | _ ->
+        CErrors.user_err (Pp.str "parse args error")
+    end
+  | "-R" :: rem ->
+    begin match rem with
+      | d :: p :: rem ->
+        let acc = add_vo_include d p true :: acc in
+        parse_args rem acc
+      | _ ->
+        CErrors.user_err (Pp.str "parse args error")
+    end
+  | [file] ->
+    List.rev acc, file
+  | _ ->
+    CErrors.user_err (Pp.str "parse args error")
+
 let () =
   try
-    let in_file = Sys.argv.(1) in
-    compile ~in_file
+    let vo_path, in_file = parse_args (List.tl @@ Array.to_list Sys.argv) vo_load_path in
+    compile ~vo_path ~in_file
   with exn ->
     Format.eprintf "Error: @[%a@]@\n%!" Pp.pp_with (CErrors.print exn)
