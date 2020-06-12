@@ -1,20 +1,12 @@
 (* Simple Coq compiler *)
 
-let vo_load_path =
-  [ { Loadpath.unix_path =
-        Filename.concat Coq_config.coqlib "theories"
-    ; coq_path = Names.DirPath.make [Names.Id.of_string "Coq"]
-    ; implicit = true
-    ; has_ml = false
-    ; recursive = true
-    }
-  ; { Loadpath.unix_path =
-        Filename.concat Coq_config.coqlib "plugins"
-    ; coq_path = Names.DirPath.make [Names.Id.of_string "Coq"]
-    ; implicit = true
-    ; has_ml = true
-    ; recursive = true
-    }
+let mk_vo_path ?(has_ml=false) unix_path coq_path implicit =
+  let coq_path = Libnames.dirpath_of_string coq_path in
+  { Loadpath.unix_path; coq_path; has_ml; implicit; recursive = true }
+
+let default_vo_load_path =
+  [ mk_vo_path (Filename.concat Coq_config.coqlib "theories") "Coq" true
+  ; mk_vo_path (Filename.concat Coq_config.coqlib "plugins")  "Coq" true ~has_ml:true
   ]
 
 let dirpath_of_file f =
@@ -90,16 +82,12 @@ let compile ~vo_path ~ml_path ~in_file =
   let () = save_library ldir in_file in
   ()
 
-let add_vo_include unix_path coq_path implicit =
-  let coq_path = Libnames.dirpath_of_string coq_path in
-  { Loadpath.unix_path; coq_path; has_ml = false; implicit; recursive = true }
-
 let rec parse_args (args : string list) vo_acc ml_acc : _ * _ * string =
   match args with
   | [] -> CErrors.user_err (Pp.str "parse args error: missing argument")
   | (("-Q" | "-R") as impl_str) :: d :: p :: rem ->
     let implicit = String.equal impl_str "-R" in
-    let vo_acc = add_vo_include d p implicit :: vo_acc in
+    let vo_acc = mk_vo_path d p implicit :: vo_acc in
     parse_args rem vo_acc ml_acc
   | "-I" :: d :: rem ->
     let ml_acc = d :: ml_acc in
@@ -112,7 +100,8 @@ let rec parse_args (args : string list) vo_acc ml_acc : _ * _ * string =
 
 let () =
   try
-    let vo_path, ml_path, in_file = parse_args (List.tl @@ Array.to_list Sys.argv) vo_load_path [] in
+    let vo_path, ml_path, in_file =
+      parse_args (List.tl @@ Array.to_list Sys.argv) default_vo_load_path [] in
     compile ~vo_path ~ml_path ~in_file
   with exn ->
     Format.eprintf "Error: @[%a@]@\n%!" Pp.pp_with (CErrors.print exn)
