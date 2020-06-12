@@ -97,35 +97,19 @@ let add_vo_include unix_path coq_path implicit =
 
 let rec parse_args (args : string list) vo_acc ml_acc : _ * _ * string =
   match args with
-  | [] -> CErrors.user_err (Pp.str "parse args error")
-  | "-Q" :: rem ->
-    begin match rem with
-      | d :: p :: rem ->
-        let vo_acc = add_vo_include d p false :: vo_acc in
-        parse_args rem vo_acc ml_acc
-      | _ ->
-        CErrors.user_err (Pp.str "parse args error")
-    end
-  | "-R" :: rem ->
-    begin match rem with
-      | d :: p :: rem ->
-        let vo_acc = add_vo_include d p true :: vo_acc in
-        parse_args rem vo_acc ml_acc
-      | _ ->
-        CErrors.user_err (Pp.str "parse args error")
-    end
-  | "-I" :: rem ->
-    begin match rem with
-      | d :: rem ->
-        let ml_acc = d :: ml_acc in
-        parse_args rem vo_acc ml_acc
-      | _ ->
-        CErrors.user_err (Pp.str "parse args error")
-    end
+  | [] -> CErrors.user_err (Pp.str "parse args error: missing argument")
+  | (("-Q" | "-R") as impl_str) :: d :: p :: rem ->
+    let implicit = String.equal impl_str "-R" in
+    let vo_acc = add_vo_include d p implicit :: vo_acc in
+    parse_args rem vo_acc ml_acc
+  | "-I" :: d :: rem ->
+    let ml_acc = d :: ml_acc in
+    parse_args rem vo_acc ml_acc
   | [file] ->
     List.rev vo_acc, List.rev ml_acc, file
-  | _ ->
-    CErrors.user_err (Pp.str "parse args error")
+  | args ->
+    let args_msg = String.concat " " args in
+    CErrors.user_err Pp.(str "parse args error, too many arguments: " ++ str args_msg)
 
 let () =
   try
