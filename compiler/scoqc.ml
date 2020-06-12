@@ -91,9 +91,8 @@ let compile ~vo_path ~ml_path ~in_file =
   ()
 
 let add_vo_include unix_path coq_path implicit =
-  let open Loadpath in
   let coq_path = Libnames.dirpath_of_string coq_path in
-  { unix_path; coq_path; has_ml = false; implicit; recursive = true }
+  { Loadpath.unix_path; coq_path; has_ml = false; implicit; recursive = true }
 
 let rec parse_args (args : string list) vo_acc ml_acc : _ * _ * string =
   match args with
