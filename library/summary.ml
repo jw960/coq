@@ -188,4 +188,21 @@ end
 
 let dump = Dyn.dump
 
-let print_stats _ = ()
+let grab_stats_summary_entry (Frozen.Any (tag, value)) =
+  Dyn.repr tag, Obj.(reachable_words (magic value))
+
+let print_stats fmt (name, size) =
+  Format.fprintf fmt "@[%s: %d@]" name size
+
+let print_stats_summary_entry stats =
+  (* Filter size 0 *)
+  let stats = List.filter (fun (_,s) -> not (Int.equal s 0)) stats in
+  let stats = List.sort (fun (_,s1) (_,s2) -> - (Int.compare s1 s2)) stats in
+  Format.eprintf "  @[<v>%a@]@\n%!" (Format.pp_print_list print_stats) stats
+
+let print_stats { summaries : Frozen.t } =
+  Format.eprintf " [summary] mem reach: %d@\n%!" Obj.(reachable_words (magic summaries));
+  let stats = Frozen.fold (fun s acc -> s :: acc) summaries [] in
+  let stats = List.map grab_stats_summary_entry stats in
+  print_stats_summary_entry stats;
+  ()
