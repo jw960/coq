@@ -64,10 +64,11 @@ let execute = Vernacinterp.interp
 
 let rec cloop ~st pa =
   match parse ~st pa with
-  | None -> ()
+  | None ->
+    st
   | Some stm ->
     let st = execute ~st stm in
-    cloop ~st pa
+    (cloop [@ocaml.tailcall]) ~st pa
 
 let save_library ldir in_file =
   let out_vo = Filename.(remove_extension in_file) ^ ".vo" in
