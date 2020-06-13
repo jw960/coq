@@ -1,5 +1,12 @@
 (* Simple Coq compiler *)
 
+let print_st_stats { Vernacstate.parsing; system; lemmas; _ } =
+  Format.eprintf "State stats:@\n%!";
+  Format.eprintf " [parsing] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic parsing));
+  Format.eprintf " [system ] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic system));
+  Format.eprintf " [lemmas ] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic lemmas));
+  ()
+
 let mk_vo_path ?(has_ml=false) unix_path coq_path implicit =
   let coq_path = Libnames.dirpath_of_string coq_path in
   { Loadpath.unix_path; coq_path; has_ml; implicit; recursive = true }
@@ -79,7 +86,8 @@ let compile ~vo_path ~ml_path ~in_file =
   let f_in = open_in in_file in
   let st, ldir = init_coq ~vo_path ~ml_path in_file in
   let pa = Pcoq.Parsable.make (Stream.of_channel f_in) in
-  let () = cloop ~st pa in
+  let st = cloop ~st pa in
+  print_st_stats st;
   let () = save_library ldir in_file in
   ()
 
