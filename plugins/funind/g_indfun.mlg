@@ -178,8 +178,14 @@ let is_proof_termination_interactively_checked recsl =
   | _, Vernacexpr.{ rec_order = None } -> false) recsl
 
 let classify_as_Fixpoint recsl =
- Vernac_classifier.classify_vernac
-    (Vernacexpr.(CAst.make @@ { control = []; attrs = []; expr = VernacFixpoint(NoDischarge, List.map snd recsl)}))
+  let open Vernacextend in
+  let guarantee = GuaranteesOpacity in
+  let ids, open_proof =
+    List.fold_left (fun (l,b) {Vernacexpr.fname={CAst.v=id}; body_def} ->
+        id::l, b || body_def = None) ([],false) (List.map snd recsl) in
+  if open_proof
+  then VtStartProof (guarantee,ids)
+  else VtSideff (ids, VtLater)
 
 let classify_funind recsl =
   match classify_as_Fixpoint recsl with

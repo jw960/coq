@@ -175,7 +175,7 @@ and print_table ~filter all_total indent first_level table =
     in
     prlist (fun pr -> pr) (list_iter_is_last iter ls)
 
-let to_string ~filter ?(cutoff=0.0) node =
+let _to_string ~filter ?(cutoff=0.0) node =
   let tree = node.children in
   let all_total = M.fold (fun _ { total } a -> total +. a) node.children 0.0 in
   let flat_tree =
@@ -435,6 +435,9 @@ let finish_timing ~prefix name =
 
 (* ******************** *)
 
+let print_results_filter ~cutoff:_ ~filter:_ = ()
+
+(*
 let print_results_filter ~cutoff ~filter =
   data := SM.filter (fun (doc,id) _ -> Stateid.is_valid ~doc id) !data;
   let results =
@@ -442,6 +445,7 @@ let print_results_filter ~cutoff ~filter =
   let results = merge_roots results Local.(CList.last !stack) in
   Feedback.msg_notice (to_string ~cutoff ~filter results)
 ;;
+*)
 
 let print_results ~cutoff =
   print_results_filter ~cutoff ~filter:(fun _ -> true)

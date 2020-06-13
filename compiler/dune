@@ -1,7 +1,4 @@
 (executable
  (name scoqc)
- (libraries
-   vernac
-   ; Unfortunately ltac_plugin links the stm in so we need to include it here
-   stm)
+ (libraries vernac)
  (link_flags -linkall))
