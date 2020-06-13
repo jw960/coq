@@ -107,3 +107,4 @@ val remove_from_summary : frozen -> 'a Dyn.tag -> frozen
 
 (** {6 Debug} *)
 val dump : unit -> (int * string) list
+val print_stats : frozen -> unit

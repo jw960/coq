@@ -150,3 +150,5 @@ val is_in_section : GlobRef.t -> bool
 (** {6 Discharge: decrease the section level if in the current section } *)
 
 val discharge_proj_repr : Projection.Repr.t -> Projection.Repr.t
+
+val print_stats : frozen -> unit

@@ -5,6 +5,7 @@ let print_st_stats { Vernacstate.parsing; system; lemmas; _ } =
   Format.eprintf " [parsing] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic parsing));
   Format.eprintf " [system ] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic system));
   Format.eprintf " [lemmas ] mem reach: %d@\n%!" (Obj.reachable_words (Obj.magic lemmas));
+  Vernacstate.System.print_stats system;
   ()
 
 let mk_vo_path ?(has_ml=false) unix_path coq_path implicit =
@@ -47,7 +48,7 @@ let require_libs = ["Coq.Init.Prelude", None, Some false]
 
 let init_coq ~vo_path ~ml_path in_file =
   Lib.init ();
-  Global.set_engagement Declarations.PredicativeSet;
+  (* Global.set_engagement Declarations.PredicativeSet; *)
   Flags.set_native_compiler false;
   Global.set_native_compiler false;
   Safe_typing.allow_delayed_constants := false;
@@ -80,13 +81,15 @@ let rec cloop ~st pa =
 let save_library ldir in_file =
   let out_vo = Filename.(remove_extension in_file) ^ ".vo" in
   let todo_proofs = Library.ProofsTodoNone in
-  Library.save_library_to todo_proofs ~output_native_objects:false ldir out_vo (Global.opaque_tables ())
+  Library.save_library_to todo_proofs ~output_native_objects:false ldir out_vo
 
 let compile ~vo_path ~ml_path ~in_file =
   let f_in = open_in in_file in
   let st, ldir = init_coq ~vo_path ~ml_path in_file in
   let pa = Pcoq.Parsable.make (Stream.of_channel f_in) in
   let st = cloop ~st pa in
+  (* Compact the heap, just in case. *)
+  Gc.compact ();
   print_st_stats st;
   let () = save_library ldir in_file in
   ()

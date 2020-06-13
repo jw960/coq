@@ -450,3 +450,54 @@ let discharge_proj_repr p =
   let ind = Projection.Repr.inductive p in
   let sec = section_segment_of_reference (GlobRef.IndRef ind) in
   Cooking.discharge_proj_repr sec p
+
+let _print_obj_name fmt (fp, kn) =
+  Format.fprintf fmt "{%a/%a}"
+    Pp.pp_with (Libnames.pr_path fp)
+    Pp.pp_with (Names.KerName.print kn)
+
+let _print_libobj fmt (obj : Libobject.t) =
+  let open Format in
+  match obj with
+  | Libobject.ModuleObject _ ->
+    fprintf fmt "mod"
+  | Libobject.ModuleTypeObject _ ->
+    fprintf fmt "modtype"
+  | Libobject.IncludeObject _ ->
+    fprintf fmt "include"
+  | Libobject.KeepObject _ ->
+    fprintf fmt "kepp"
+  | Libobject.ExportObject _ ->
+    fprintf fmt "export"
+  | Libobject.AtomicObject (Dyn.Dyn (tag,_)) ->
+    fprintf fmt "atomic [%s]" (Dyn.repr tag)
+
+let print_node fmt node =
+  let open Format in
+  match node with
+  (* | Leaf obj ->
+   *   fprintf fmt "leaf: @[%a@]" print_libobj obj *)
+  | CompilingLibrary _ ->
+    fprintf fmt "complib"
+  | OpenedModule (_, _, _, _) ->
+    fprintf fmt "openmod"
+  | OpenedSection (_, _) ->
+    fprintf fmt "opensec"
+
+let print_obj fmt node =
+  Format.fprintf fmt "@[%a@]"
+    print_node node
+
+(* type node =
+ *   | Leaf of Libobject.t
+ *   | CompilingLibrary of Nametab.object_prefix
+ *   | OpenedModule of is_type * export * Nametab.object_prefix * Summary.frozen
+ *   | OpenedSection of Nametab.object_prefix * Summary.frozen *)
+
+(* XXX: oo *)
+let print_library_entry_stats fmt ((node : node), _oo) =
+  Format.fprintf fmt "%a: %d" print_obj node Obj.(reachable_words (magic node))
+
+let print_stats { comp_name; lib_stk; path_prefix } =
+  Format.eprintf " @[<v>%a@]@\n%!" (Format.pp_print_list print_library_entry_stats) lib_stk;
+  ()

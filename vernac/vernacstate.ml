@@ -30,6 +30,10 @@ module System : sig
   val freeze : marshallable:bool -> t
   val unfreeze : t -> unit
 
+  val dump : string -> unit
+  val load : string -> unit
+  val print_stats : t -> unit
+
   module Stm : sig
     val make_shallow : t -> t
     val lib : t -> Lib.frozen
@@ -53,6 +57,20 @@ end = struct
     with reraise ->
       let reraise = Exninfo.capture reraise in
       (unfreeze st; Exninfo.iraise reraise)
+
+  (* These commands may not be very safe due to ML-side plugin loading
+     etc... use at your own risk *)
+  (* XXX: EJGA: this is ignoring parsing state, it works for now? *)
+  let dump s = ()
+    (* System.extern_state Coq_config.state_magic_number s (freeze ~marshallable:true) *)
+
+  let load s = ()
+    (* unfreeze (System.with_magic_number_check (System.intern_state Coq_config.state_magic_number) s);
+     * Library.overwrite_library_filenames s *)
+
+  let print_stats (lib, summary) =
+    Lib.print_stats lib;
+    Summary.print_stats summary
 
   (* STM-specific state manipulations *)
   module Stm = struct
