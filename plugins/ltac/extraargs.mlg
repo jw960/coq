@@ -377,7 +377,7 @@ let interp_strategy ist gl = function
   in
   let v =
     try Tacinterp.Value.cast (Genarg.topwit wit_strategy_level) v
-    with CErrors.UserError _ -> Taccoerce.error_ltac_variable ?loc id None v "a strategy_level"
+    with CErrors.UserError.E _ -> Taccoerce.error_ltac_variable ?loc id None v "a strategy_level"
   in
   gl.Evd.sigma, v
 

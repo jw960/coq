@@ -317,7 +317,7 @@ let check_not_nested env sigma forbidden e =
     | CoFix _ -> user_err Pp.(str "check_not_nested : Fix")
   in
   try check_not_nested e
-  with UserError (_, p) ->
+  with UserError.E (_, p) ->
     user_err ~hdr:"_"
       (str "on expr : " ++ Printer.pr_leconstr_env env sigma e ++ str " " ++ p)
 
@@ -801,8 +801,8 @@ let terminate_case next_step (ci, a, t, l) expr_info continuation_tac infos g =
                     ci.ci_cstr_ndecls.(i) e new_info))
              0 (Array.to_list l))
       with
-      | UserError (Some "Refiner.thensn_tac3", _)
-       |UserError (Some "Refiner.tclFAIL_s", _)
+      | UserError.E (Some "Refiner.thensn_tac3", _)
+       |UserError.E (Some "Refiner.tclFAIL_s", _)
       ->
         observe_tac
           (fun _ _ ->

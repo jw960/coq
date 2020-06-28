@@ -249,8 +249,8 @@ let add_inversion_lemma_exn ~poly na com comsort bool tac =
   try
     add_inversion_lemma ~poly na env sigma c sort bool tac
   with
-    |   UserError (Some "Case analysis",s) -> (* Reference to Indrec *)
-          user_err ~hdr:"Inv needs Nodep Prop Set" s
+    | UserError.E (Some "Case analysis",s) -> (* Reference to Indrec *)
+      user_err ~hdr:"Inv needs Nodep Prop Set" s
 
 (* ================================= *)
 (* Applying a given inversion lemma  *)
@@ -266,7 +266,7 @@ let lemInv id c =
     | NoSuchBinding ->
         user_err
           (hov 0 (pr_econstr_env (pf_env gls) (project gls) c ++ spc () ++ str "does not refer to an inversion lemma."))
-    | UserError (a,b) ->
+    | UserError.E (a,b) ->
          user_err ~hdr:"LemInv"
            (str "Cannot refine current goal with the lemma " ++
               pr_leconstr_env (pf_env gls) (project gls) c)

@@ -269,7 +269,7 @@ let collect_meta_variables c =
         (* Hack assuming only two situations: the legacy one that branches,
            if with Metas, are Meta, and the new one with eta-let-expanded
            branches *)
-        let br = Array.map2 (fun n b -> try snd (Term.decompose_lam_n_decls n b) with UserError _ -> b) ci.ci_cstr_ndecls br in
+        let br = Array.map2 (fun n b -> try snd (Term.decompose_lam_n_decls n b) with UserError.E _ -> b) ci.ci_cstr_ndecls br in
         Array.fold_left (collrec deep)
           (Constr.fold (collrec deep) (Constr.fold (collrec deep) acc p) c)
           br

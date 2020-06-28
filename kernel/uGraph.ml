@@ -153,7 +153,7 @@ struct
   type t = Prop | Set
 end
 
-exception AlreadyDeclared = G.AlreadyDeclared
+exception AlreadyDeclared = G.AlreadyDeclared.E
 let add_universe u ~lbound ~strict g =
   let lbound = match lbound with Bound.Prop -> Level.prop | Bound.Set -> Level.set in
   let graph = G.add u g.graph in

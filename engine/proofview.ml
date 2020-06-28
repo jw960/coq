@@ -907,7 +907,7 @@ let tclPROGRESS t =
     tclUNIT res
   else
     let info = Exninfo.reify () in
-    tclZERO ~info (CErrors.UserError (Some "Proofview.tclPROGRESS", Pp.str "Failed to progress."))
+    tclZERO ~info (CErrors.UserError.E (Some "Proofview.tclPROGRESS", Pp.str "Failed to progress."))
 
 let _ = CErrors.register_handler begin function
   | Logic_monad.Tac_Timeout ->

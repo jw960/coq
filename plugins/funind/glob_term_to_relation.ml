@@ -1505,7 +1505,7 @@ let do_build_inductive evd (funconstants : pconstant list)
             ~uniform:ComInductive.NonUniformParameters))
       Declarations.Finite
   with
-  | UserError (s, msg) as e ->
+  | UserError.E (s, msg) as e ->
     let _time3 = System.get_time () in
     (* 	Pp.msgnl (str "error : "++ str (string_of_float (System.time_difference time2 time3))); *)
     let repacked_rel_inds =

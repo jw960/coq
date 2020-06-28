@@ -1088,7 +1088,7 @@ let report_anomaly (e, info) =
     if is_anomaly e then
       let msg = Pp.(str "Conversion test raised an anomaly:" ++
                     spc () ++ CErrors.print e) in
-      UserError (None, msg)
+      UserError.E (None, msg)
     else e
   in
   Exninfo.iraise (e, info)

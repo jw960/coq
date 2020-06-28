@@ -1492,7 +1492,7 @@ let general_elim with_evars clear_flag (c, lbindc) elim =
   let env = Proofview.Goal.env gl in
   let sigma = Tacmach.New.project gl in
   let ct = Retyping.get_type_of env sigma c in
-  let t = try snd (reduce_to_quantified_ind env sigma ct) with UserError _ -> ct in
+  let t = try snd (reduce_to_quantified_ind env sigma ct) with UserError.E _ -> ct in
   let indclause  = make_clenv_binding env sigma (c, t) lbindc in
   let sigma = meta_merge sigma (clear_metas indclause.evd) in
   let flags = elim_flags () in
@@ -1697,7 +1697,9 @@ let descend_in_conjunctions avoid tac (err, info) c =
           (fun (err, info) -> Proofview.tclZERO ~info err)
           (err, info)
     | None -> Proofview.tclZERO ~info err
-  with RefinerError _|UserError _ -> Proofview.tclZERO ~info err
+  with
+    RefinerError _
+  | UserError.E _ -> Proofview.tclZERO ~info err
   end
 
 (****************************************************)
@@ -1749,7 +1751,7 @@ let general_apply ?(respect_opaque=false) with_delta with_destruct with_evars
         tclORELSEOPT
           (try_apply red_thm concl_nprod)
           (function (e, info) -> match e with
-          | PretypeError _|RefinerError _|UserError _|Failure _ ->
+          | PretypeError _|RefinerError _|UserError.E _|Failure _ ->
             Some (try_red_apply red_thm (exn0, info))
           | _ -> None)
       with Redelimination as exn ->
@@ -1771,7 +1773,7 @@ let general_apply ?(respect_opaque=false) with_delta with_destruct with_evars
           tclORELSEOPT
             (try_apply thm_ty 0)
             (function (e, info) -> match e with
-            | PretypeError _|RefinerError _|UserError _|Failure _->
+            | PretypeError _|RefinerError _|UserError.E _|Failure _->
               Some tac
             | _ -> None)
         else
@@ -1780,7 +1782,7 @@ let general_apply ?(respect_opaque=false) with_delta with_destruct with_evars
     tclORELSEOPT
       (try_apply thm_ty0 concl_nprod)
       (function (e, info) -> match e with
-      | PretypeError _|RefinerError _|UserError _|Failure _ ->
+      | PretypeError _|RefinerError _|UserError.E _|Failure _ ->
         Some (try_red_apply thm_ty0 (e, info))
       | _ -> None)
     end
@@ -3272,7 +3274,7 @@ let safe_dest_intro_patterns with_evars avoid thin dest pat tac =
   Proofview.tclORELSE
     (dest_intro_patterns with_evars avoid thin dest pat tac)
     begin function (e, info) -> match e with
-      | UserError (Some "move_hyp",_) ->
+      | UserError.E (Some "move_hyp",_) ->
        (* May happen e.g. with "destruct x using s" with an hypothesis
           which is morally an induction hypothesis to be "MoveLast" if
           known as such but which is considered instead as a subterm of

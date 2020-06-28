@@ -65,7 +65,7 @@ type pretype_error =
 exception PretypeError of env * Evd.evar_map * pretype_error
 
 let precatchable_exception = function
-  | CErrors.UserError _ | TypeError _ | PretypeError _
+  | CErrors.UserError.E _ | TypeError _ | PretypeError _
   | Nametab.GlobalizationError _ -> true
   | _ -> false
 

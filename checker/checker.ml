@@ -74,7 +74,7 @@ let add_path ~unix_path:dir ~coq_root:coq_dirpath =
 
 let convert_string d =
   try Id.of_string d
-  with CErrors.UserError _ ->
+  with CErrors.UserError.E _ ->
     Flags.if_verbose Feedback.msg_warning
       (str "Directory " ++ str d ++ str " cannot be used as a Coq identifier (skipped)");
     raise Exit
@@ -233,7 +233,7 @@ let explain_exn = function
       hov 0 (str "Syntax error: " ++ str txt)
   | Sys_error msg ->
       hov 0 (anomaly_string () ++ str "uncaught exception Sys_error " ++ guill msg ++ report() )
-  | UserError(s,pps) ->
+  | UserError.E(s,pps) ->
       hov 1 (str "User error: " ++ where s ++ pps)
   | Out_of_memory ->
       hov 0 (str "Out of memory")

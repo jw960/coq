@@ -129,7 +129,7 @@ let abstract_list_all env evd typ c l =
   let evd,typp =
     try Typing.type_of env evd p
     with
-    | UserError _ ->
+    | UserError.E _ ->
         error_cannot_find_well_typed_abstraction env evd p l None
     | Type_errors.TypeError (env',x) ->
         (* FIXME: plug back the typing information *)

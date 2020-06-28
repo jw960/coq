@@ -72,12 +72,19 @@ end = struct
   end
 end
 
-exception UserError of string option * Pp.t
+module UE_Sig = struct
+  type t = string option * Pp.t
+  let print (hdr, pp) = pp
+  let doc = Pp.str "Generic User Error, to be deprecated"
+  let kind = ErrorKind.Regular
+end
+
+module UserError = CoqError.Make(UE_Sig)
 
 let user_err ?loc ?info ?hdr strm =
   let info = Option.default Exninfo.null info in
   let info = Option.cata (Loc.add_loc info) info loc in
-  Exninfo.iraise (UserError (hdr, strm), info)
+  Exninfo.iraise (UserError.E (hdr, strm), info)
 
 exception Timeout
 
@@ -174,7 +181,7 @@ let print_no_report e = iprint_no_report (e, Exninfo.info e)
 (** Predefined handlers **)
 
 let _ = register_handler begin function
-  | UserError (s, pps) ->
+  | UserError.E (s, pps) ->
     Some (where s ++ pps)
   | _ -> None
 end

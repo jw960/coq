@@ -1120,12 +1120,12 @@ let tclDO n tac =
   let tac_err_at i gl =
     try Proofview.V82.of_tactic tac gl
     with
-    | CErrors.UserError (l, s) as e ->
+    | CErrors.UserError.E (l, s) as e ->
       let _, info = Exninfo.capture e in
-      let e' = CErrors.UserError (l, prefix i ++ s) in
+      let e' = CErrors.UserError.E (l, prefix i ++ s) in
       Exninfo.iraise (e', info)
-    | Gramlib.Ploc.Exc(loc, CErrors.UserError (l, s))  ->
-      raise (Gramlib.Ploc.Exc(loc, CErrors.UserError (l, prefix i ++ s))) in
+    | Gramlib.Ploc.Exc(loc, CErrors.UserError.E (l, s))  ->
+      raise (Gramlib.Ploc.Exc(loc, CErrors.UserError.E (l, prefix i ++ s))) in
   let rec loop i gl =
     if i = n then tac_err_at i gl else
     (tclTHEN (tac_err_at i) (loop (i + 1))) gl in

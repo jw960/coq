@@ -535,7 +535,7 @@ let solve ?with_end_tac gi info_lvl tac pr =
         Proofview.numgoals >>= fun n ->
         if n == 1 then tac
         else
-          let e = CErrors.UserError
+          let e = CErrors.UserError.E
               (None,
                Pp.(str "Expected a single focused goal but " ++
                    int n ++ str " goals are focused."))

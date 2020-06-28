@@ -149,7 +149,11 @@ module Make (Point:Point) = struct
       CErrors.anomaly ~label:"Univ.repr"
         Pp.(str"Universe " ++ Point.pr u ++ str" undefined.")
 
-  exception AlreadyDeclared
+  module AlreadyDeclared = CErrors.CoqError.Make0(struct
+      let kind = CErrors.ErrorKind.Regular
+      let doc = Pp.mt ()
+      let print = Pp.str "Already Declared"
+    end)
 
   (* Reindexes the given point, using the next available index. *)
   let use_index g u =
@@ -511,7 +515,7 @@ module Make (Point:Point) = struct
   let add ?(rank=0) v g =
     try
       let _arcv = PMap.find v g.entries in
-      raise AlreadyDeclared
+      raise AlreadyDeclared.E
     with Not_found ->
       assert (g.index > min_int);
       let node = {

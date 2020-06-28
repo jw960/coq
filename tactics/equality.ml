@@ -164,7 +164,9 @@ let instantiate_lemma_all frzevars gl c ty l l2r concl =
 
 let instantiate_lemma gl c ty l l2r concl =
   let sigma, ct = pf_type_of gl c in
-  let t = try snd (reduce_to_quantified_ind (pf_env gl) sigma ct) with UserError _ -> ct in
+  let t = try snd (reduce_to_quantified_ind (pf_env gl) sigma ct)
+    with UserError.E _ -> ct
+  in
   let eqclause = Clenv.make_clenv_binding (pf_env gl) sigma (c,t) l in
   [eqclause]
 
@@ -1037,7 +1039,7 @@ let discr_positions env sigma (lbeq,eqn,(t,t1,t2)) eq_clause cpath dirn =
       Proofview.tclUNIT
         (build_discriminator e_env sigma true_0 (false_0,false_ty) dirn (mkVar e) cpath)
     with
-      UserError _ as ex ->
+    | UserError.E _ as ex ->
       let _, info = Exninfo.capture ex in
       Proofview.tclZERO ~info ex
   in
@@ -1065,7 +1067,7 @@ let onEquality with_evars tac (c,lbindc) =
   Proofview.Goal.enter begin fun gl ->
   let reduce_to_quantified_ind = pf_apply Tacred.reduce_to_quantified_ind gl in
   let t = pf_get_type_of gl c in
-  let t' = try snd (reduce_to_quantified_ind t) with UserError _ -> t in
+  let t' = try snd (reduce_to_quantified_ind t) with UserError.E _ -> t in
   let eq_clause = pf_apply make_clenv_binding gl (c,t') lbindc in
   let eq_clause' = Clenv.clenv_pose_dependent_evars ~with_evars eq_clause in
   let eqn = clenv_type eq_clause' in
@@ -1322,7 +1324,7 @@ let rec build_injrec env sigma dflt c = function
       let res = kont sigma subval (dfltval,tuplety) in
       sigma, (res, tuplety,dfltval)
     with
-        UserError _ -> failwith "caught"
+      UserError.E _ -> failwith "caught"
 
 let build_injector env sigma dflt c cpath =
   let sigma, (injcode,resty,_) = build_injrec env sigma dflt c cpath in
@@ -1923,7 +1925,7 @@ let rewrite_assumption_cond cond_eq_term cl =
           try
             let dir = cond_eq_term (NamedDecl.get_type hyp) gl in
             general_rewrite_clause dir false (mkVar id,NoBindings) cl
-          with | Failure _ | UserError _ -> arec rest gl
+          with | Failure _ | UserError.E _ -> arec rest gl
         end
   in
   Proofview.Goal.enter begin fun gl ->

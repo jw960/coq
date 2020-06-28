@@ -686,7 +686,7 @@ let hResolve_auto id c t =
     try
       hResolve id c n t
     with
-    | UserError _ as e -> raise e
+    | UserError.E _ as e -> raise e
     | e when CErrors.noncritical e -> resolve_auto (n+1)
   in
   resolve_auto 1

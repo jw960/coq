@@ -63,7 +63,7 @@ let interp_search_item env sigma =
           Notation.interp_notation_as_global_reference
             ~head:false (fun _ -> true) s sc in
         GlobSearchSubPattern (where,head,Pattern.PRef ref)
-      with UserError _ ->
+      with UserError.E _ ->
         user_err ~hdr:"interp_search_item"
           (str "Unable to interpret " ++ quote (str s) ++ str " as a reference."))
   | SearchKind k ->

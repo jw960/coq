@@ -228,7 +228,7 @@ let mangle_names_prefix =
       (try
          Id.of_string x
        with
-       | CErrors.UserError _ ->
+       | CErrors.UserError.E _ ->
           CErrors.user_err Pp.(str ("Not a valid identifier: \"" ^ x ^ "\"."))
       ) |> forget_subscript
     )

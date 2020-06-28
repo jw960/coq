@@ -2962,7 +2962,7 @@ let process_transaction ~doc ?(newtip=Stateid.fresh ())
          if not (get_allow_nested_proofs ()) && VCS.proof_nesting () > 0 then
            "Nested proofs are not allowed unless you turn the Nested Proofs Allowed flag on."
            |> Pp.str
-           |> (fun s -> (UserError (None, s), Exninfo.null))
+           |> (fun s -> (UserError.E (None, s), Exninfo.null))
            |> State.exn_on ~valid:Stateid.dummy newtip
            |> Exninfo.iraise
          else
