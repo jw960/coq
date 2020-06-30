@@ -389,3 +389,4 @@ val with_notation_protection : ('a -> 'b) -> 'a -> 'b
 
 (** Conversion from bigint to int63 *)
 val int63_of_pos_bigint : Z.t -> Uint63.t
+val print_stats : unit -> unit

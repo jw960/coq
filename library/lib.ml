@@ -495,10 +495,10 @@ let print_obj fmt node =
  *   | OpenedSection of Nametab.object_prefix * Summary.frozen *)
 
 (* XXX: oo *)
-let print_library_entry_stats fmt ((node : node), _oo) =
+let _print_library_entry_stats fmt ((node : node), _oo) =
   Format.fprintf fmt "%a: %d" print_obj node Obj.(reachable_words (magic node))
 
 let print_stats { comp_name; lib_stk; path_prefix } =
   Format.eprintf " [libobject] mem reach: %d@\n%!" Obj.(reachable_words (magic lib_stk));
-  Format.eprintf "  @[<v>%a@]@\n%!" (Format.pp_print_list print_library_entry_stats) lib_stk;
+  (* Format.eprintf "  @[<v>%a@]@\n%!" (Format.pp_print_list print_library_entry_stats) lib_stk; *)
   ()

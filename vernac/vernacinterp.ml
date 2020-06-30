@@ -250,6 +250,7 @@ let () = let open Goptions in
 (* Be careful with the cache here in case of an exception. *)
 let interp_gen ~verbosely ~st ~interp_fn cmd =
   Vernacstate.unfreeze_interp_state st;
+  Notation.print_stats ();
   try vernac_timeout (fun st ->
       let v_mod = if verbosely then Flags.verbosely else Flags.silently in
       let ontop = v_mod (interp_fn ~st) cmd in

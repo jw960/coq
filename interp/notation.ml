@@ -2557,6 +2557,24 @@ let unfreeze (scm,scs,asc,dlm,fkm,clsc,ptii,ptui,coe,globs,ids) =
   entry_has_global_map := globs;
   entry_has_ident_map := ids
 
+let p n obj =
+  Format.eprintf "%s: %d@\n%!" n (Obj.(reachable_words (magic obj)))
+
+let print_stats () =
+  p "freeze" (freeze ~marshallable:true);
+  p "scope_map" !scope_map;
+  p "scope_stack" !scope_stack;
+  p "delimiters_map" !delimiters_map;
+  p "arguments_scope" !arguments_scope;
+  p "notations_key_table" !notations_key_table;
+  p "scope_class_map" !scope_class_map;
+  p "prim_token_interp_infos" !prim_token_interp_infos;
+  p "prim_token_uninterp_infos" !prim_token_uninterp_infos;
+  p "entry_coercion_map" !entry_coercion_map;
+  p "entry_has_global_map" !entry_has_global_map;
+  p "entry_has_ident_map" !entry_has_ident_map;
+  ()
+
 let init () =
   init_scope_map ();
   delimiters_map := String.Map.empty;
