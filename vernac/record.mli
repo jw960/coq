@@ -52,7 +52,4 @@ module Internal : sig
     -> Impargs.manual_implicits list
     -> Constr.rel_context
     -> Recordops.proj_kind list * Names.Constant.t option list
-
-  val declare_structure_entry : Recordops.struc_typ -> unit
-
 end

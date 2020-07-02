@@ -463,32 +463,6 @@ let check_template ~template ~poly ~univs ~params { Data.id; rdata = { DataR.min
     (* auto detect template *)
     ComInductive.should_auto_template id (template && template_candidate ())
 
-let load_structure i (_, structure) =
-  Recordops.register_structure structure
-
-let cache_structure o =
-  load_structure 1 o
-
-let subst_structure (subst, obj) =
-  Recordops.subst_structure subst obj
-
-let discharge_structure (_, x) = Some x
-
-let rebuild_structure s = Recordops.rebuild_structure (Global.env()) s
-
-let inStruc : Recordops.struc_typ -> Libobject.obj =
-  let open Libobject in
-  declare_object {(default_object "STRUCTURE") with
-    cache_function = cache_structure;
-    load_function = load_structure;
-    subst_function = subst_structure;
-    classify_function = (fun x -> Substitute x);
-    discharge_function = discharge_structure;
-    rebuild_function = rebuild_structure; }
-
-let declare_structure_entry o =
-  Lib.add_anonymous_leaf (inStruc o)
-
 let declare_structure ~cumulative finite ~ubind ~univs paramimpls params template ?(kind=Decls.StructureComponent) ?name (record_data : Data.t list) =
   let nparams = List.length params in
   let poly, ctx =
@@ -553,7 +527,7 @@ let declare_structure ~cumulative finite ~ubind ~univs paramimpls params templat
       s_EXPECTEDPARAM = npars;
     }
     in
-    let () = declare_structure_entry struc in
+    let () = Recordops.declare_structure_entry struc in
     rsp
   in
   List.mapi map record_data
@@ -849,5 +823,4 @@ module Internal = struct
     pf_canonical: bool;
   }
   let declare_projections = declare_projections
-  let declare_structure_entry = declare_structure_entry
 end

@@ -549,13 +549,13 @@ let vernac_definition_hook ~canonical_instance ~local ~poly = let open Decls in 
 | Coercion ->
   Some (ComCoercion.add_coercion_hook ~poly)
 | CanonicalStructure ->
-  Some (Declare.Hook.(make (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref)))
+  Some (Declare.Hook.(make (fun { S.dref } -> Recordops.declare_canonical_structure ?local (Global.env()) dref)))
 | SubClass ->
   Some (ComCoercion.add_subclass_hook ~poly)
 | Definition when canonical_instance ->
-  Some (Declare.Hook.(make (fun { S.dref } -> Canonical.declare_canonical_structure ?local dref)))
+  Some (Declare.Hook.(make (fun { S.dref } -> Recordops.declare_canonical_structure ?local (Global.env()) dref)))
 | Let when canonical_instance ->
-  Some (Declare.Hook.(make (fun { S.dref } -> Canonical.declare_canonical_structure dref)))
+  Some (Declare.Hook.(make (fun { S.dref } -> Recordops.declare_canonical_structure (Global.env()) dref)))
 | _ -> None
 
 let default_thm_id = Id.of_string "Unnamed_thm"
@@ -1136,7 +1136,7 @@ let vernac_require from import qidl =
 (* Coercions and canonical structures *)
 
 let vernac_canonical ~local r =
-  Canonical.declare_canonical_structure ?local (smart_global r)
+  Recordops.declare_canonical_structure ?local (Global.env()) (smart_global r)
 
 let vernac_coercion ~atts ref qids qidt =
   let local, poly = Attributes.(parse Notations.(locality ++ polymorphic) atts) in

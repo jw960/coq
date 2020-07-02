@@ -16,7 +16,6 @@ DeclareUniv
 RetrieveObl
 Declare
 ComHints
-Canonical
 RecLemmas
 Declaremods
 Library

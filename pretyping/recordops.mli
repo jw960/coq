@@ -30,9 +30,8 @@ type struc_typ = {
   s_PROJ : Constant.t option list;
 }
 
-val register_structure : struc_typ -> unit
-val subst_structure : Mod_subst.substitution -> struc_typ -> struc_typ
-val rebuild_structure : Environ.env -> struc_typ -> struc_typ
+(** Registers the record with libobject and internal tables *)
+val declare_structure_entry : struc_typ -> unit
 
 (** [lookup_structure isp] returns the struc_typ associated to the
    inductive path [isp] if it corresponds to a structure, otherwise
@@ -89,12 +88,12 @@ val pr_cs_pattern : cs_pattern -> Pp.t
 type cs = GlobRef.t * inductive
 
 val lookup_canonical_conversion : (GlobRef.t * cs_pattern) -> constr * obj_typ
-val register_canonical_structure : warn:bool -> Environ.env -> Evd.evar_map ->
-  cs -> unit
-val subst_canonical_structure : Mod_subst.substitution -> cs -> cs
+
 val is_open_canonical_projection :
   Environ.env -> Evd.evar_map -> Reductionops.state -> bool
+
 val canonical_projections : unit ->
   ((GlobRef.t * cs_pattern) * obj_typ) list
 
-val check_and_decompose_canonical_structure : Environ.env -> Evd.evar_map -> GlobRef.t -> cs
+(** Registers the canonical with libobject and internal tables *)
+val declare_canonical_structure : ?local:bool -> Environ.env -> GlobRef.t -> unit

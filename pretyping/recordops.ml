@@ -346,3 +346,60 @@ let is_open_canonical_projection env sigma (c,args) =
       not (isConstruct sigma hd)
     with Failure _ -> false
   with Not_found -> false
+
+(* Libobject registration *)
+let load_structure i (_, structure) =
+  register_structure structure
+
+let cache_structure o =
+  load_structure 1 o
+
+let subst_structure (subst, obj) =
+  subst_structure subst obj
+
+let discharge_structure (_, x) = Some x
+
+let rebuild_structure s = rebuild_structure (Global.env()) s
+
+let inStruc : struc_typ -> Libobject.obj =
+  let open Libobject in
+  declare_object {(default_object "STRUCTURE") with
+    cache_function = cache_structure;
+    load_function = load_structure;
+    subst_function = subst_structure;
+    classify_function = (fun x -> Substitute x);
+    discharge_function = discharge_structure;
+    rebuild_function = rebuild_structure }
+
+let declare_structure_entry o =
+  Lib.add_anonymous_leaf (inStruc o)
+
+(* Canonical registration *)
+let open_canonical_structure i (_, (o,_)) =
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  if Int.equal i 1 then register_canonical_structure env sigma ~warn:false o
+
+let cache_canonical_structure (_, (o,_)) =
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  register_canonical_structure ~warn:true env sigma o
+
+let discharge_canonical_structure (_,((gref, _ as x), local)) =
+  if local || (Globnames.isVarRef gref && Lib.is_in_section gref) then None
+  else Some (x, local)
+
+let inCanonStruc : (GlobRef.t * inductive) * bool -> Libobject.obj =
+  let open Libobject in
+  declare_object
+    {(default_object "CANONICAL-STRUCTURE") with
+     open_function = simple_open open_canonical_structure
+   ; cache_function = cache_canonical_structure
+   ; subst_function = (fun (subst,(c,local)) -> subst_canonical_structure subst c, local)
+   ; classify_function = (fun x -> Substitute x)
+   ; discharge_function = discharge_canonical_structure }
+
+let declare_canonical_structure ?(local=false) env ref =
+  let sigma = Evd.from_env env in
+  let cs = check_and_decompose_canonical_structure env sigma ref, local in
+  Lib.add_anonymous_leaf (inCanonStruc cs)
