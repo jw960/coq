@@ -75,7 +75,11 @@ let rec proj_symbol : type a b c. (a, b, c) ty_user_symbol -> (a, b, c) genarg_t
 
 (** Vernac grammar extensions *)
 
-let vernac_exts = ref []
+(* This was a very dumb idea, as this value is not functional *)
+(* let vernac_exts = Summary.ref ~name:"vernac_exts" [] *)
+
+(* The reason this is not fucntional is pretty silly tho, due to the way Symbol is encoded in grammar.ml *)
+let vernac_exts : ((string * int) * Vernacexpr.vernac_expr grammar_prod_item list) list ref = ref []
 
 let get_extend_vernac_rule (s, i) =
   try
