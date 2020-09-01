@@ -1,4 +1,6 @@
 (executable
  (name scoqc)
+ (public_name coqc)
+ (package coq)
  (libraries vernac)
  (link_flags -linkall))

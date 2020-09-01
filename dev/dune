@@ -5,7 +5,7 @@
  (wrapped false)
  (modules top_printers)
  (optional)
- (libraries coq-core.toplevel coq-core.plugins.ltac))
+ (libraries coq-core.vernac coq-core.plugins.ltac))
 
 (rule
   (targets dune-dbg)
@@ -34,7 +34,6 @@
     %{lib:coq-core.printing:printing.cma}
     %{lib:coq-core.tactics:tactics.cma}
     %{lib:coq-core.vernac:vernac.cma}
-    %{lib:coq-core.stm:stm.cma}
     %{lib:coq-core.sysinit:sysinit.cma}
     %{lib:coq-core.toplevel:toplevel.cma}
     %{lib:coq-core.plugins.ltac:ltac_plugin.cma}

@@ -8,20 +8,6 @@
  (modules document)
  (libraries coq-core.boot coq-core.lib))
 
-(executable
- (name idetop)
- (public_name coqidetop.opt)
- (package coqide-server)
- (modules idetop)
- (libraries coq-core.toplevel coqide-server.protocol)
- (modes native byte)
- (link_flags -linkall))
-
-(install
- (section bin)
- (package coqide-server)
- (files (idetop.bc as coqidetop.byte)))
-
 ; IDE Client, we may want to add the macos_prehook.ml conditionally.
 (library
  (name coqide_gui)

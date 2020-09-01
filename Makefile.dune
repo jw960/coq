@@ -100,7 +100,7 @@ voboot:
 	@echo "This target is empty and not needed anymore"
 
 states:
-	dune build $(DUNEOPT) dev/shim/coqtop-prelude
+	dune build $(DUNEOPT) dev/shim/coqc-prelude
 
 NONDOC_INSTALL_TARGETS:=coq-core.install coq-stdlib.install coqide-server.install coqide.install
 
