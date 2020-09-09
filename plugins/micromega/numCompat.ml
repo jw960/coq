@@ -65,6 +65,7 @@ module Z_old = struct
 end
 
 module Z_new = struct
+
   include Z
 
   (* Workaround https://github.com/ocaml/Zarith/issues/58 , remove
@@ -267,7 +268,12 @@ end
 let _ = Q_new.zero
 let _ = Q_old.zero
 
-module Z_mix : ZArith with type t = Z_old.t * Z_new.t = struct
+module type ZArithMix = sig
+  include ZArith
+  val inject_ : string -> Z_old.t -> Z_new.t -> t
+end
+
+module Z_mix : ZArithMix with type t = Z_old.t * Z_new.t = struct
   module Zo = Z_old
   module Zn = Z_new
 
@@ -281,6 +287,23 @@ module Z_mix : ZArith with type t = Z_old.t * Z_new.t = struct
     else
       let () = Format.eprintf "assertion failure at %s, [%s] vs [%s]@\n%!" name x_ y_ in
       assert false
+
+  let eq2_ name (x : Zo.t) x1 x2 (y : Zn.t) y1 y2 : unit =
+    let x_ = Zo.to_string x in
+    let x1_ = Zo.to_string x1 in
+    let x2_ = Zo.to_string x2 in
+    let y_ = Zn.to_string y in
+    let y1_ = Zn.to_string y1 in
+    let y2_ = Zn.to_string y2 in
+    let a = String.equal x_ y_ in
+    if a
+    then ()
+    else
+      let str = Format.asprintf "[***] assertion failure at %s, pre-op [%s, %s] vs [%s, %s] | [%s] vs [%s]@\n%!" name x1_ x2_ y1_ y2_ x_ y_ in
+      raise (Invalid_argument str)
+
+  let inject_ name x y =
+    eq_ name x y; x, y
 
   let eqg name x y : unit =
     let a = x = y in
@@ -309,6 +332,11 @@ module Z_mix : ZArith with type t = Z_old.t * Z_new.t = struct
     let r_new = fn (snd x) (snd y) in
     eq_ name r_old r_new; (r_old, r_new)
 
+  let lift2u name fo fn x y =
+    let r_old = fo (fst x) (fst y) in
+    let r_new = fn (snd x) (snd y) in
+    eq2_ name r_old (fst x) (fst y) r_new (snd x) (snd y); (r_old, r_new)
+
   let lift22 name fo fn x y =
     let r_old1, r_old2 = fo (fst x) (fst y) in
     let r_new1, r_new2 = fn (snd x) (snd y) in
@@ -330,12 +358,13 @@ module Z_mix : ZArith with type t = Z_old.t * Z_new.t = struct
   let power_int x i = lift2 "power_int" Zo.power_int Zn.power_int x (i, i)
   let quomod : t -> t -> t * t = lift22 "quomod" Zo.quomod Zn.quomod
   let ppcm = lift2 "ppcm" Zo.ppcm Zn.ppcm
-  let gcd = lift2 "gcd" Zo.gcd Zn.gcd
+  let gcd = lift2u "gcd" Zo.gcd Zn.gcd
   let lcm = lift2 "lcm" Zo.lcm Zn.lcm
   let to_string = lift1b "to_string" Zo.to_string Zn.to_string
 end
 
 module Q_old_z_new : QArith with module Z = Z_mix = struct
+
   module Z = Z_mix
 
   type t = Num.num
@@ -395,5 +424,140 @@ end
 
 let _ = Q_old_z_new.zero
 
+module Q_mix : QArith with type t = Q_old.t * Q_new.t and module Z = Z_mix = struct
+
+  module Z = Z_mix
+  module Qo = Q_old
+  module Qn = Q_new
+
+  type t = Qo.t * Qn.t
+
+  let eq_ name (x : Qo.t) (y : Qn.t) : unit =
+    let x_ = Qo.to_string x in
+    let y_ = Qn.to_string y in
+    let a = String.equal x_ y_ in
+    if a
+    then ()
+    else
+      let str = Format.asprintf "[***] assertion failure at %s, [%s] vs [%s]@\n%!" name x_ y_ in
+      raise (Invalid_argument str)
+
+  let eqg name x xo y yo : unit =
+    let a = x = y in
+    if a then ()
+    else
+      let xo_ = Qo.to_string xo in
+      let yo_ = Qn.to_string yo in
+      let str = Format.asprintf "[***] assertion failure at %s, [%s] vs [%s]@\n%!" name xo_ yo_ in
+      raise (Invalid_argument str)
+
+  let eq1_ name (x : Qo.t) xp (y : Qn.t) yp : unit =
+    let x_ = Qo.to_string x in
+    let xp_ = Qo.to_string xp in
+    let y_ = Qn.to_string y in
+    let yp_ = Qn.to_string yp in
+    let a = String.equal x_ y_ in
+    if a
+    then ()
+    else
+      let str = Format.asprintf "[***] assertion failure at %s, pre-op [%s] vs [%s] | [%s] vs [%s]@\n%!" name xp_ yp_ x_ y_ in
+      raise (Invalid_argument str)
+
+  let lift1 name fo fn x =
+    let y_old = fo (fst x) in
+    let y_new = fn (snd x) in
+    eq_ name y_old y_new; (y_old, y_new)
+
+  let lift1u name fo fn x =
+    let y_old = fo (fst x) in
+    let y_new = fn (snd x) in
+    eq1_ name y_old (fst x) y_new (snd x); (y_old, y_new)
+
+  let lift1i name fo fn x =
+    let y_old = fo x in
+    let y_new = fn x in
+    eq_ name y_old y_new; (y_old, y_new)
+
+  let lift1z name fo fn x =
+    let y_old = fo (fst x) in
+    let y_new = fn (snd x) in
+    Z.inject_ name y_old y_new
+
+  let lift1b name fo fn x =
+    let y_old = fo (fst x) in
+    let y_new = fn (snd x) in
+    eqg name y_old (fst x) y_new (snd x); y_old
+
+  let lift2b name fo fn x y =
+    let r_old = fo (fst x) (fst y) in
+    let r_new = fn (snd x) (snd y) in
+    eqg name r_old (fst x) r_new (snd x); r_old
+
+  let lift2 name fo fn x y =
+    let r_old = fo (fst x) (fst y) in
+    let r_new = fn (snd x) (snd y) in
+    eq_ name r_old r_new; (r_old, r_new)
+
+  let _lift22 name fo fn x y =
+    let r_old1, r_old2 = fo (fst x) (fst y) in
+    let r_new1, r_new2 = fn (snd x) (snd y) in
+    eq_ name r_old1 r_new1;
+    eq_ name r_old2 r_new2;
+    ((r_old1, r_new1), (r_old2, r_new2))
+
+  let of_int x = Qo.of_int x, Qn.of_int x
+  let zero = Qo.zero, Qn.zero
+  let one = Qo.one, Qn.one
+  let two = Qo.two, Qn.two
+  let ten = Qo.ten, Qn.ten
+  let neg_one = Qo.neg_one, Qn.neg_one
+
+  let compare x y = lift2b "compare" Qo.compare Qn.compare x y
+  let make x y = lift2 "make" Qo.make Qn.make x y
+  let den x = lift1z "den" Qo.den Qn.den x
+  let num x = lift1z "num" Qo.num Qn.num x
+  let of_bigint x = lift1 "of_bigint" Qo.of_bigint Qn.of_bigint x
+  let to_bigint x = lift1z "to_bigint" Qo.to_bigint Qn.to_bigint x
+  let neg x = lift1 "neg" Qo.neg Qn.neg x
+
+  (* val inv : t -> t *)
+  let max = lift2 "max" Qo.max Qn.max
+  let min = lift2 "min" Qo.min Qn.min
+  let sign = lift1b "sign" Qo.sign Qn.sign
+  let abs = lift1 "abs" Qo.abs Qn.abs
+  let mod_ = lift2 "mod_" Qo.mod_ Qn.mod_
+  let floor = lift1 "floor" Qo.floor Qn.floor
+
+  (* val floorZ : t -> Z.t *)
+  let ceiling = lift1 "ceiling" Qo.ceiling Qn.ceiling
+  let round = lift1u "round" Qo.round Qn.round
+  let pow2 = lift1i "pow2" Qo.pow2 Qn.pow2
+  let pow10 = lift1i "pow10" Qo.pow10 Qn.pow10
+  let power x (xo, xn) =
+    let fo = Qo.power x xo in
+    let fn = Qn.power x xn in
+    eq_ "power" fo fn; (fo, fn)
+
+  let to_string = lift1b "to_string" Qo.to_string Qn.to_string
+  let of_string = lift1i "of_string" Qo.of_string Qn.of_string
+  let to_float = lift1b "to_float" Qo.to_float Qn.to_float
+
+  module Notations = struct
+    module Qo = Qo.Notations
+    module Qn = Qn.Notations
+    let ( // ) = lift2 "div" Qo.(//) Qn.(//)
+    let ( +/ ) = lift2 "add" Qo.(+/) Qn.(+/)
+    let ( -/ ) = lift2 "minus" Qo.(-/) Qn.(-/)
+    let ( */ ) = lift2 "mul" Qo.( */) Qn.( */)
+    let ( =/ ) = lift2b "eq" Qo.(=/) Qn.(=/)
+    let ( <>/ ) = lift2b "neq" Qo.(<>/) Qn.(<>/)
+    let ( >/ ) = lift2b "gt" Qo.(>/) Qn.(>/)
+    let ( >=/ ) = lift2b "ge" Qo.(>=/) Qn.(>=/)
+    let ( </ ) = lift2b "lt" Qo.(</) Qn.(</)
+    let ( <=/ ) = lift2b "le" Qo.(<=/) Qn.(<=/)
+  end
+
+end
+
 module Z = Z_mix
-module Q = Q_old_z_new
+module Q = Q_mix
