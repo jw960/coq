@@ -238,7 +238,12 @@ TIMER=$(if $(TIMED), $(STDTIME), $(TIMECMD))
 # the output format of the unix command time. For instance:
 #   TIME="%C (%U user, %S sys, %e total, %M maxres)"
 
-COQOPTS=$(NATIVECOMPUTE) $(COQWARNERROR) $(COQUSERFLAGS)
+ifdef NATIVECOMPUTE
+  COQOPTS="-native-compiler" "ondemand"
+else
+  COQOPTS=
+endif
+COQOPTS += $(COQWARNERROR) $(COQUSERFLAGS)
 # Beware this depends on the makefile being in a particular dir, we
 # should pass an absolute path here but windows is tricky
 # c.f. https://github.com/coq/coq/pull/9560
@@ -328,6 +333,9 @@ $(error This Makefile needs GNU Make 3.81 or later (that is a version that suppo
 endif
 
 VO_TOOLS_DEP := $(COQC)
+ifdef NATIVECOMPUTE
+  VO_TOOLS_DEP += $(COQNATIVE)
+endif
 ifdef VALIDATE
  VO_TOOLS_DEP += $(CHICKEN)
 endif
@@ -416,7 +424,7 @@ kernel/float64.ml: kernel/float64_$(OCAML_INT_SIZE).ml
 
 .PHONY: coqbinaries coqbyte
 
-coqbinaries: $(TOPBIN) $(COQC) $(COQTOPEXE) $(CHICKEN) $(CSDPCERT) $(FAKEIDE)
+coqbinaries: $(TOPBIN) $(COQC) $(COQNATIVE) $(COQTOPEXE) $(CHICKEN) $(CSDPCERT) $(FAKEIDE)
 coqbyte: $(TOPBYTE) $(COQCBYTE) $(CHICKENBYTE)
 
 # Special rule for coqtop, we imitate `ocamlopt` can delete the target
@@ -425,6 +433,9 @@ $(COQTOPEXE): $(TOPBIN)
 	rm -f $@ && cp $< $@
 
 $(COQC): $(COQCOPT:.opt=.$(BEST))
+	rm -f $@ && cp $< $@
+
+$(COQNATIVE): $(COQNATIVEOPT:.opt=.$(BEST))
 	rm -f $@ && cp $< $@
 
 bin/%.opt$(EXE): topbin/%_bin.ml $(LINKCMX) $(LIBCOQRUN)
@@ -861,6 +872,10 @@ theories/Init/%.vo theories/Init/%.glob: theories/Init/%.v $(VO_TOOLS_DEP)
 	$(SHOW)'COQC -noinit $<'
 	$(HIDE)rm -f theories/Init/$*.glob
 	$(HIDE)$(BOOTCOQC) $< -noinit -R theories Coq $(TIMING_ARG) $(TIMING_EXTRA)
+ifdef NATIVECOMPUTE
+	$(SHOW)'COQNATIVE $*.vo'
+	$(HIDE)$(COQNATIVE) -coqlib . -R theories Coq theories/Init/$*.vo
+endif
 
 theories/Init/%.vio: theories/Init/%.v $(VO_TOOLS_DEP)
 	$(SHOW)'COQC -quick -noinit $<'
@@ -872,6 +887,10 @@ theories/Init/%.vio: theories/Init/%.v $(VO_TOOLS_DEP)
 	$(SHOW)'COQC      $<'
 	$(HIDE)rm -f $*.glob
 	$(HIDE)$(BOOTCOQC) $< $(TIMING_ARG) $(TIMING_EXTRA)
+ifdef NATIVECOMPUTE
+	$(SHOW)'COQNATIVE $*.vo'
+	$(HIDE)$(COQNATIVE) -coqlib . -R theories Coq $*.vo
+endif
 ifdef VALIDATE
 	$(SHOW)'COQCHK    $(call vo_to_mod,$@)'
 	$(HIDE)$(CHICKEN) $(VALIDOPTS) -norec $(call vo_to_mod,$@) \

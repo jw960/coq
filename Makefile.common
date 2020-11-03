@@ -35,6 +35,9 @@ COQDOCBYTE:=bin/coqdoc.byte$(EXE)
 COQC:=bin/coqc$(EXE)
 COQCOPT:=bin/coqc.opt$(EXE)
 COQCBYTE:=bin/coqc.byte$(EXE)
+COQNATIVE:=bin/coqnative$(EXE)
+COQNATIVEOPT:=bin/coqnative.opt$(EXE)
+COQNATIVEBYTE:=bin/coqnative.opt$(EXE)
 COQWORKMGR:=bin/coqworkmgr$(EXE)
 COQWORKMGRBYTE:=bin/coqworkmgr.byte$(EXE)
 COQMAKE_ONE_TIME_FILE:=tools/make-one-time-file.py
@@ -47,7 +50,7 @@ OCAMLLIBDEPBYTE:=bin/ocamllibdep.byte$(EXE)
 
 # these get installed!
 TOOLS:=$(COQDEP) $(COQMAKEFILE) $(COQTEX) $(COQWC) $(COQDOC) $(COQC)\
-	$(COQWORKMGR) $(COQPP) $(VOTOUR) $(OCAMLLIBDEP)
+	$(COQNATIVE) $(COQWORKMGR) $(COQPP) $(VOTOUR) $(OCAMLLIBDEP)
 TOOLS_HELPERS:=tools/CoqMakefile.in $(COQMAKE_ONE_TIME_FILE) $(COQTIME_FILE_MAKER)\
 	$(COQMAKE_BOTH_TIME_FILES) $(COQMAKE_BOTH_SINGLE_TIMING_FILES)
 
