@@ -43,10 +43,4 @@
  (deps (:rev-script dev/tools/make_git_revision.sh))
  (action (with-stdout-to revision (bash %{rev-script}))))
 
-; Use summary.log as the target
-(alias
- (name runtest)
- (package coqide-server)
- (deps test-suite/summary.log))
-
 ; (dirs (:standard _build_ci))
