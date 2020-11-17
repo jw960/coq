@@ -138,12 +138,21 @@ FAIL = >&2 echo 'FAILED    $@'
 COMPLEXITY := $(if $(bogomips),complexity)
 INTERACTIVE := interactive
 UNIT_TESTS := unit-tests
+<<<<<<< HEAD
 VSUBSYSTEMS := prerequisite success failure bugs output output-coqtop \
   output-modulo-time $(INTERACTIVE) micromega $(COMPLEXITY) modules stm \
   coqdoc ssr $(wildcard primitive/*) ltac2
 
 # All subsystems
 SUBSYSTEMS := $(VSUBSYSTEMS) misc ide bugs ide vio coqchk output-coqchk coqwc coq-makefile tools $(UNIT_TESTS)
+=======
+VSUBSYSTEMS := prerequisite success failure $(BUGS) output \
+  output-modulo-time $(INTERACTIVE) micromega $(COMPLEXITY) modules \
+  coqdoc ssr $(wildcard primitive/*) ltac2
+
+# All subsystems
+SUBSYSTEMS := $(VSUBSYSTEMS) misc bugs coqchk output-coqchk coqwc coq-makefile tools $(UNIT_TESTS)
+>>>>>>> [test-suite] Remove non-needed tests / fix coqc arguments.
 
 .csdp.cache: .csdp.cache.test-suite
 	cp $< $@
@@ -220,6 +229,8 @@ summary_dir = echo $(1); find $(2) -name '*.log' -print0 | xargs -0 -n 1 tail -n
 
 .PHONY: summary summary.log
 
+# $(call summary_dir, "Output tests with coqtop", output-coqtop);
+
 summary:
 	@{ \
 	  $(call summary_dir, "Preparing tests", prerequisite); \
@@ -227,7 +238,6 @@ summary:
 	  $(call summary_dir, "Failure tests", failure); \
 	  $(call summary_dir, "Bugs tests", bugs); \
 	  $(call summary_dir, "Output tests", output); \
-	  $(call summary_dir, "Output tests with coqtop", output-coqtop); \
 	  $(call summary_dir, "Output (modulo time changes) tests", output-modulo-time); \
 	  $(call summary_dir, "Interactive tests", interactive); \
 	  $(call summary_dir, "Micromega tests", micromega); \
@@ -235,10 +245,7 @@ summary:
 	  $(call summary_dir, "Complexity tests", complexity); \
 	  $(call summary_dir, "Module tests", modules); \
 	  $(call summary_dir, "Primitive tests", primitive); \
-	  $(call summary_dir, "STM tests", stm); \
 	  $(call summary_dir, "SSR tests", ssr); \
-	  $(call summary_dir, "IDE tests", ide); \
-	  $(call summary_dir, "VI tests", vio); \
 	  $(call summary_dir, "Coqchk tests", coqchk); \
 	  $(call summary_dir, "Output tests with coqchk", output-coqchk); \
 	  $(call summary_dir, "Coqwc tests", coqwc); \
@@ -322,7 +329,7 @@ unit-tests: $(UNIT_LOGFILES)
 # Build executable, run it to generate log file
 unit-tests/%.ml.log: unit-tests/%.ml unit-tests/src/$(UNIT_LINK)
 	$(SHOW) 'TEST      $<'
-	$(HIDE)$(OCAMLBEST) -linkpkg -package coq-core.toplevel,ounit2 \
+	$(HIDE)$(OCAMLBEST) -linkpkg -package coq-core.vernac,ounit2 \
 	     -I unit-tests/src $(UNIT_LINK) $< -o $<.test;
 	$(HIDE)./$<.test
 
@@ -364,32 +371,6 @@ $(addsuffix .log,$(wildcard ssr/*.v success/*.v micromega/*.v modules/*.v primit
 	@if ! grep -q -F "Error!" $@; then echo "CHECK     $<"; fi
 	$(HIDE)if ! grep -q -F "Error!" $@; then { \
 	  $(coqchk) -silent $(call get_set_impredicativity,$<) $(if $(findstring modules/,$<),-R modules Mods -norec Mods.$(shell basename $< .v),-Q $(shell dirname $<) "" -norec $(shell basename $< .v)) 2>&1; R=$$?; \
-	  if [ $$R != 0 ]; then \
-	    echo $(log_failure); \
-	    echo "    $<...could not be checked (Error!)" ; \
-	    $(FAIL); \
-	  fi; \
-	} > "$(shell dirname $<)/$(shell basename $< .v).chk.log"; fi
-
-stm: $(wildcard stm/*.v:%.v=%.v.log)
-$(addsuffix .log,$(wildcard stm/*.v)): %.v.log: %.v
-	@echo "TEST      $< $(call get_coq_prog_args_in_parens,"$<")"
-	$(HIDE){ \
-	  echo $(call log_intro,$<); \
-	  $(coqc) "$<" $(call get_coq_prog_args,"$<") -async-proofs on \
-	    $$opts 2>&1; R=$$?; times; \
-	  if [ $$R = 0 ]; then \
-	    echo $(log_success); \
-	    echo "    $<...Ok"; \
-	  else \
-	    echo $(log_failure); \
-	    echo "    $<...Error! (should be accepted)"; \
-	    $(FAIL); \
-	  fi; \
-	} > "$@"
-	@if ! grep -q -F "Error!" $@; then echo "CHECK     $<"; fi
-	$(HIDE)if ! grep -q -F "Error!" $@; then { \
-	  $(coqchk) -silent -Q $(shell dirname $<) "" -norec $(shell basename $< .v) 2>&1; R=$$?; \
 	  if [ $$R != 0 ]; then \
 	    echo $(log_failure); \
 	    echo "    $<...could not be checked (Error!)" ; \
@@ -683,6 +664,7 @@ $(patsubst %.sh,%.log,$(wildcard misc/*.sh)): %.log: %.sh $(PREREQUISITELOG)
 	  fi; \
 	} > "$@"
 
+<<<<<<< HEAD
 # IDE : some tests of backtracking for coqtop -ideslave
 
 ide : $(patsubst %.fake,%.fake.log,$(wildcard ide/*.fake))
@@ -726,6 +708,8 @@ vio: $(patsubst %.v,%.vio.log,$(wildcard vio/*.v))
 	  fi; \
 	} > "$@"
 
+=======
+>>>>>>> [test-suite] Remove non-needed tests / fix coqc arguments.
 # coqchk
 
 coqchk: $(patsubst %.v,%.chk.log,$(wildcard coqchk/*.v))

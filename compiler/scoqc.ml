@@ -100,12 +100,23 @@ let save_library ldir in_file =
     let f = Filename.(remove_extension f) in
     d ^ Filename.dir_sep ^ "." ^ f ^ ".aux"
   in
-  let out_glob = Filename.(remove_extension in_file) ^ ".glob" in
-  touch_file out_aux;
-  touch_file out_glob
+  touch_file out_aux
+
+let start_glob ~in_file =
+  let out_vo = Filename.(remove_extension in_file) ^ ".vo" in
+  Dumpglob.push_output Dumpglob.MultFiles;
+  Dumpglob.start_dump_glob ~vfile:in_file ~vofile:out_vo;
+  (* Dumpglob.dump_string ("F" ^ Names.DirPath.to_string ldir ^ "\n"); *)
+  ()
+
+let version () =
+  Printf.printf "The Coq Proof Assistant, version %s \n"
+    Coq_config.version;
+  Printf.printf "with OCaml %s\n" Coq_config.caml_version
 
 let compile ~vo_path ~ml_path ~require_libs ~in_file =
   let f_in = open_in in_file in
+  let () = start_glob ~in_file in
   let st, ldir = init_coq ~vo_path ~ml_path ~require_libs in_file in
   let pa = Pcoq.Parsable.make (Stream.of_channel f_in) in
   let _st = cloop ~st pa in
@@ -113,43 +124,59 @@ let compile ~vo_path ~ml_path ~require_libs ~in_file =
   Gc.compact ();
   (* print_st_stats st; *)
   let () = save_library ldir in_file in
+  Dumpglob.end_dump_glob ();
   ()
 
-let rec parse_args (args : string list) vo_acc ml_acc init boot coqlib
+let rec parse_args (args : string list) vo_acc ml_acc init boot coqlib file
   : _ * _ * _ * _ * _ * string =
   match args with
-  | [] -> CErrors.user_err (Pp.str "parse args error: missing argument")
   | "-noinit" :: rem ->
-    parse_args rem vo_acc ml_acc false boot coqlib
+    parse_args rem vo_acc ml_acc false boot coqlib file
   | "-boot" :: rem ->
-    parse_args rem vo_acc ml_acc init true coqlib
+    parse_args rem vo_acc ml_acc init true coqlib file
   | "-q" :: rem ->
-    parse_args rem vo_acc ml_acc init boot coqlib
+    parse_args rem vo_acc ml_acc init boot coqlib file
   | (("-Q" | "-R") as impl_str) :: d :: p :: rem ->
     let implicit = String.equal impl_str "-R" in
     let vo_acc = mk_vo_path d p implicit :: vo_acc in
-    parse_args rem vo_acc ml_acc init boot coqlib
+    parse_args rem vo_acc ml_acc init boot coqlib file
   | "-coqlib" :: lib :: rem ->
-    parse_args rem vo_acc ml_acc init boot (Some lib)
+    parse_args rem vo_acc ml_acc init boot (Some lib) file
+  (* Ignored, for test suite / compat / TODO *)
+  | "-test-mode" :: rem
+  | "-async-proofs-cache" :: _ :: rem
+  | "-no-glob" :: rem
+  | "-top" :: _ :: rem
   | "-w" :: _ :: rem ->
-    parse_args rem vo_acc ml_acc init boot coqlib
+    parse_args rem vo_acc ml_acc init boot coqlib file
   | "-native-compiler" :: _ :: rem ->
-    parse_args rem vo_acc ml_acc init boot coqlib
+    parse_args rem vo_acc ml_acc init boot coqlib file
   | "-I" :: d :: rem ->
     let ml_acc = d :: ml_acc in
-    parse_args rem vo_acc ml_acc init boot coqlib
-  | [file] ->
-    List.rev vo_acc, List.rev ml_acc, init, boot, coqlib, file
-  | args ->
-    let args_msg = String.concat " " args in
-    CErrors.user_err Pp.(str "parse args error, too many arguments: " ++ str args_msg)
+    parse_args rem vo_acc ml_acc init boot coqlib file
+  | "--print-version" :: _rem ->
+    version (); exit 0
+  | in_file :: rem ->
+    begin
+      match file with
+      | None ->
+        parse_args rem vo_acc ml_acc init boot coqlib (Some in_file)
+      | Some file ->
+        CErrors.user_err Pp.(str "parse args error, too many files: " ++ str in_file ++ str " and " ++ str file)
+    end
+  | [] ->
+    match file with
+    | None ->
+      CErrors.user_err Pp.(str "parse args error, missing input file.")
+    | Some file ->
+      List.rev vo_acc, List.rev ml_acc, init, boot, coqlib, file
 
 let () =
   Flags.quiet := true;
   System.trust_file_cache := true;
   try
     let vo_path, ml_path, init, boot, coqlib, in_file =
-      parse_args (List.tl @@ Array.to_list Sys.argv) [] [] true false None in
+      parse_args (List.tl @@ Array.to_list Sys.argv) [] [] true false None None in
     let require_libs = if init then dft_require_libs else [] in
     let vo_path = if boot then vo_path else default_vo_load_path ~coqlib @ vo_path in
     compile ~vo_path ~ml_path ~require_libs ~in_file
