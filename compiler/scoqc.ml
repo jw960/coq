@@ -90,8 +90,8 @@ let touch_file f =
   output_char out ' ';
   close_out out
 
-let save_library ldir in_file =
-  let out_vo = Filename.(remove_extension in_file) ^ ".vo" in
+let save_library ldir in_file ~out_file =
+  let out_vo = Option.default (Filename.(remove_extension in_file) ^ ".vo") out_file in
   let todo_proofs = Library.ProofsTodoNone in
   Library.save_library_to todo_proofs ~output_native_objects:false ldir out_vo;
 
@@ -114,7 +114,7 @@ let version () =
     Coq_config.version;
   Printf.printf "with OCaml %s\n" Coq_config.caml_version
 
-let compile ~vo_path ~ml_path ~require_libs ~in_file =
+let compile ~vo_path ~ml_path ~require_libs ~in_file ~out_file =
   let f_in = open_in in_file in
   let () = start_glob ~in_file in
   let st, ldir = init_coq ~vo_path ~ml_path ~require_libs in_file in
@@ -123,62 +123,108 @@ let compile ~vo_path ~ml_path ~require_libs ~in_file =
   (* Compact the heap, just in case. *)
   Gc.compact ();
   (* print_st_stats st; *)
-  let () = save_library ldir in_file in
+  let () = save_library ldir in_file ~out_file in
   Dumpglob.end_dump_glob ();
   ()
 
-let rec parse_args (args : string list) vo_acc ml_acc init boot coqlib file
-  : _ * _ * _ * _ * _ * string =
+module Args = struct
+
+  type t =
+    { vo_path : Loadpath.vo_path list
+    ; ml_path : string list
+    ; init : bool
+    ; boot : bool
+    ; coqlib : string option
+    ; in_file : string option
+    ; out_file : string option
+    }
+
+  let init =
+    { vo_path = []
+    ; ml_path = []
+    ; init = true
+    ; boot = false
+    ; coqlib = None
+    ; in_file = None
+    ; out_file = None
+    }
+
+  module Error = struct
+
+    let duplicate_argument in_file file =
+      CErrors.user_err
+        Pp.(str "parse args error, too many files: " ++ str in_file ++ str " and " ++ str file)
+  end
+
+  let set_out_file cur file =
+    match cur.out_file with
+    | None ->
+      { cur with out_file = Some file }
+    | Some out_file ->
+      Error.duplicate_argument out_file file
+
+  let set_in_file cur file =
+    match cur.in_file with
+    | None ->
+      { cur with in_file = Some file }
+    | Some in_file ->
+      Error.duplicate_argument in_file file
+
+  let return cur = { cur with vo_path = List.rev cur.vo_path; ml_path = List.rev cur.ml_path }
+
+end
+
+let rec parse_args (args : string list) cur : Args.t =
   match args with
   | "-noinit" :: rem ->
-    parse_args rem vo_acc ml_acc false boot coqlib file
+    parse_args rem { cur with Args.init = false }
   | "-boot" :: rem ->
-    parse_args rem vo_acc ml_acc init true coqlib file
+    parse_args rem { cur with Args.boot = true }
   | "-q" :: rem ->
-    parse_args rem vo_acc ml_acc init boot coqlib file
+    parse_args rem cur
   | (("-Q" | "-R") as impl_str) :: d :: p :: rem ->
     let implicit = String.equal impl_str "-R" in
-    let vo_acc = mk_vo_path d p implicit :: vo_acc in
-    parse_args rem vo_acc ml_acc init boot coqlib file
+    let vo_path = mk_vo_path d p implicit :: cur.Args.vo_path in
+    parse_args rem { cur with Args.vo_path }
   | "-coqlib" :: lib :: rem ->
-    parse_args rem vo_acc ml_acc init boot (Some lib) file
+    parse_args rem { cur with Args.coqlib = Some lib }
+  | "-I" :: d :: rem ->
+    let ml_path = d :: cur.Args.ml_path in
+    parse_args rem { cur with Args.ml_path }
+  | "--print-version" :: _rem ->
+    version (); exit 0
   (* Ignored, for test suite / compat / TODO *)
-  | "-test-mode" :: rem
+  | "-test-mode" :: rem ->
+    Flags.quiet := false;
+    parse_args rem cur
   | "-async-proofs-cache" :: _ :: rem
   | "-no-glob" :: rem
   | "-top" :: _ :: rem
-  | "-w" :: _ :: rem ->
-    parse_args rem vo_acc ml_acc init boot coqlib file
+  | "-w" :: _ :: rem
   | "-native-compiler" :: _ :: rem ->
-    parse_args rem vo_acc ml_acc init boot coqlib file
-  | "-I" :: d :: rem ->
-    let ml_acc = d :: ml_acc in
-    parse_args rem vo_acc ml_acc init boot coqlib file
-  | "--print-version" :: _rem ->
-    version (); exit 0
+    parse_args rem cur
+  (* | "--print-version" :: _rem ->
+   *   version (); exit 0 *)
+  | "-o" :: out_file :: rem ->
+    parse_args rem (Args.set_out_file cur out_file)
   | in_file :: rem ->
-    begin
-      match file with
-      | None ->
-        parse_args rem vo_acc ml_acc init boot coqlib (Some in_file)
-      | Some file ->
-        CErrors.user_err Pp.(str "parse args error, too many files: " ++ str in_file ++ str " and " ++ str file)
-    end
+    parse_args rem (Args.set_in_file cur in_file)
   | [] ->
-    match file with
+    match cur.Args.in_file with
     | None ->
       CErrors.user_err Pp.(str "parse args error, missing input file.")
     | Some file ->
-      List.rev vo_acc, List.rev ml_acc, init, boot, coqlib, file
+      Args.return cur
 
 let () =
   Flags.quiet := true;
   System.trust_file_cache := true;
   try
-    let vo_path, ml_path, init, boot, coqlib, in_file =
-      parse_args (List.tl @@ Array.to_list Sys.argv) [] [] true false None None in
+    let { Args.vo_path; ml_path; init; boot; coqlib; in_file; out_file } =
+      parse_args (List.tl @@ Array.to_list Sys.argv) Args.init in
+    let in_file = Option.get in_file in
     let require_libs = if init then dft_require_libs else [] in
     let vo_path = if boot then vo_path else default_vo_load_path ~coqlib @ vo_path in
-    compile ~vo_path ~ml_path ~require_libs ~in_file
+    compile ~vo_path ~ml_path ~require_libs ~in_file ~out_file
   with exn ->
     Format.eprintf "Error: @[%a@]@\n%!" Pp.pp_with (CErrors.print exn)
