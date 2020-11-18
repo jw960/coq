@@ -198,7 +198,7 @@ let rec parse_args (args : string list) cur : Args.t =
     Flags.quiet := false;
     parse_args rem cur
   | "-async-proofs-cache" :: _ :: rem
-  | "-no-glob" :: rem
+  | "-noglob" :: rem
   | "-top" :: _ :: rem
   | "-w" :: _ :: rem
   | "-native-compiler" :: _ :: rem ->
