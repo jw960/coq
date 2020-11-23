@@ -91,6 +91,7 @@ endif
 COQC     ?= "$(COQBIN)coqc"
 COQTOP   ?= "$(COQBIN)coqtop"
 COQCHK   ?= "$(COQBIN)coqchk"
+COQNATIVE ?= "$(COQBIN)coqnative"
 COQDEP   ?= "$(COQBIN)coqdep"
 COQDOC   ?= "$(COQBIN)coqdoc"
 COQPP    ?= "$(COQBIN)coqpp"
@@ -209,8 +210,14 @@ COQEXTRAFLAGS?=
 COQCHKEXTRAFLAGS?=
 COQDOCEXTRAFLAGS?=
 
+ifeq '$(COQMF_COQ_NATIVE_COMPILER_DEFAULT)' 'yes'
+  COQNATIVEFLAGS="-native-compiler" "ondemand"
+else
+  COQNATIVEFLAGS=
+endif
+
 # these flags do NOT contain the libraries, to make them easier to overwrite
-COQFLAGS?=-q $(OTHERFLAGS) $(COQEXTRAFLAGS)
+COQFLAGS?=-q $(COQNATIVEFLAGS) $(OTHERFLAGS) $(COQEXTRAFLAGS)
 COQCHKFLAGS?=-silent -o $(COQCHKEXTRAFLAGS)
 COQDOCFLAGS?=-interpolate -utf8 $(COQDOCEXTRAFLAGS)
 
@@ -719,6 +726,10 @@ endif
 $(VOFILES): %.vo: %.v
 	$(SHOW)COQC $<
 	$(HIDE)$(TIMER) $(COQC) $(COQDEBUG) $(TIMING_ARG) $(COQFLAGS) $(COQLIBS) $< $(TIMING_EXTRA)
+ifeq '$(COQMF_COQ_NATIVE_COMPILER_DEFAULT)' "yes"
+	$(SHOW)COQNATIVE $*.vo
+	$(HIDE)$(COQNATIVE) $(COQLIBS) $*.vo
+endif
 
 # FIXME ?merge with .vo / .vio ?
 $(GLOBFILES): %.glob: %.v
