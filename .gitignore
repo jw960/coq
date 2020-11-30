@@ -52,6 +52,8 @@ TAGS
 _build
 _build_vo
 _build_ci
+_build_boot
+_opam
 config/Makefile
 config/coq_config.ml
 config/coq_config.py

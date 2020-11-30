@@ -195,6 +195,25 @@ endef
 
 $(foreach subdir,$(wildcard theories/*/),$(eval $(call subtarget,$(subdir),$(shell echo $(subst /,,$(subst theories/,,$(subdir))) | tr A-Z a-z))))
 
+# Dependencies used for testing and developing Coq locally
+DEV_DEPS := \
+zarith \
+"dune>=2.7" \
+lablgtk3-sourceview3 \
+ounit2 \
+merlin \
+tuareg \
+ocp-indent \
+ocp-index \
+ocamlformat.0.15.0 \
+utop
+
+# TODO: check if switch exists
+dev-switch:
+	opam update
+	opam switch create -y . 4.11.1 --deps-only --with-test
+	opam install -y $(DEV_DEPS)
+
 # Other common dev targets:
 #
 # dune build coq-core.install
