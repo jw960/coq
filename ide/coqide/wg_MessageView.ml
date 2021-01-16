@@ -49,12 +49,13 @@ let message_view () : message_view =
     ?style_scheme:(style_manager#style_scheme source_style#get) ()
   in
   let mark = buffer#create_mark ~left_gravity:false buffer#start_iter in
+  let _ = buffer#create_mark ~name:"end_of_output" buffer#end_iter in
   let box = GPack.vbox () in
   let scroll = GBin.scrolled_window
     ~vpolicy:`AUTOMATIC ~hpolicy:`AUTOMATIC ~packing:(box#pack ~expand:true) () in
   let view = GSourceView3.source_view
     ~source_buffer:buffer ~packing:scroll#add
-    ~editable:false ~cursor_visible:false ~wrap_mode:`WORD ()
+    ~editable:true ~cursor_visible:true ~wrap_mode:`CHAR ()
   in
   let () = Gtk_parsing.fix_double_click view in
   let default_clipboard = GData.clipboard Gdk.Atom.primary in
@@ -78,8 +79,35 @@ let message_view () : message_view =
     let mark = `MARK mark in
     let width = Ideutils.textview_width view in
     Ideutils.insert_xml ~mark buffer ~tags (Richpp.richpp_of_pp width msg);
-    buffer#insert ~iter:(buffer#get_iter_at_mark mark) "\n"
+    buffer#insert ~iter:(buffer#get_iter_at_mark mark) "\n";  (* todo no \n when we get a prompt from Coq *)
+    buffer#move_mark (`NAME "end_of_output") ~where:buffer#end_iter;
   in
+
+  (* Keypress handler *)
+  let keypress_cb ev =
+    let ev_key = GdkEvent.Key.keyval ev in
+    let ins = buffer#get_iter_at_mark `INSERT in
+    let eoo = buffer#get_iter_at_mark (`NAME "end_of_output") in
+    let delta = ins#offset - eoo#offset in
+    if ev_key = 65535 && delta < 0 then
+      true (* ignore DELETE before end of output *)
+    else if ev_key = 65288 && delta <= 0 then
+      true (* ignore BACKSPACE before eoo *)
+    else if (ev_key >= Char.code ' ' && ev_key <= Char.code '~') then begin
+      if delta < 0 then
+        buffer#move_mark `INSERT ~where:buffer#end_iter;
+      buffer#insert (String.make 1 (Char.chr ev_key));
+      view#scroll_to_mark `INSERT; (* scroll to insertion point *)
+      let ins = buffer#get_iter_at_mark `INSERT in
+      buffer#select_range ins ins;  (* avoid highlighting *)
+      true (* consume the event *)
+    end else
+      let (return, _) = GtkData.AccelGroup.parse "Return" in
+      if ev_key = return then (Printf.printf "RETURN ENTERED\n%!"; false)
+    else
+      false
+  in
+  let _ = view#event#connect#key_press ~callback:keypress_cb in
 
   let mv = object (self)
     inherit GObj.widget box#as_widget

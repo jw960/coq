@@ -65,6 +65,7 @@ let create_buffer () =
 let create_script coqtop source_buffer =
   let script = Wg_ScriptView.script_view coqtop ~source_buffer
     ~show_line_numbers:true ~wrap_mode:`NONE ()
+    (* todo: line numbers don't appear *)
   in
   let _ = script#misc#set_name "ScriptWindow"
   in

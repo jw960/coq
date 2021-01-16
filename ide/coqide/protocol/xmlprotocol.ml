@@ -646,7 +646,7 @@ let id_of_call : type a. a call -> int = function
   | StopWorker _ -> 16
   | PrintAst _   -> 17
   | Annotate _   -> 18
-  | PDiff _     -> 19
+  | PDiff _      -> 19
 
 let str_of_call c = pi1 calls.(id_of_call c)
 
