@@ -879,6 +879,7 @@ let of_message_level = function
       Serialize.constructor "message_level" "debug" []
   | Info -> Serialize.constructor "message_level" "info" []
   | Notice -> Serialize.constructor "message_level" "notice" []
+  | Prompt -> Serialize.constructor "message_level" "prompt" []
   | Warning -> Serialize.constructor "message_level" "warning" []
   | Error -> Serialize.constructor "message_level" "error" []
 let to_message_level =
@@ -886,6 +887,7 @@ let to_message_level =
   | "debug" -> empty args; Debug
   | "info" -> empty args; Info
   | "notice" -> empty args; Notice
+  | "prompt" -> empty args; Prompt
   | "warning" -> empty args; Warning
   | "error" -> empty args; Error
   | x -> raise Serialize.(Marshal_error("error level",PCData x)))

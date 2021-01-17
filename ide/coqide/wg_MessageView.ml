@@ -79,7 +79,8 @@ let message_view () : message_view =
     let mark = `MARK mark in
     let width = Ideutils.textview_width view in
     Ideutils.insert_xml ~mark buffer ~tags (Richpp.richpp_of_pp width msg);
-    buffer#insert ~iter:(buffer#get_iter_at_mark mark) "\n";  (* todo no \n when we get a prompt from Coq *)
+    if level <> Feedback.Prompt then
+      buffer#insert ~iter:(buffer#get_iter_at_mark mark) "\n";
     buffer#move_mark (`NAME "end_of_output") ~where:buffer#end_iter;
   in
 

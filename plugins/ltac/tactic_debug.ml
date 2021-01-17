@@ -171,7 +171,8 @@ let rec prompt level =
   let runtrue = run true in
   begin
     let open Proofview.NonLogical in
-    Proofview.NonLogical.print_notice (fnl () ++ str "TcDebug (" ++ int level ++ str ") > ") >>
+    Proofview.NonLogical.print_prompt (fnl () ++ tag "message.prompt"
+        (str "TcDebug (" ++ int level ++ str ") > ")) >>
     if Util.(!batch) then return (DebugOn (level+1)) else
     let exit = (skip:=0) >> (skipped:=0) >> raise (Sys.Break, Exninfo.null) in
     Proofview.NonLogical.catch Proofview.NonLogical.read_line

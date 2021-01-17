@@ -112,6 +112,7 @@ struct
   let print_info    s = make (fun _ -> Feedback.msg_info s)
   let print_warning s = make (fun _ -> Feedback.msg_warning s)
   let print_notice  s = make (fun _ -> Feedback.msg_notice s)
+  let print_prompt  s = make (fun _ -> Feedback.msg_prompt s)
 
   let run = fun x ->
     try x () with Exception e as src ->

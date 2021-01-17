@@ -109,8 +109,9 @@ module Tag = struct
 
 end
 
-let msgnl_with ?pre_hdr fmt strm =
-  pp_with fmt (strm ++ fnl ());
+let msgnl_with ?(with_nl=true) fmt strm =
+  let msg = if with_nl then strm ++ fnl () else strm in
+  pp_with fmt msg;
   Format.pp_print_flush fmt ()
 
 module Emacs = struct
@@ -145,6 +146,7 @@ let gen_logger dbg warn ?pre_hdr level msg = let open Feedback in match level wi
   | Debug   -> msgnl_with !std_ft (make_body dbg  dbg_hdr ?pre_hdr msg)
   | Info    -> msgnl_with !std_ft (make_body dbg info_hdr ?pre_hdr msg)
   | Notice  -> msgnl_with !std_ft (make_body noq info_hdr ?pre_hdr msg)
+  | Prompt  -> msgnl_with ~with_nl:false !std_ft (make_body noq info_hdr ?pre_hdr msg)
   | Warning -> Flags.if_warn (fun () ->
                msgnl_with !err_ft (make_body warn warn_hdr ?pre_hdr msg)) ()
   | Error   -> msgnl_with !err_ft (make_body noq   err_hdr ?pre_hdr msg)
@@ -168,6 +170,7 @@ let default_tag_map () = let open Terminal in [
     "message.error"    , make ~bold:true ~fg_color:`WHITE ~bg_color:`RED ()
   ; "message.warning"  , make ~bold:true ~fg_color:`WHITE ~bg_color:`YELLOW ()
   ; "message.debug"    , make ~bold:true ~fg_color:`WHITE ~bg_color:`MAGENTA ()
+  ; "message.prompt"   , make ~fg_color:`GREEN ()
   (* Coming from the printer *)
   ; "constr.evar"      , make            ~fg_color:`LIGHT_BLUE ()
   ; "constr.keyword"   , make ~bold:true ()

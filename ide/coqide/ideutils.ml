@@ -397,6 +397,7 @@ let default_logger level message =
   | Feedback.Debug -> `DEBUG
   | Feedback.Info -> `INFO
   | Feedback.Notice -> `NOTICE
+  | Feedback.Prompt -> `PROMPT
   | Feedback.Warning -> `WARNING
   | Feedback.Error -> `ERROR
   in
