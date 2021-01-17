@@ -641,17 +641,15 @@ object(self)
             let _, _, phrase = self#get_sentence sentence in
             let coq_query = Coq.add ((phrase,edit_id),(tip,verbose)) in
             let handle_answer = function
-              | Good (id, (Util.Inl (* NewTip *) (), msg)) ->
+              | Good (id, Util.Inl (* NewTip *) ()) ->
                   Doc.assign_tip_id document id;
-                  logger Feedback.Notice (Pp.str msg);
                   self#commit_queue_transaction sentence;
                   loop id []
-              | Good (id, (Util.Inr (* Unfocus *) tip, msg)) ->
+              | Good (id, Util.Inr (* Unfocus *) tip) ->
                   Doc.assign_tip_id document id;
                   let topstack, _ = Doc.context document in
                   self#exit_focus;
                   self#cleanup (Doc.cut_at document tip);
-                  logger Feedback.Notice (Pp.str msg);
                   self#mark_as_needed sentence;
                   if Queue.is_empty queue then loop tip []
                   else loop tip (List.rev topstack)

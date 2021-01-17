@@ -552,7 +552,7 @@ let annotate_sty_t : annotate_sty val_t = string_t
 let proof_diff_sty_t : proof_diff_sty val_t = pair_t string_t state_id_t
 
 let add_rty_t : add_rty val_t =
-  pair_t state_id_t (pair_t (union_t unit_t state_id_t) string_t)
+  pair_t state_id_t (union_t unit_t state_id_t)
 let edit_at_rty_t : edit_at_rty val_t =
   union_t unit_t (pair_t state_id_t (pair_t state_id_t state_id_t))
 let query_rty_t : query_rty val_t = unit_t

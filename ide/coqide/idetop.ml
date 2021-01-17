@@ -93,23 +93,15 @@ let add ((s,eid),(sid,verbose)) =
   let doc = get_doc () in
   let pa = Pcoq.Parsable.make (Stream.of_string s) in
   match Stm.parse_sentence ~doc sid ~entry:Pvernac.main_entry pa with
-  | None -> assert false (* s is not an empty string *)
+  | None -> assert false (* s may not be empty *)
   | Some ast ->
     ide_cmd_checks ~last_valid:sid ast;
     let doc, newid, rc = Stm.add ~doc ~ontop:sid verbose ast in
     set_doc doc;
     let rc = match rc with `NewTip -> CSig.Inl () | `Unfocus id -> CSig.Inr id in
     ide_cmd_warns ~id:newid ast;
-    (* TODO: the "" parameter is a leftover of the times the protocol
-     * used to include stderr/stdout output.
-     *
-     * Currently, we force all the output meant for the to go via the
-     * feedback mechanism, and we don't manipulate stderr/stdout, which
-     * are left to the client's discrection. The parameter is still there
-     * as not to break the core protocol for this minor change, but it should
-     * be removed in the next version of the protocol.
-    *)
-    newid, (rc, "")
+    (* All output is sent through the feedback mechanism rather than stdout/stderr *)
+    newid, rc
 
 let edit_at id =
   let doc = get_doc () in

@@ -188,9 +188,9 @@ module GUILogic = struct
 
   let after_add = function
     | Interface.Fail (_,_,s) -> print_error s; exit 1
-    | Interface.Good (id, (Util.Inl (), _)) ->
+    | Interface.Good (id, Util.Inl ()) ->
         Document.assign_tip_id doc id
-    | Interface.Good (id, (Util.Inr tip, _)) ->
+    | Interface.Good (id, Util.Inr tip) ->
         Document.assign_tip_id doc id;
         Document.unfocus doc;
         ignore(Document.cut_at doc tip);
