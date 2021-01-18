@@ -33,3 +33,5 @@ class type message_view =
   end
 
 val message_view : unit -> message_view
+
+val forward_send_db_cmd : (string -> unit) ref

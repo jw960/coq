@@ -42,6 +42,9 @@ class type message_view =
     method get_selected_text : string
   end
 
+let forward_send_db_cmd = ref ((fun x -> failwith "forward_send_db_cmd")
+    : string -> unit)
+
 let message_view () : message_view =
   let buffer = GSourceView3.source_buffer
     ~highlight_matching_brackets:true
@@ -82,7 +85,17 @@ let message_view () : message_view =
     if level <> Feedback.Prompt then
       buffer#insert ~iter:(buffer#get_iter_at_mark mark) "\n";
     buffer#move_mark (`NAME "end_of_output") ~where:buffer#end_iter;
+    if level = Feedback.Prompt then begin
+      view#scroll_to_mark (`NAME "end_of_output"); (* scroll to end *)
+      buffer#move_mark `INSERT ~where:buffer#end_iter;
+      let ins = buffer#get_iter_at_mark `INSERT in
+      buffer#select_range ins ins;  (* avoid highlighting *)
+    end
   in
+
+  let (return, _) = GtkData.AccelGroup.parse "Return" in
+  let backspace = 65288 (*GtkData.AccelGroup.parse "Backspace"*) in
+  let (delete, _) = GtkData.AccelGroup.parse "Delete" in
 
   (* Keypress handler *)
   let keypress_cb ev =
@@ -90,23 +103,35 @@ let message_view () : message_view =
     let ins = buffer#get_iter_at_mark `INSERT in
     let eoo = buffer#get_iter_at_mark (`NAME "end_of_output") in
     let delta = ins#offset - eoo#offset in
-    if ev_key = 65535 && delta < 0 then
+    if ev_key = delete && delta < 0 then
       true (* ignore DELETE before end of output *)
-    else if ev_key = 65288 && delta <= 0 then
+    else if ev_key = backspace && delta <= 0 then
       true (* ignore BACKSPACE before eoo *)
-    else if (ev_key >= Char.code ' ' && ev_key <= Char.code '~') then begin
+    else begin
       if delta < 0 then
         buffer#move_mark `INSERT ~where:buffer#end_iter;
-      buffer#insert (String.make 1 (Char.chr ev_key));
-      view#scroll_to_mark `INSERT; (* scroll to insertion point *)
       let ins = buffer#get_iter_at_mark `INSERT in
-      buffer#select_range ins ins;  (* avoid highlighting *)
-      true (* consume the event *)
-    end else
-      let (return, _) = GtkData.AccelGroup.parse "Return" in
-      if ev_key = return then (Printf.printf "RETURN ENTERED\n%!"; false)
-    else
-      false
+      if (ev_key >= Char.code ' ' && ev_key <= Char.code '~') then begin
+        buffer#insert (String.make 1 (Char.chr ev_key));
+        view#scroll_to_mark `INSERT; (* scroll to insertion point *)
+        let ins = buffer#get_iter_at_mark `INSERT in
+        buffer#select_range ins ins;  (* avoid highlighting *)
+        true (* consume the event *)
+      end else if ev_key = return then begin
+        let cmd = buffer#get_text ~start:eoo ~stop:ins () in
+        Printf.printf "RETURN ENTERED `%s`\n%!" cmd;
+        buffer#insert "\n\n";
+        buffer#move_mark `INSERT ~where:buffer#end_iter;
+        view#scroll_to_mark `INSERT; (* scroll to insertion point *)
+        let ins = buffer#get_iter_at_mark `INSERT in
+        buffer#select_range ins ins;  (* avoid highlighting *)
+        buffer#move_mark (`NAME "end_of_output") ~where:buffer#end_iter;
+
+        !forward_send_db_cmd cmd;
+        true
+      end else
+        false
+      end
   in
   let _ = view#event#connect#key_press ~callback:keypress_cb in
 

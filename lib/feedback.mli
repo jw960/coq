@@ -88,7 +88,7 @@ val msg_notice : ?loc:Loc.t -> Pp.t -> unit
 (** Message that should be displayed, such as [Print Foo] or [Show Bar]. *)
 
 val msg_prompt : ?loc:Loc.t -> Pp.t -> unit
-(** Message that should be displayed as a prompt to the user, such as [TcDebug]. *)
+(** Message that should be displayed as a prompt to the user, such as [TcDebug > ]. *)
 
 val msg_warning : ?loc:Loc.t -> Pp.t -> unit
 (** Message indicating that something went wrong, but without serious

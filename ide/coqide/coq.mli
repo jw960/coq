@@ -93,7 +93,7 @@ val gio_channel_of_descr_socket : (Unix.file_descr -> Glib.Io.channel) ref
 
 (** {5 Task processing} *)
 
-val try_grab : coqtop -> unit task -> (unit -> unit) -> unit
+val try_grab : ?db:bool -> coqtop -> unit task -> (unit -> unit) -> unit
 (** Try to schedule a task on a coqtop. If coqtop is available, the task
     callback is run (asynchronously), otherwise the [(unit->unit)] callback
     is triggered.
@@ -128,6 +128,7 @@ val mkcases    : Interface.mkcases_sty    -> Interface.mkcases_rty query
 val search     : Interface.search_sty     -> Interface.search_rty query
 val init       : Interface.init_sty       -> Interface.init_rty query
 val proof_diff : Interface.proof_diff_sty -> Interface.proof_diff_rty query
+val db_cmd     : Interface.db_cmd_sty     -> Interface.db_cmd_rty query
 
 val stop_worker: Interface.stop_worker_sty-> Interface.stop_worker_rty query
 

@@ -73,7 +73,7 @@ let ide_cmd_checks ~last_valid { CAst.loc; v } =
       let info = Stateid.add info ~valid:last_valid Stateid.dummy in
       Exninfo.iraise (e, info)
   in
-  if is_debug v.expr then
+  if false (*is_debug v.expr*) then
     user_error "Debug mode not available in the IDE"
 
 let ide_cmd_warns ~id { CAst.loc; v } =
@@ -370,6 +370,11 @@ let proof_diff (diff_opt, sid) =
       let old = Stm.get_prev_proof ~doc sid in
       Proof_diffs.diff_proofs ~diff_opt ?old proof
 
+let debug_cmd = ref ""
+
+let db_cmd cmd =
+  debug_cmd := cmd
+
 let get_options () =
   let table = Goptions.get_tables () in
   let fold key state accu = (key, export_option_state state) :: accu in
@@ -459,6 +464,7 @@ let eval_call c =
     Interface.status = interruptible status;
     Interface.search = interruptible search;
     Interface.proof_diff = interruptible proof_diff;
+    Interface.db_cmd = interruptible db_cmd;   (* todo: interruptible or not? *)
     Interface.get_options = interruptible get_options;
     Interface.set_options = interruptible set_options;
     Interface.mkcases = interruptible idetop_make_cases;
@@ -523,7 +529,7 @@ let loop ( { Coqtop.run_mode; color_mode },_) ~opts:_ state =
   let xml_ic        = Xml_parser.make (Xml_parser.SLexbuf in_lb) in
   let () = Xml_parser.check_eof xml_ic false in
   ignore (Feedback.add_feeder (slave_feeder (!msg_format ()) xml_oc));
-  while not !quit do
+  let process_xml_msg xml_ic xml_oc out_ch =
     try
       let xml_query = Xml_parser.parse xml_ic in
       if !Flags.xml_debug then
@@ -548,6 +554,11 @@ let loop ( { Coqtop.run_mode; color_mode },_) ~opts:_ state =
       | any ->
         pr_debug ("Fatal exception in coqtop:\n" ^ Printexc.to_string any);
         exit 1
+  in
+  let read_debug_cmd () = process_xml_msg xml_ic xml_oc out_ch; !debug_cmd in
+  Logic_monad.forward_read_debug_cmd := read_debug_cmd;
+  while not !quit do
+    process_xml_msg xml_ic xml_oc out_ch
   done;
   pr_debug "Exiting gracefully.";
   exit 0

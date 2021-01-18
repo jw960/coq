@@ -138,6 +138,8 @@ object
   method go_to_insert : unit task
   method go_to_mark : GText.mark -> unit task
   method process_next_phrase : unit task
+  method process_db_cmd : string ->
+    next:(Interface.db_cmd_rty Interface.value -> unit task) -> unit task
   method process_until_end_or_error : unit task
   method handle_reset_initial : unit task
   method raw_coq_query :
@@ -510,9 +512,9 @@ object(self)
               | _ -> Queue.add msg feedbacks
             with Doc.Empty | Invalid_argument _ -> Queue.add msg feedbacks
       end;
-        eat_feedback (n-1)
+      eat_feedback (n-1)
     in
-      eat_feedback (Queue.length feedbacks)
+    eat_feedback (Queue.length feedbacks)
 
   method private commit_queue_transaction sentence =
     (* A queued command has been successfully done, we push it to [cmd_stack].
@@ -702,6 +704,10 @@ object(self)
   method process_next_phrase =
     let until n _ _ = n >= 1 in
     self#process_until ~move_insert:true until true
+
+  method process_db_cmd cmd ~next : unit Coq.task =
+    let db_cmd = Coq.db_cmd cmd in
+    Coq.bind db_cmd next
 
   method private process_until_iter iter =
     let until _ start stop =

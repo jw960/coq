@@ -169,17 +169,18 @@ let run ini =
 let rec prompt level =
   (* spiwack: avoid overriding by the open below *)
   let runtrue = run true in
-  begin
     let open Proofview.NonLogical in
     Proofview.NonLogical.print_prompt (fnl () ++ tag "message.prompt"
         (str "TcDebug (" ++ int level ++ str ") > ")) >>
     if Util.(!batch) then return (DebugOn (level+1)) else
     let exit = (skip:=0) >> (skipped:=0) >> raise (Sys.Break, Exninfo.null) in
-    Proofview.NonLogical.catch Proofview.NonLogical.read_line
-      begin function (e, info) -> match e with
-        | End_of_file -> exit
-        | e -> raise (e, info)
-      end
+    Proofview.NonLogical.get_debug_cmd ()
+    (* todo: need a conditional so debugger still works in coqtop *)
+(*    Proofview.NonLogical.catch Proofview.NonLogical.read_line*)
+(*      begin function (e, info) -> match e with*)
+(*        | End_of_file -> exit*)
+(*        | e -> raise (e, info)*)
+(*      end*)
     >>= fun inst ->
     match inst with
     | ""  -> return (DebugOn (level+1))
@@ -196,7 +197,6 @@ let rec prompt level =
             | Failure _ | Invalid_argument _ -> prompt level
             | e -> raise (e, info)
           end
-  end
 
 (* Prints the state and waits for an instruction *)
 (* spiwack: the only reason why we need to take the continuation [f]
