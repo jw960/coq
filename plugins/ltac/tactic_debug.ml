@@ -165,6 +165,14 @@ let run ini =
   else
     return ()
 
+let is_coqIDE () = !Dyn.forward_read_debug_cmd <> None
+
+let get_debug_cmd = Proofview.NonLogical.make (fun _ ->
+    (match Dyn.forward_read_debug_cmd.contents with
+    | Some f -> f
+    | None -> failwith "forward_read_debug_cmd")
+   ())
+
 (* Prints the prompt *)
 let rec prompt level =
   (* spiwack: avoid overriding by the open below *)
@@ -174,13 +182,14 @@ let rec prompt level =
         (str "TcDebug (" ++ int level ++ str ") > ")) >>
     if Util.(!batch) then return (DebugOn (level+1)) else
     let exit = (skip:=0) >> (skipped:=0) >> raise (Sys.Break, Exninfo.null) in
-    Proofview.NonLogical.get_debug_cmd ()
-    (* todo: need a conditional so debugger still works in coqtop *)
-(*    Proofview.NonLogical.catch Proofview.NonLogical.read_line*)
-(*      begin function (e, info) -> match e with*)
-(*        | End_of_file -> exit*)
-(*        | e -> raise (e, info)*)
-(*      end*)
+    (if is_coqIDE () then
+      get_debug_cmd
+    else
+      Proofview.NonLogical.catch Proofview.NonLogical.read_line
+        begin function (e, info) -> match e with
+          | End_of_file -> exit
+          | e -> raise (e, info)
+        end)
     >>= fun inst ->
     match inst with
     | ""  -> return (DebugOn (level+1))

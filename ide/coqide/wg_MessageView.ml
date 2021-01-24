@@ -110,7 +110,6 @@ let message_view () : message_view =
     else begin
       if delta < 0 then
         buffer#move_mark `INSERT ~where:buffer#end_iter;
-      let ins = buffer#get_iter_at_mark `INSERT in
       if (ev_key >= Char.code ' ' && ev_key <= Char.code '~') then begin
         buffer#insert (String.make 1 (Char.chr ev_key));
         view#scroll_to_mark `INSERT; (* scroll to insertion point *)
@@ -118,8 +117,8 @@ let message_view () : message_view =
         buffer#select_range ins ins;  (* avoid highlighting *)
         true (* consume the event *)
       end else if ev_key = return then begin
+        let ins = buffer#get_iter_at_mark `INSERT in
         let cmd = buffer#get_text ~start:eoo ~stop:ins () in
-        Printf.printf "RETURN ENTERED `%s`\n%!" cmd;
         buffer#insert "\n\n";
         buffer#move_mark `INSERT ~where:buffer#end_iter;
         view#scroll_to_mark `INSERT; (* scroll to insertion point *)

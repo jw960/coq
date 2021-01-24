@@ -60,7 +60,6 @@ module NonLogical : sig
   val (!) : 'a ref -> 'a t
 
   val read_line : string t
-  val get_debug_cmd : unit -> string t
   val print_char : char -> unit t
 
   (** Loggers. The buffer is also flushed. *)
@@ -221,5 +220,3 @@ module Logical (P:Param) : sig
   end
 
 end
-
-val forward_read_debug_cmd : (unit -> string) ref

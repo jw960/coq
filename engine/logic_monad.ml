@@ -43,9 +43,6 @@ let _ = CErrors.register_handler begin function
   | _ -> None
 end
 
-(* todo: not sure where else to put it *)
-let forward_read_debug_cmd = ref ((fun x -> failwith "forward_read_debug_cmd") : unit -> string)
-
 (** {6 Non-logical layer} *)
 
 (** The non-logical monad is a simple [unit -> 'a] (i/o) monad. The
@@ -98,8 +95,6 @@ struct
   let read_line = fun () -> try read_line () with e ->
     let (e, info) = Exninfo.capture e in
     raise (e,info) ()
-
-  let get_debug_cmd = fun () -> (); fun () -> Stdlib.(!)forward_read_debug_cmd ()
 
   let print_char = fun c -> (); fun () -> print_char c
 

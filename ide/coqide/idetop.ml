@@ -73,8 +73,8 @@ let ide_cmd_checks ~last_valid { CAst.loc; v } =
       let info = Stateid.add info ~valid:last_valid Stateid.dummy in
       Exninfo.iraise (e, info)
   in
-  if false (*is_debug v.expr*) then
-    user_error "Debug mode not available in the IDE"
+  if false then
+    user_error "Dummy"
 
 let ide_cmd_warns ~id { CAst.loc; v } =
   let warn msg = Feedback.(feedback ~id (Message (Warning, loc, strbrk msg))) in
@@ -556,7 +556,7 @@ let loop ( { Coqtop.run_mode; color_mode },_) ~opts:_ state =
         exit 1
   in
   let read_debug_cmd () = process_xml_msg xml_ic xml_oc out_ch; !debug_cmd in
-  Logic_monad.forward_read_debug_cmd := read_debug_cmd;
+  Dyn.forward_read_debug_cmd := Some read_debug_cmd;
   while not !quit do
     process_xml_msg xml_ic xml_oc out_ch
   done;
