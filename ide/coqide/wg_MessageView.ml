@@ -93,6 +93,7 @@ let message_view () : message_view =
     end
   in
 
+  let msgs = ref [] in
   let (return, _) = GtkData.AccelGroup.parse "Return" in
   let backspace = 65288 (*GtkData.AccelGroup.parse "Backspace"*) in
   let (delete, _) = GtkData.AccelGroup.parse "Delete" in
@@ -119,7 +120,8 @@ let message_view () : message_view =
       end else if ev_key = return then begin
         let ins = buffer#get_iter_at_mark `INSERT in
         let cmd = buffer#get_text ~start:eoo ~stop:ins () in
-        buffer#insert "\n\n";
+        msgs := (Feedback.Notice, Pp.str cmd) :: !msgs;
+        buffer#insert "\n";
         buffer#move_mark `INSERT ~where:buffer#end_iter;
         view#scroll_to_mark `INSERT; (* scroll to insertion point *)
         let ins = buffer#get_iter_at_mark `INSERT in
@@ -139,7 +141,6 @@ let message_view () : message_view =
 
     (* List of displayed messages *)
     val mutable last_width = -1
-    val mutable msgs = []
 
     val push = new GUtil.signal ()
 
@@ -161,14 +162,14 @@ let message_view () : message_view =
         last_width <- width;
         buffer#set_text "";
         buffer#move_mark (`MARK mark) ~where:buffer#start_iter;
-        List.(iter insert_msg (rev msgs))
+        List.(iter insert_msg (rev !msgs))
       end
 
     method clear =
-      msgs <- []; self#refresh true
+      msgs := []; self#refresh true
 
     method push level msg =
-      msgs <- (level, msg) :: msgs;
+      msgs := (level, msg) :: !msgs;
       insert_msg (level, msg);
       push#call (level, msg)
 
