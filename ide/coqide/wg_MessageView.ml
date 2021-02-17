@@ -58,7 +58,7 @@ let message_view () : message_view =
     ~vpolicy:`AUTOMATIC ~hpolicy:`AUTOMATIC ~packing:(box#pack ~expand:true) () in
   let view = GSourceView3.source_view
     ~source_buffer:buffer ~packing:scroll#add
-    ~editable:true ~cursor_visible:true ~wrap_mode:`CHAR ()
+    ~editable:false ~cursor_visible:false ~wrap_mode:`CHAR ()
   in
   let () = Gtk_parsing.fix_double_click view in
   let default_clipboard = GData.clipboard Gdk.Atom.primary in
@@ -86,6 +86,8 @@ let message_view () : message_view =
       buffer#insert ~iter:(buffer#get_iter_at_mark mark) "\n";
     buffer#move_mark (`NAME "end_of_output") ~where:buffer#end_iter;
     if level = Feedback.Prompt then begin
+      view#set_editable true;
+      view#set_cursor_visible true;
       view#scroll_to_mark (`NAME "end_of_output"); (* scroll to end *)
       buffer#move_mark `INSERT ~where:buffer#end_iter;
       let ins = buffer#get_iter_at_mark `INSERT in
@@ -104,7 +106,9 @@ let message_view () : message_view =
     let ins = buffer#get_iter_at_mark `INSERT in
     let eoo = buffer#get_iter_at_mark (`NAME "end_of_output") in
     let delta = ins#offset - eoo#offset in
-    if ev_key = delete && delta < 0 then
+    if not view#editable then
+      false
+    else if ev_key = delete && delta < 0 then
       true (* ignore DELETE before end of output *)
     else if ev_key = backspace && delta <= 0 then
       true (* ignore BACKSPACE before eoo *)
@@ -127,6 +131,8 @@ let message_view () : message_view =
         let ins = buffer#get_iter_at_mark `INSERT in
         buffer#select_range ins ins;  (* avoid highlighting *)
         buffer#move_mark (`NAME "end_of_output") ~where:buffer#end_iter;
+        view#set_editable false;
+        view#set_cursor_visible false;
 
         !forward_send_db_cmd cmd;
         true
