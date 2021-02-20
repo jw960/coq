@@ -556,7 +556,7 @@ let loop ( { Coqtop.run_mode; color_mode },_) ~opts:_ state =
         exit 1
   in
   let read_debug_cmd () = process_xml_msg xml_ic xml_oc out_ch; !debug_cmd in
-  Dyn.forward_read_debug_cmd := Some read_debug_cmd;
+  DebugHook.forward_read_debug_cmd := Some read_debug_cmd;
   while not !quit do
     process_xml_msg xml_ic xml_oc out_ch
   done;

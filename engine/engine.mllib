@@ -17,3 +17,4 @@ Logic_monad
 Proofview_monad
 Proofview
 Ftactic
+DebugHook
