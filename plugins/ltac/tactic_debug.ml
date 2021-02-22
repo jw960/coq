@@ -165,10 +165,10 @@ let run ini =
   else
     return ()
 
-let is_coqIDE () = !DebugHook.forward_read_debug_cmd <> None
+let is_coqIDE () = DebugHook.get_debug_cmd_reader () <> None
 
 let get_debug_cmd = Proofview.NonLogical.make (fun _ ->
-    (match DebugHook.forward_read_debug_cmd.contents with
+    (match DebugHook.get_debug_cmd_reader () with
     | Some f -> f
     | None -> failwith "forward_read_debug_cmd")
    ())
