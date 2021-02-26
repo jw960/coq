@@ -8,9 +8,19 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(* registration of the routine that reads debugger commands from the client *)
-let forward_read_debug_cmd = ref (None : (unit -> string) option)
+(* registration of debugger hooks *)
+type debugger_hooks = {
+  (* read a debugger command from the client *)
+  read_cmd : unit -> string;
+  (* print the debugger prompt *)
+  print_prompt : Pp.t -> unit
+}
 
-let register_debug_cmd_reader f = forward_read_debug_cmd := Some f
+let debugger_hooks : debugger_hooks option ref = ref None
 
-let get_debug_cmd_reader () = !forward_read_debug_cmd
+let register_debugger_hooks hooks = debugger_hooks := Some hooks
+
+let get_debugger_hooks () =
+  match !debugger_hooks with
+  | Some hooks -> hooks
+  | None -> failwith "get_debugger_hooks"

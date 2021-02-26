@@ -167,6 +167,8 @@ let coqtop_init ({ run_mode; color_mode }, async_opts) injections ~opts =
   if run_mode = Batch then Flags.quiet := true;
   init_color (if opts.config.print_emacs then `EMACS else color_mode);
   Flags.if_verbose print_header ();
+  DebugHook.(register_debugger_hooks
+    { read_cmd=read_line; print_prompt=Feedback.msg_prompt });
   init_toploop opts async_opts injections
 
 let set_color = function

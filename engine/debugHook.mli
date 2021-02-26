@@ -8,7 +8,14 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(* registration of the routine that reads debugger commands from the client *)
-val register_debug_cmd_reader : (unit -> string) -> unit
+(* registration of debugger hooks *)
+type debugger_hooks = {
+  (* read a debugger command from the client *)
+  read_cmd : unit -> string;
+  (* print the debugger prompt *)
+  print_prompt : Pp.t -> unit
+}
 
-val get_debug_cmd_reader : unit -> (unit -> string) option
+val register_debugger_hooks : debugger_hooks -> unit
+
+val get_debugger_hooks : unit -> debugger_hooks

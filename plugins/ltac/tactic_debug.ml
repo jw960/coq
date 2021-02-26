@@ -12,6 +12,7 @@ open Util
 open Names
 open Pp
 open Tacexpr
+open DebugHook
 
 let (ltac_trace_info : ltac_trace Exninfo.t) = Exninfo.make ()
 
@@ -165,31 +166,26 @@ let run ini =
   else
     return ()
 
-let is_coqIDE () = DebugHook.get_debug_cmd_reader () <> None
+let read_cmd = Proofview.NonLogical.make (fun _ ->
+    (get_debugger_hooks ()).read_cmd ())
 
-let get_debug_cmd = Proofview.NonLogical.make (fun _ ->
-    (match DebugHook.get_debug_cmd_reader () with
-    | Some f -> f
-    | None -> failwith "forward_read_debug_cmd")
-   ())
+let print_prompt s = Proofview.NonLogical.make
+    (fun _ -> (get_debugger_hooks ()).print_prompt s)
 
 (* Prints the prompt *)
 let rec prompt level =
   (* spiwack: avoid overriding by the open below *)
   let runtrue = run true in
     let open Proofview.NonLogical in
-    Proofview.NonLogical.print_prompt (fnl () ++ tag "message.prompt"
+    print_prompt (fnl () ++ tag "message.prompt"
         (str "TcDebug (" ++ int level ++ str ") > ")) >>
     if Util.(!batch) then return (DebugOn (level+1)) else
     let exit = (skip:=0) >> (skipped:=0) >> raise (Sys.Break, Exninfo.null) in
-    (if is_coqIDE () then
-      get_debug_cmd
-    else
-      Proofview.NonLogical.catch Proofview.NonLogical.read_line
+      Proofview.NonLogical.catch read_cmd
         begin function (e, info) -> match e with
           | End_of_file -> exit
           | e -> raise (e, info)
-        end)
+        end
     >>= fun inst ->
     match inst with
     | ""  -> return (DebugOn (level+1))
