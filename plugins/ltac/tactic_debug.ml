@@ -38,8 +38,12 @@ type debug_info =
 let explain_logic_error e = CErrors.print e
 let explain_logic_error_no_anomaly e = CErrors.print_no_report e
 
-let msg_tac_debug s = Proofview.NonLogical.print_debug (s++fnl())
-let msg_tac_notice s = Proofview.NonLogical.print_notice (s++fnl())
+(* todo: maybe don't need the "fnl()" below? *)
+let msg_tac_notice s = Proofview.NonLogical.make
+    (fun _ -> (get_debugger_hooks ()).print_notice (s++fnl()))
+
+let msg_tac_debug s = Proofview.NonLogical.make
+    (fun _ -> (get_debugger_hooks ()).print_debug (s++fnl()))
 
 (* Prints the goal *)
 
@@ -61,7 +65,7 @@ let db_pr_goal =
 
 (* Prints the commands *)
 let help () =
-  msg_tac_debug (str "Commands: <Enter> = Continue" ++ fnl() ++
+  msg_tac_debug (str "Commands: <Enter> = Step" ++ fnl() ++
          str "          h/? = Help" ++ fnl() ++
          str "          r <num> = Run <num> times" ++ fnl() ++
          str "          r <string> = Run up to next idtac <string>" ++ fnl() ++
@@ -92,72 +96,16 @@ let () =
       optread  = (fun () -> !batch);
       optwrite = (fun x -> batch := x) }
 
-let rec drop_spaces inst i =
-  if String.length inst > i && inst.[i] == ' ' then drop_spaces inst (i+1)
-  else i
-
-let possibly_unquote s =
-  if String.length s >= 2 && s.[0] == '"' && s.[String.length s - 1] == '"' then
-    String.sub s 1 (String.length s - 2)
-  else
-    s
-
 (* (Re-)initialize debugger *)
 let db_initialize =
   let open Proofview.NonLogical in
   (skip:=0) >> (skipped:=0) >> (breakpoint:=None)
-
-let int_of_string s =
-  try Proofview.NonLogical.return (int_of_string s)
-  with e ->
-    let e = Exninfo.capture e in
-    Proofview.NonLogical.raise e
-
-let string_get s i =
-  try Proofview.NonLogical.return (String.get s i)
-  with e ->
-    let e = Exninfo.capture e in
-    Proofview.NonLogical.raise e
-
-let check_positive n =
-  try
-    if n < 0 then
-      raise (Invalid_argument "number must be positive")
-    else
-      Proofview.NonLogical.return ()
-  with e ->
-    let e = Exninfo.capture e in
-    Proofview.NonLogical.raise e
-
-let run_invalid_arg () =
-  let info = Exninfo.null in
-  Proofview.NonLogical.raise (Invalid_argument "run_com", info)
-
-(* Gives the number of steps or next breakpoint of a run command *)
-let run_com inst =
-  let open Proofview.NonLogical in
-  string_get inst 0 >>= fun first_char ->
-  if first_char ='r' then
-    let i = drop_spaces inst 1 in
-    if String.length inst > i then
-      let s = String.sub inst i (String.length inst - i) in
-      if inst.[0] >= '0' && inst.[0] <= '9' then
-        int_of_string s >>= fun num ->
-        check_positive num >>
-        (skip:=num) >> (skipped:=0)
-      else
-        breakpoint:=Some (possibly_unquote s)
-    else
-      run_invalid_arg ()
-  else
-    run_invalid_arg ()
 
 (* Prints the run counter *)
 let run ini =
   let open Proofview.NonLogical in
   if not ini then
     begin
-      Proofview.NonLogical.print_notice (str"\b\r\b\r") >>
       !skipped >>= fun skipped ->
       msg_tac_debug (str "Executed expressions: " ++ int skipped ++ fnl())
     end >>
@@ -188,20 +136,15 @@ let rec prompt level =
         end
     >>= fun inst ->
     match inst with
-    | ""  -> return (DebugOn (level+1))
-    | "s" -> return (DebugOff)
-    | "x" -> Proofview.NonLogical.print_char '\b' >> exit
-    | "h"| "?" ->
-      begin
-        help () >>
-        prompt level
-      end
-    | _ ->
-        Proofview.NonLogical.catch (run_com inst >> runtrue >> return (DebugOn (level+1)))
-          begin function (e, info) -> match e with
-            | Failure _ | Invalid_argument _ -> prompt level
-            | e -> raise (e, info)
-          end
+    | DbStep  -> return (DebugOn (level+1))
+    | DbSkip -> return (DebugOff)
+    | DbExit -> Proofview.NonLogical.print_char '\b' >> exit
+    | DbHelp -> help () >> prompt level
+    | DbRunCnt num -> (skip:=num) >> (skipped:=0) >>
+        runtrue >> return (DebugOn (level+1))
+    | DbRunBreakpoint s -> (breakpoint:=(Some s)) >>
+        runtrue >> return (DebugOn (level+1))
+    | DbFailure -> prompt level
 
 (* Prints the state and waits for an instruction *)
 (* spiwack: the only reason why we need to take the continuation [f]

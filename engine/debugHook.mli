@@ -9,13 +9,24 @@
 (************************************************************************)
 
 (* registration of debugger hooks *)
+type debugger_action =
+  | DbStep
+  | DbSkip
+  | DbExit
+  | DbHelp
+  | DbRunCnt of int
+  | DbRunBreakpoint of string
+  | DbFailure
+
 type debugger_hooks = {
-  (* read a debugger command from the client *)
-  read_cmd : unit -> string;
-  (* print the debugger prompt *)
-  print_prompt : Pp.t -> unit
+  read_cmd : unit -> debugger_action;   (* read a debugger command from the client *)
+  print_notice : Pp.t -> unit;          (* print a notice *)
+  print_debug  : Pp.t -> unit;          (* print a debug *)
+  print_prompt : Pp.t -> unit           (* print the debugger prompt *)
 }
 
 val register_debugger_hooks : debugger_hooks -> unit
 
 val get_debugger_hooks : unit -> debugger_hooks
+
+val parse_cmd : string -> debugger_action

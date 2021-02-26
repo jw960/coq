@@ -557,7 +557,10 @@ let loop ( { Coqtop.run_mode; color_mode },_) ~opts:_ state =
   in
   let read_debug_cmd () = process_xml_msg xml_ic xml_oc out_ch; !debug_cmd in
   DebugHook.(register_debugger_hooks
-      { read_cmd=read_debug_cmd; print_prompt=Feedback.msg_prompt });
+      { read_cmd     = (fun () -> DebugHook.parse_cmd (read_debug_cmd ()));
+        print_notice = Feedback.msg_notice;
+        print_debug  = Feedback.msg_debug;
+        print_prompt = Feedback.msg_prompt });
   while not !quit do
     process_xml_msg xml_ic xml_oc out_ch
   done;
