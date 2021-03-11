@@ -484,6 +484,9 @@ let slave_feeder fmt xml_oc msg =
   let xml = Xmlprotocol.(of_feedback fmt msg) in
   print_xml xml_oc xml
 
+(* Here we will hook the debugger answers *)
+(* let ltac_debug_feeder fmt  *)
+
 (** The main loop *)
 
 (** Exceptions during eval_call should be converted into [Interface.Fail]
@@ -541,12 +544,31 @@ let loop ( { Coqtop.run_mode; color_mode },_) ~opts:_ state =
         pr_debug ("Fatal exception in coqtop:\n" ^ Printexc.to_string any);
         exit 1
   in
-  let read_debug_cmd () = process_xml_msg xml_ic xml_oc out_ch; !debug_cmd in
-  DebugHook.(register_debugger_hooks
-      { read_cmd     = (fun () -> DebugHook.parse_cmd (read_debug_cmd ()));
-        print_notice = Feedback.msg_notice;
-        print_debug  = Feedback.msg_debug;
-        print_prompt = Feedback.msg_prompt });
+
+  (* XXX: the global ref has to go *)
+  let ltac_debug_parse () =
+    let raw_cmd =
+      process_xml_msg xml_ic xml_oc out_ch;
+      !debug_cmd
+    in
+    match DebugHook.Action.parse raw_cmd with
+    | Ok act -> act
+    | Error error ->
+      CErrors.user_err Pp.(str "ltac_debug_input: " ++ str error)
+  in
+
+  (* XXX: output the xml message using the feeder *)
+  let ltac_debug_submit = let open DebugHook.Answer in function
+    | Prompt _ -> ()
+    | Goal _ -> ()
+    | Output _ -> ()
+  in
+
+  DebugHook.Intf.(set
+      { read_cmd = ltac_debug_parse
+      ; submit_answer = ltac_debug_submit
+      });
+
   while not !quit do
     process_xml_msg xml_ic xml_oc out_ch
   done;

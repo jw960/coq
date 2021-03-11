@@ -82,17 +82,22 @@ let message_view () : message_view =
     let mark = `MARK mark in
     let width = Ideutils.textview_width view in
     Ideutils.insert_xml ~mark buffer ~tags (Richpp.richpp_of_pp width msg);
-    if level <> Feedback.Prompt then
-      buffer#insert ~iter:(buffer#get_iter_at_mark mark) "\n";
+    buffer#insert ~iter:(buffer#get_iter_at_mark mark) "\n";
     buffer#move_mark (`NAME "end_of_output") ~where:buffer#end_iter;
-    if level = Feedback.Prompt then begin
-      view#set_editable true;
-      view#set_cursor_visible true;
-      view#scroll_to_mark (`NAME "end_of_output"); (* scroll to end *)
-      buffer#move_mark `INSERT ~where:buffer#end_iter;
-      let ins = buffer#get_iter_at_mark `INSERT in
-      buffer#select_range ins ins;  (* avoid highlighting *)
-    end
+  in
+
+  (* To be used in the debugger hooks *)
+  let _insert_prompt msg =
+    let tags = [] in
+    let mark = `MARK mark in
+    let width = Ideutils.textview_width view in
+    Ideutils.insert_xml ~mark buffer ~tags (Richpp.richpp_of_pp width msg);
+    view#set_editable true;
+    view#set_cursor_visible true;
+    view#scroll_to_mark (`NAME "end_of_output"); (* scroll to end *)
+    buffer#move_mark `INSERT ~where:buffer#end_iter;
+    let ins = buffer#get_iter_at_mark `INSERT in
+    buffer#select_range ins ins;  (* avoid highlighting *)
   in
 
   let msgs = ref [] in

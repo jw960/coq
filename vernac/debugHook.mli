@@ -8,25 +8,39 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(* registration of debugger hooks *)
-type debugger_action =
-  | DbStep
-  | DbSkip
-  | DbExit
-  | DbHelp
-  | DbRunCnt of int
-  | DbRunBreakpoint of string
-  | DbFailure
+(** Ltac debugger interface; clients should register hooks to interact
+   with their provided interface. *)
+module Action : sig
+  type t =
+    | Step
+    (** Step one tactic *)
+    | Skip
+    (** Skip one tactic *)
+    | Exit
+    | Help
+    | RunCnt of int
+    | RunBreakpoint of string
+    | Failed
 
-type debugger_hooks = {
-  read_cmd : unit -> debugger_action;   (* read a debugger command from the client *)
-  print_notice : Pp.t -> unit;          (* print a notice *)
-  print_debug  : Pp.t -> unit;          (* print a debug *)
-  print_prompt : Pp.t -> unit           (* print the debugger prompt *)
-}
+  (* XXX: Should be moved to the clients *)
+  val parse : string -> (t, string) result
+end
 
-val register_debugger_hooks : debugger_hooks -> unit
+module Answer : sig
+  type t =
+    | Prompt of Pp.t
+    | Goal of Pp.t
+    | Output of Pp.t
+end
 
-val get_debugger_hooks : unit -> debugger_hooks
+module Intf : sig
+  type t =
+    { read_cmd : unit -> Action.t
+    (** request a debugger command from the client *)
+    ; submit_answer : Answer.t -> unit
+    (** receive a debugger answer from Ltac *)
+    }
 
-val parse_cmd : string -> debugger_action
+  val set : t -> unit
+  val get : unit -> t option
+end

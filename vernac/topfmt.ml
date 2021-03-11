@@ -109,9 +109,8 @@ module Tag = struct
 
 end
 
-let msgnl_with ?(with_nl=true) fmt strm =
-  let msg = if with_nl then strm ++ fnl () else strm in
-  pp_with fmt msg;
+let msgnl_with fmt strm =
+  pp_with fmt (strm ++ fnl ());
   Format.pp_print_flush fmt ()
 
 module Emacs = struct
@@ -146,7 +145,6 @@ let gen_logger dbg warn ?pre_hdr level msg = let open Feedback in match level wi
   | Debug   -> msgnl_with !std_ft (make_body dbg  dbg_hdr ?pre_hdr msg)
   | Info    -> msgnl_with !std_ft (make_body dbg info_hdr ?pre_hdr msg)
   | Notice  -> msgnl_with !std_ft (make_body noq info_hdr ?pre_hdr msg)
-  | Prompt  -> msgnl_with ~with_nl:false !std_ft (make_body noq info_hdr ?pre_hdr msg)
   | Warning -> Flags.if_warn (fun () ->
                msgnl_with !err_ft (make_body warn warn_hdr ?pre_hdr msg)) ()
   | Error   -> msgnl_with !err_ft (make_body noq   err_hdr ?pre_hdr msg)

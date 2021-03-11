@@ -8,68 +8,73 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(* registration of debugger hooks *)
+(** Ltac debugger interface; clients should register hooks to interact
+   with their provided interface. *)
+module Action = struct
+  type t =
+    | Step
+    (** Step one command *)
+    | Skip
+    (** Skip one command *)
+    | Exit
+    | Help
+    | RunCnt of int
+    | RunBreakpoint of string
+    | Failed
 
-type debugger_action =
-  | DbStep
-  | DbSkip
-  | DbExit
-  | DbHelp
-  | DbRunCnt of int
-  | DbRunBreakpoint of string
-  | DbFailure
-
-type debugger_hooks = {
-  read_cmd : unit -> debugger_action;   (* read a debugger command from the client *)
-  print_notice : Pp.t -> unit;           (* print a notice *)
-  print_debug  : Pp.t -> unit;           (* print a debug *)
-  print_prompt : Pp.t -> unit           (* print the debugger prompt *)
-}
-
-let debugger_hooks : debugger_hooks option ref = ref None
-
-let register_debugger_hooks hooks = debugger_hooks := Some hooks
-
-let get_debugger_hooks () =
-  match !debugger_hooks with
-  | Some hooks -> hooks
-  | None -> failwith "get_debugger_hooks"
-
-(* todo: didn't understand the point of "Exninfo.capture e"
-   in the monadic form of the following *)
-
-let possibly_unquote s =
-  if String.length s >= 2 && s.[0] == '"' && s.[String.length s - 1] == '"' then
-    String.sub s 1 (String.length s - 2)
-  else
-    s
-
-let run_invalid_arg () =
-  raise (Invalid_argument "run_com")
-
-(* Gives the number of steps or next breakpoint of a run command *)
-let run_com inst =
-  if 'r' = String.get inst 0 then
-    let arg = String.trim (String.sub inst 1 ((String.length inst) - 1)) in
-    if arg <> "" then
-      try
-        let num = int_of_string arg in
-        if num < 0 then
-          (* todo: message isn't printed *)
-          raise (Invalid_argument "number must be positive");
-        DbRunCnt num
-      with Failure _ -> DbRunBreakpoint (possibly_unquote arg)
+  (* XXX: These should be removed and std functions used *)
+  let possibly_unquote s =
+    if String.length s >= 2 && s.[0] == '"' && s.[String.length s - 1] == '"' then
+      String.sub s 1 (String.length s - 2)
     else
-      run_invalid_arg ()
-  else
-    run_invalid_arg ()
+      s
 
-let parse_cmd inst =
-  match inst with
-  | ""  -> DbStep
-  | "s" -> DbSkip
-  | "x" -> DbExit
-  | "h"| "?" -> DbHelp
-  | _ ->
-    try run_com inst with
-      | Failure _ | Invalid_argument _ -> DbFailure
+  let parse_complex inst : (t, string) result =
+    if 'r' = String.get inst 0 then
+      let arg = String.(trim (sub inst 1 (length inst - 1))) in
+      if arg <> "" then
+        match int_of_string_opt arg with
+        | Some num ->
+          if num < 0 then
+            (* todo: message isn't printed *)
+            Error "number must be positive"
+          else
+            Ok (RunCnt num)
+        | None ->
+          Ok (RunBreakpoint (possibly_unquote arg))
+      else
+        Error ("invalid input: " ^ inst)
+    else
+      Error ("invalid input: " ^ inst)
+
+  (* XXX: Should be moved to the clients *)
+  let parse inst : (t, string) result =
+    match inst with
+    | ""  -> Ok Step
+    | "s" -> Ok Skip
+    | "x" -> Ok Exit
+    | "h"| "?" -> Ok Help
+    | _ -> parse_complex inst
+end
+
+module Answer = struct
+  type t =
+    | Prompt of Pp.t
+    | Goal of Pp.t
+    | Output of Pp.t
+end
+
+module Intf = struct
+
+  type t =
+    { read_cmd : unit -> Action.t
+    (** request a debugger command from the client *)
+    ; submit_answer : Answer.t -> unit
+    (** receive a debugger answer from Ltac *)
+    }
+
+  let ltac_debug_ref : t option ref = ref None
+  let set hooks = ltac_debug_ref := Some hooks
+  let get () = !ltac_debug_ref
+
+end

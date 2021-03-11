@@ -14,7 +14,6 @@ type level =
   | Debug
   | Info
   | Notice
-  | Prompt (* like Notice but without adding a new line at the end *)
   | Warning
   | Error
 
@@ -84,7 +83,6 @@ let feedback_logger ?loc lvl msg =
 
 let msg_info    ?loc x = feedback_logger ?loc Info x
 let msg_notice  ?loc x = feedback_logger ?loc Notice x
-let msg_prompt  ?loc x = feedback_logger ?loc Prompt x
 let msg_warning ?loc x = feedback_logger ?loc Warning x
 (* let msg_error   ?loc x = feedback_logger ?loc Error x *)
 let msg_debug   ?loc x = feedback_logger ?loc Debug x
@@ -97,8 +95,7 @@ let console_feedback_listener fmt =
     | Info    -> fprintf fmt "Info: "
     | Debug   -> fprintf fmt "Debug: "
     | Warning -> fprintf fmt "Warning: "
-    | Notice
-    | Prompt -> fprintf fmt ""
+    | Notice  -> fprintf fmt ""
   in
   let pp_loc fmt loc = let open Loc in match loc with
     | None     -> fprintf fmt ""
