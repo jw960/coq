@@ -58,9 +58,6 @@ val from_val : 'a -> 'a computation
    If not blocking (the default) it raises NotReady if forced before the
    delegate assigns it. *)
 type 'a assignment = [ `Val of 'a | `Exn of Exninfo.iexn | `Comp of (unit -> 'a)]
-val create_delegate :
-  ?blocking:bool -> name:string ->
-  fix_exn -> 'a computation * ('a assignment -> unit)
 
 (* Given a computation that is_exn, replace it by another one *)
 val replace : 'a computation -> 'a computation -> unit

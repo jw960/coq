@@ -12,21 +12,12 @@
 
 let interrupt = ref false
 
-let steps = ref 0
-
 let enable_thread_delay = ref false
 
 exception Timeout
 
 let check_for_interrupt () =
-  if !interrupt then begin interrupt := false; raise Sys.Break end;
-  if !enable_thread_delay then begin
-    incr steps;
-    if !steps = 1000 then begin
-      Thread.delay 0.001;
-      steps := 0;
-    end
-  end
+  if !interrupt then begin interrupt := false; raise Sys.Break end
 
 (** This function does not work on windows, sigh... *)
 (* This function assumes it is the only function calling [setitimer] *)
@@ -64,19 +55,7 @@ let unix_timeout n f x =
 let windows_timeout n f x =
   let killed = ref false in
   let exited = ref false in
-  let thread init =
-    while not !killed do
-      let cur = Unix.gettimeofday () in
-      if n <= cur -. init then begin
-        interrupt := true;
-        exited := true;
-        Thread.exit ()
-      end;
-      Thread.delay 0.5
-    done
-  in
   let init = Unix.gettimeofday () in
-  let _id = CThread.create thread init in
   try
     let res = f x in
     let () = killed := true in

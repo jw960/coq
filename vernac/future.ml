@@ -64,7 +64,6 @@ type 'a assignment = [ `Val of 'a | `Exn of Exninfo.iexn | `Comp of (unit -> 'a)
 (* Val is not necessarily a final state, so the
    computation restarts from the state stocked into Val *)
 and 'a comp =
-  | Delegated of (Mutex.t * Condition.t) option
   | Closure of (unit -> 'a)
   | Val of 'a
   | Exn of Exninfo.iexn  (* Invariant: this exception is always "fixed" as in fix_exn *)
@@ -87,47 +86,26 @@ type 'a value = [ `Val of 'a | `Exn of Exninfo.iexn  ]
 
 let is_over kx = let _, _, _, x = get kx in match !x with
   | Val _ | Exn _ -> true
-  | Closure _ | Delegated _ -> false
+  | Closure _ -> false
 
 let is_exn kx = let _, _, _, x = get kx in match !x with
   | Exn _ -> true
-  | Val _ | Closure _ | Delegated _ -> false
+  | Val _ | Closure _ -> false
 
 let peek_val kx = let _, _, _, x = get kx in match !x with
   | Val v -> Some v
-  | Exn _ | Closure _ | Delegated _ -> None
+  | Exn _ | Closure _ -> None
 
 let uuid kx = let _, id, _, _ = get kx in id
 
 let from_val v = create ~fix_exn:None (Val v)
 
-let create_delegate ?(blocking=true) ~name fix_exn =
-  let sync =
-    if blocking then Some (Mutex.create (), Condition.create ())
-    else None
-  in
-  let ck = create ~name ~fix_exn (Delegated sync) in
-  let assignment = fun v ->
-    let _, _, fix_exn, c = get ck in
-    let sync = match !c with Delegated s -> s | _ -> assert false in
-    begin match v with
-    | `Val v -> c := Val v
-    | `Exn e -> c := Exn (eval_fix_exn fix_exn e)
-    | `Comp f -> c := Closure f end;
-    let iter (lock, cond) = CThread.with_lock lock ~scope:(fun () -> Condition.broadcast cond) in
-    Option.iter iter sync
-  in
-  ck, assignment
-
 (* TODO: get rid of try/catch to be stackless *)
-let rec compute ck : 'a value =
-  let name, _, fix_exn, c = get ck in
+let compute ck : 'a value =
+  let _, _, fix_exn, c = get ck in
   match !c with
   | Val x -> `Val x
   | Exn (e, info) -> `Exn (e, info)
-  | Delegated None -> raise (NotReady name)
-  | Delegated (Some (lock, cond)) ->
-    CThread.with_lock lock ~scope:(fun () -> Condition.wait cond lock); compute ck
   | Closure f ->
       try
         let data = f () in
@@ -146,7 +124,7 @@ let force x = match compute x with
 let chain ck f =
   let name, uuid, fix_exn, c = get ck in
   create ~uuid ~name ~fix_exn (match !c with
-  | Closure _ | Delegated _ -> Closure (fun () -> f (force ck))
+  | Closure _ -> Closure (fun () -> f (force ck))
   | Exn _ as x -> x
   | Val v -> Val (f v))
 
@@ -172,7 +150,6 @@ let print f kx =
     else str "[" ++ int uid ++ str":" ++ str name ++ str "]"
   in
   match !x with
-  | Delegated _ -> str "Delegated" ++ uid
   | Closure _ -> str "Closure" ++ uid
   | Val x -> str "PureVal" ++ uid ++ spc () ++ hov 0 (f x)
   | Exn (e, _) -> str "Exn"  ++ uid ++ spc () ++ hov 0 (str (Printexc.to_string e))

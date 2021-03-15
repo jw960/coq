@@ -37,8 +37,6 @@ let current : (int * iexn) list ref = ref []
     Invariants: all index keys are unique in the list.
 *)
 
-let lock = Mutex.create ()
-
 let rec remove_assoc (i : int) = function
 | [] -> []
 | (j, v) :: rem as l ->
@@ -70,10 +68,10 @@ let record_backtrace b =
 
 let get_backtrace e = get e backtrace_info
 
+let id = 0
+
 let iraise (e,i) =
-  CThread.with_lock lock ~scope:(fun () ->
-      let id = Thread.id (Thread.self ()) in
-      current := (id, (e,i)) :: remove_assoc id !current);
+  let () = current := (id, (e,i)) :: remove_assoc id !current in
   match get i backtrace_info with
   | None ->
     raise e
@@ -81,11 +79,9 @@ let iraise (e,i) =
     Printexc.raise_with_backtrace e bt
 
 let find_and_remove () =
-  CThread.with_lock lock ~scope:(fun () ->
-      let id = Thread.id (Thread.self ()) in
-      let (v, l) = find_and_remove_assoc id !current in
-      let () = current := l in
-      v)
+  let (v, l) = find_and_remove_assoc id !current in
+  let () = current := l in
+  v
 
 let info e =
   let (src, data) = find_and_remove () in
