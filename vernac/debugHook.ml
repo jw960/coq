@@ -38,38 +38,27 @@ let get_debugger_hooks () =
 (* todo: didn't understand the point of "Exninfo.capture e"
    in the monadic form of the following *)
 
-let rec drop_spaces inst i =
-  if String.length inst > i && inst.[i] == ' ' then drop_spaces inst (i+1)
-  else i
-
 let possibly_unquote s =
   if String.length s >= 2 && s.[0] == '"' && s.[String.length s - 1] == '"' then
     String.sub s 1 (String.length s - 2)
   else
     s
 
-let check_positive n =
-  if n < 0 then
-    raise (Invalid_argument "number must be positive")
-  else
-    ()
-
 let run_invalid_arg () =
   raise (Invalid_argument "run_com")
 
 (* Gives the number of steps or next breakpoint of a run command *)
 let run_com inst =
-  let first_char = String.get inst 0 in
-  if first_char = 'r' then
-    let i = drop_spaces inst 1 in
-    if String.length inst > i then
-      let s = String.sub inst i (String.length inst - i) in
-      if inst.[0] >= '0' && inst.[0] <= '9' then
-        let num = int_of_string s in
-        check_positive num;
+  if 'r' = String.get inst 0 then
+    let arg = String.trim (String.sub inst 1 ((String.length inst) - 1)) in
+    if arg <> "" then
+      try
+        let num = int_of_string arg in
+        if num < 0 then
+          (* todo: message isn't printed *)
+          raise (Invalid_argument "number must be positive");
         DbRunCnt num
-      else
-        DbRunBreakpoint (possibly_unquote s)
+      with Failure _ -> DbRunBreakpoint (possibly_unquote arg)
     else
       run_invalid_arg ()
   else

@@ -63,19 +63,6 @@ let is_known_option cmd = match cmd with
   | VernacSetOption (_, o, OptionUnset) -> coqide_known_option o
   | _ -> false
 
-(** Check whether a command is forbidden in the IDE *)
-
-let ide_cmd_checks ~last_valid { CAst.loc; v } =
-  let user_error s =
-    try CErrors.user_err ?loc ~hdr:"IDE" (str s)
-    with e ->
-      let (e, info) = Exninfo.capture e in
-      let info = Stateid.add info ~valid:last_valid Stateid.dummy in
-      Exninfo.iraise (e, info)
-  in
-  if false then
-    user_error "Dummy"
-
 let ide_cmd_warns ~id { CAst.loc; v } =
   let warn msg = Feedback.(feedback ~id (Message (Warning, loc, strbrk msg))) in
   if is_known_option v.expr then
@@ -95,7 +82,6 @@ let add ((s,eid),(sid,verbose)) =
   match Stm.parse_sentence ~doc sid ~entry:Pvernac.main_entry pa with
   | None -> assert false (* s may not be empty *)
   | Some ast ->
-    ide_cmd_checks ~last_valid:sid ast;
     let doc, newid, rc = Stm.add ~doc ~ontop:sid verbose ast in
     set_doc doc;
     let rc = match rc with `NewTip -> CSig.Inl () | `Unfocus id -> CSig.Inr id in
