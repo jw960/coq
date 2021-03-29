@@ -181,7 +181,7 @@ let register_library senv m =
 
 let save_library_to env dir f lib =
   let mp = MPfile dir in
-  let ast = Nativelibrary.dump_library mp dir env lib in
+  let ast = Nativelibrary.dump_library mp env lib in
   let fn = Filename.dirname f ^"/"^ Nativecode.mod_uid_of_dirpath dir in
   Nativelib.compile_library ast fn
 
