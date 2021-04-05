@@ -91,13 +91,13 @@ let () =
       optwrite = (fun b -> rewriting_flag := b) }
 
 (* Util *)
-let define ~poly name sigma c types =
-  let univs = Evd.univ_entry ~poly sigma in
-  let entry = Declare.definition_entry ~univs ?types c in
+let define ~poly name sigma c typ =
   let kind = Decls.(IsDefinition Scheme) in
-  let kn = declare_constant ~kind ~name (DefinitionEntry entry) in
-  definition_message name;
-  kn
+  let info = Declare.Info.make ~poly ~kind () in
+  let typ = Option.map EConstr.of_constr typ in
+  let cinfo = Declare.CInfo.make ~name ~typ () in
+  let body = EConstr.of_constr c in
+  Declare.declare_definition ~info ~cinfo ~opaque:false ~body sigma
 
 (* Boolean equality *)
 
@@ -397,7 +397,7 @@ let do_mutual_induction_scheme ?(force_mutual=false) lnamedepindsort =
     let decltype = Retyping.get_type_of env0 sigma (EConstr.of_constr decl) in
     let decltype = EConstr.to_constr sigma decltype in
     let cst = define ~poly fi sigma decl (Some decltype) in
-    GlobRef.ConstRef cst :: lrecref
+    cst :: lrecref
   in
   let _ = List.fold_right2 declare listdecl lrecnames [] in
   fixpoint_message None lrecnames

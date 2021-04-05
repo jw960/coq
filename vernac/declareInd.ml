@@ -94,7 +94,8 @@ let inPrim : (Projection.Repr.t * Constant.t) -> Libobject.obj =
     classify_function = (fun x -> Substitute x);
     discharge_function = discharge_prim }
 
-let declare_primitive_projection p c = Lib.add_anonymous_leaf (inPrim (p,c))
+let declare_primitive_projection p c =
+  Lib.add_anonymous_leaf (inPrim (p,c))
 
 let feedback_axiom () = Feedback.(feedback AddedAxiom)
 

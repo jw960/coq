@@ -198,17 +198,13 @@ let context_insection sigma ~poly ctx =
         declare_variable false ~kind t [] impl (CAst.make name)
       | name, Some b, t, impl ->
         (* We need to get poly right for check_same_poly *)
-        let univs = if poly then Polymorphic_entry ([| |], Univ.UContext.empty)
-          else Monomorphic_entry Univ.ContextSet.empty
-        in
-        let entry = Declare.definition_entry ~univs ~types:t b in
-        (* XXX Fixme: Use Declare.prepare_definition *)
-        let uctx = Evd.evar_universe_context sigma in
+        let scope = Locality.Discharge in
         let kind = Decls.(IsDefinition Definition) in
+        let info = Declare.Info.make ~poly ~scope ~kind () in
+        let cinfo = Declare.CInfo.make ~name ~typ:(Some (EConstr.of_constr t)) () in
+        let body = EConstr.of_constr b in
         let _ : GlobRef.t =
-          Declare.declare_entry ~name ~scope:Locality.Discharge
-            ~kind ~impargs:[] ~uctx entry
-        in
+          Declare.declare_definition ~info ~cinfo ~body ~opaque:false sigma in
         ()
     in
     Constr.mkVar name :: subst

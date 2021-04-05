@@ -8,7 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-module CVars = Vars
 open Ltac_plugin
 open Pp
 open Util
@@ -26,8 +25,6 @@ open Mod_subst
 open Tacinterp
 open Libobject
 open Printer
-open Declare
-open Entries
 open Ring_ast
 open Proofview.Notations
 
@@ -143,15 +140,17 @@ let ic_unsafe env sigma c = (*FIXME remove *)
   fst (Constrintern.interp_constr env sigma c)
 
 let decl_constant name univs c =
-  let open Constr in
-  let vars = CVars.universes_of_constr c in
-  let univs = UState.restrict_universe_context ~lbound:(Global.universes_lbound ()) univs vars in
-  let () = DeclareUctx.declare_universe_context ~poly:false univs in
-  let types = (Typeops.infer (Global.env ()) c).uj_type in
-  let univs = Monomorphic_entry Univ.ContextSet.empty in
-  mkConst(declare_constant ~name
-            ~kind:Decls.(IsProof Lemma)
-            (DefinitionEntry (definition_entry ~opaque:true ~types ~univs c)))
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  let kind = Decls.(IsProof Lemma) in
+  let info = Declare.Info.make ~kind () in
+  let typ = Some (EConstr.of_constr (Typeops.infer env c).uj_type) in
+  let cinfo = Declare.CInfo.make ~name ~typ () in
+  let body = EConstr.of_constr c in
+  let c = Declare.declare_definition ~info ~cinfo ~opaque:true ~body sigma in
+  (* XXX fixme, should this use fresh_global? *)
+  let inst = Univ.Instance.empty in
+  Constr.mkRef (c,inst)
 
 let decl_constant na suff univs c =
   let na = Namegen.next_global_ident_away (Nameops.add_suffix na suff) Id.Set.empty in

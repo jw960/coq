@@ -51,18 +51,13 @@ let project_hint ~poly pri l2r r =
       (Nametab.basename_of_global gr)
       ("_proj_" ^ if l2r then "l2r" else "r2l")
   in
-  let ctx = Evd.univ_entry ~poly sigma in
-  let c = EConstr.to_constr sigma c in
-  let cb =
-    Declare.(DefinitionEntry (definition_entry ~univs:ctx ~opaque:false c))
-  in
-  let c =
-    Declare.declare_constant ~local:Locality.ImportDefaultBehavior ~name
-      ~kind:Decls.(IsDefinition Definition)
-      cb
-  in
+  let scope = Locality.(Global ImportDefaultBehavior) in
+  let kind = Decls.(IsDefinition Definition) in
+  let info = Declare.Info.make ~poly ~scope ~kind () in
+  let cinfo = Declare.CInfo.make ~name ~typ:None () in
+  let c = Declare.declare_definition ~info ~cinfo ~opaque:false ~body:c sigma in
   let info = {Typeclasses.hint_priority = pri; hint_pattern = None} in
-  (info, true, Hints.PathAny, Hints.hint_globref (GlobRef.ConstRef c))
+  (info, true, Hints.PathAny, Hints.hint_globref c)
 
 let warn_deprecated_hint_constr =
   CWarnings.create ~name:"fragile-hint-constr" ~category:"automation"

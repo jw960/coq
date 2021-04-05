@@ -19,7 +19,6 @@ open Vars
 open Termops
 open Environ
 open Coercionops
-open Declare
 open Libobject
 
 let strength_min l = if List.mem `LOCAL l then `LOCAL else `GLOBAL
@@ -213,15 +212,11 @@ let build_id_coercion idf_opt source poly =
           Id.of_string ("Id_"^(ident_key_of_class source)^"_"^
                         (ident_key_of_class cl))
   in
-  let univs = Evd.univ_entry ~poly sigma in
-  let constr_entry = (* Cast is necessary to express [val_f] is identity *)
-    DefinitionEntry
-      (definition_entry ~types:typ_f ~univs
-         ~inline:true (mkCast (val_f, DEFAULTcast, typ_f)))
-  in
   let kind = Decls.(IsDefinition IdentityCoercion) in
-  let kn = declare_constant ~name ~kind constr_entry in
-  GlobRef.ConstRef kn
+  let info = Declare.Info.make ~poly ~kind ~inline:true () in
+  let cinfo = Declare.CInfo.make ~name ~typ:(Some (EConstr.of_constr typ_f)) () in
+  let body = EConstr.of_constr (mkCast (val_f, DEFAULTcast, typ_f)) in
+  Declare.declare_definition ~info ~cinfo ~opaque:false ~body sigma
 
 let check_source = function
 | Some (CL_FUN as s) -> raise (CoercionError (ForbiddenSourceClass s))
