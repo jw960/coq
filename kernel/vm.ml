@@ -13,7 +13,7 @@ external set_drawinstr : unit -> unit = "coq_set_drawinstr"
 
 external mkPopStopCode : int -> tcode = "coq_pushpop"
 
-let popstop_tbl =  ref (Array.init 30 mkPopStopCode)
+let popstop_tbl = if Coq_config.bytecode_compiler then ref (Array.init 30 mkPopStopCode) else ref (Array.init 30 mkPopStopCode)
 
 let popstop_code i =
   let len = Array.length !popstop_tbl in
