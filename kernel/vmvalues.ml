@@ -17,7 +17,7 @@ open Univ
 
 external init_vm : unit -> unit = "init_coq_vm"
 
-let _ = init_vm ()
+let _ = if Coq_config.bytecode_compiler then init_vm () else ()
 
 (******************************************************)
 (* Abstract data types and utility functions **********)
@@ -394,7 +394,7 @@ external is_accumulate : tcode -> bool = "coq_is_accumulate_code"
 external int_tcode : tcode -> int -> int = "coq_int_tcode"
 external accumulate : unit -> tcode = "accumulate_code"
 external set_bytecode_field : Obj.t -> int -> tcode -> unit = "coq_set_bytecode_field"
-let accumulate = accumulate ()
+let accumulate = if Coq_config.bytecode_compiler then accumulate () else accumulate ()
 
 let whd_val (v: values) =
   let o = Obj.repr v in
@@ -570,8 +570,12 @@ let realloc_atom_rel n =
   atom_rel := ans
 
 let relaccu_tbl =
-  let len = Array.length !atom_rel in
-  ref (Array.init len mkAccuCode)
+  if Coq_config.bytecode_compiler then
+    let len = Array.length !atom_rel in
+    ref (Array.init len mkAccuCode)
+  else
+    let len = Array.length !atom_rel in
+    ref (Array.init len mkAccuCode)
 
 let relaccu_code i =
   let len = Array.length !relaccu_tbl in
