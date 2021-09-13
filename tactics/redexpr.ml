@@ -24,25 +24,8 @@ open RedFlags
 open Libobject
 
 (* call by value normalisation function using the virtual machine *)
-let cbv_vm env sigma c =
-  if Coq_config.bytecode_compiler then
-    let ctyp = Retyping.get_type_of env sigma c in
-    Vnorm.cbv_vm env sigma c ctyp
-  else
-    compute env sigma c
-
-let warn_native_compute_disabled =
-  CWarnings.create ~name:"native-compute-disabled" ~category:"native-compiler"
-  (fun () ->
-   strbrk "native_compute disabled at configure time; falling back to vm_compute.")
-
-let cbv_native env sigma c =
-  if Flags.get_native_compiler () then
-    let ctyp = Retyping.get_type_of env sigma c in
-    Nativenorm.native_norm env sigma c ctyp
-  else
-    (warn_native_compute_disabled ();
-     cbv_vm env sigma c)
+let cbv_vm env sigma c = compute env sigma c
+let cbv_native env sigma c = cbv_vm env sigma c
 
 let whd_cbn = Cbn.whd_cbn
 
@@ -57,7 +40,7 @@ let set_strategy_one ref l  =
   Global.set_strategy k l;
   match k,l with
       ConstKey sp, Conv_oracle.Opaque ->
-        Vmsymtable.set_opaque_const sp
+      ()
     | ConstKey sp, _ ->
         let cb = Global.lookup_constant sp in
         (match cb.const_body with
@@ -66,7 +49,7 @@ let set_strategy_one ref l  =
               (str "Cannot make" ++ spc () ++
                  Nametab.pr_global_env Id.Set.empty (GlobRef.ConstRef sp) ++
                  spc () ++ str "transparent because it was declared opaque.");
-          | _ -> Vmsymtable.set_transparent_const sp)
+          | _ -> ())
     | _ -> ()
 
 let cache_strategy (_,str) =

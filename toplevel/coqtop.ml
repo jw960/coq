@@ -218,22 +218,12 @@ let coqtop_parse_extra extras =
   let async_opts, extras = Stmargs.parse_args ~init:Stm.AsyncOpts.default_opts extras in
   ({ run_mode; color_mode}, async_opts), extras
 
-let get_native_name s =
-  (* We ignore even critical errors because this mode has to be super silent *)
-  try
-    Filename.(List.fold_left concat (dirname s)
-                [ !Nativelib.output_dir
-                ; Library.native_name_from_filename s
-                ])
-  with _ -> ""
-
 let coqtop_run ({ run_mode; color_mode },_) ~opts state =
   match run_mode with
   | Interactive -> Coqloop.loop ~opts ~state;
   | Query PrintTags -> print_style_tags color_mode; exit 0
   | Query (PrintModUid sl) ->
-      let s = String.concat " " (List.map get_native_name sl) in
-      print_endline s;
+      print_endline "foo";
       exit 0
   | Batch -> exit 0
 

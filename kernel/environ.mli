@@ -30,8 +30,8 @@ open Declarations
 
 type lazy_val
 
-val build_lazy_val : lazy_val -> (Vmvalues.values * Id.Set.t) -> unit
-val force_lazy_val : lazy_val -> (Vmvalues.values * Id.Set.t) option
+val build_lazy_val : lazy_val -> (unit * Id.Set.t) -> unit
+val force_lazy_val : lazy_val -> (unit * Id.Set.t) option
 val dummy_lazy_val : unit -> lazy_val
 
 (** Linking information for the native compiler *)

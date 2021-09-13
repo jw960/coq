@@ -64,7 +64,7 @@ module Globals = struct
 end
 
 type val_kind =
-    | VKvalue of (Vmvalues.values * Id.Set.t) CEphemeron.key
+    | VKvalue of (unit * Id.Set.t) CEphemeron.key
     | VKnone
 
 type lazy_val = val_kind ref

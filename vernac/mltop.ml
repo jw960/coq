@@ -69,13 +69,11 @@ let load = ref WithoutTop
 
 (* Sets and initializes a toplevel (if any) *)
 let set_top toplevel = load :=
-  WithTop toplevel;
-  Nativelib.load_obj := toplevel.load_obj
+  WithTop toplevel
 
 (* Removes the toplevel (if any) *)
 let remove () =
-  load := WithoutTop;
-  Nativelib.load_obj := (fun x -> () : string -> unit)
+  load := WithoutTop
 
 (* Tests if an Ocaml toplevel runs under Coq *)
 let is_ocaml_top () =

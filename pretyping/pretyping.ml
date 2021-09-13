@@ -1194,31 +1194,7 @@ struct
         let sigma, tval = Evarsolve.refresh_universes
             ~onlyalg:true ~status:Evd.univ_flexible (Some false) !!env sigma tj.utj_val in
         let tval = nf_evar sigma tval in
-        let (sigma, cj), tval = match k with
-          | VMcast ->
-            let sigma, cj = pretype empty_tycon env sigma c in
-            let cty = nf_evar sigma cj.uj_type and tval = nf_evar sigma tval in
-              if not (occur_existential sigma cty || occur_existential sigma tval) then
-                match Reductionops.vm_infer_conv !!env sigma cty tval with
-                | Some sigma -> (sigma, cj), tval
-                | None ->
-                  error_actual_type ?loc !!env sigma cj tval
-                      (ConversionFailed (!!env,cty,tval))
-              else user_err ?loc  (str "Cannot check cast with vm: " ++
-                str "unresolved arguments remain.")
-          | NATIVEcast ->
-            let sigma, cj = pretype empty_tycon env sigma c in
-            let cty = nf_evar sigma cj.uj_type and tval = nf_evar sigma tval in
-            begin
-              match Nativenorm.native_infer_conv !!env sigma cty tval with
-              | Some sigma -> (sigma, cj), tval
-              | None ->
-                error_actual_type ?loc !!env sigma cj tval
-                  (ConversionFailed (!!env,cty,tval))
-            end
-          | _ ->
-            pretype (mk_tycon tval) env sigma c, tval
-        in
+        let (sigma, cj), tval = pretype (mk_tycon tval) env sigma c, tval in
         let v = mkCast (cj.uj_val, k, tval) in
         sigma, { uj_val = v; uj_type = tval }
     in discard_trace @@ inh_conv_coerce_to_tycon ?loc ~program_mode resolve_tc env sigma cj tycon

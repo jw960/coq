@@ -978,8 +978,7 @@ let add_modtype l params_mte inl senv =
 (** full_add_module adds module with universes and constraints *)
 
 let full_add_module mb senv =
-  let dp = ModPath.dp mb.mod_mp in
-  let linkinfo = Nativecode.link_info_of_dirpath dp in
+  let linkinfo = Environ.NotLinked in
   { senv with env = Modops.add_linked_module mb linkinfo senv.env }
 
 let full_add_module_type mp mt senv =
@@ -1219,7 +1218,7 @@ let start_library dir senv =
     modvariant = LIBRARY;
     required = senv.required }
 
-let export ?except ~output_native_objects senv dir =
+let export ?except ~output_native_objects:_ senv dir =
   let senv = join_safe_environment ?except senv in
   assert(senv.future_cst = []);
   let () = check_current_library dir senv in
@@ -1234,18 +1233,13 @@ let export ?except ~output_native_objects senv dir =
       mod_retroknowledge = ModBodyRK senv.local_retroknowledge
     }
   in
-  let ast, symbols =
-    if output_native_objects then
-      Nativelibrary.dump_library mp senv.env str
-    else [], Nativevalues.empty_symbols
-  in
   let lib = {
     comp_name = dir;
     comp_mod = mb;
     comp_univs = senv.univ;
     comp_deps = Array.of_list (DPmap.bindings senv.required);
   } in
-  mp, lib, (ast, symbols)
+  mp, lib, ()
 
 (* cst are the constraints that were computed by the vi2vo step and hence are
  * not part of the [lib.comp_univs] field (but morally should be) *)
@@ -1261,7 +1255,7 @@ let import lib cst vodigest senv =
       senv.env
   in
   let env =
-    let linkinfo = Nativecode.link_info_of_dirpath lib.comp_name in
+    let linkinfo = Environ.NotLinked in
     Modops.add_linked_module mb linkinfo env
   in
   let sections =

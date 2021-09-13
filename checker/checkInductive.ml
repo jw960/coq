@@ -114,7 +114,7 @@ let eq_recarg a1 a2 = match a1, a2 with
   | Nested ty1, Nested ty2 -> eq_nested_types ty1 ty2
   | (Norec | Mrec _ | Nested _), _ -> false
 
-let eq_reloc_tbl = Array.equal (fun x y -> Int.equal (fst x) (fst y) && Int.equal (snd x) (snd y))
+let eq_reloc_tbl _ _ = true
 
 let eq_in_context (ctx1, t1) (ctx2, t2) =
   Context.Rel.equal Constr.equal ctx1 ctx2 && Constr.equal t1 t2

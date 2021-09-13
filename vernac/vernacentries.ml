@@ -1694,15 +1694,15 @@ let () =
   declare_bool_option
     { optdepr  = false;
       optkey   = ["Dump";"Bytecode"];
-      optread  = (fun () -> !Vmbytegen.dump_bytecode);
-      optwrite = (:=) Vmbytegen.dump_bytecode }
+      optread  = (fun () -> false);
+      optwrite = (fun _ -> ()) }
 
 let () =
   declare_bool_option
     { optdepr  = false;
       optkey   = ["Dump";"Lambda"];
-      optread  = (fun () -> !Vmlambda.dump_lambda);
-      optwrite = (:=) Vmlambda.dump_lambda }
+      optread  = (fun () -> false);
+      optwrite = (fun _ -> ()) }
 
 let () =
   declare_bool_option
