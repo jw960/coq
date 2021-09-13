@@ -71,8 +71,5 @@ val library_full_filename : DirPath.t -> string
   (** - Overwrite the filename of all libraries (used when restoring a state) *)
 val overwrite_library_filenames : string -> unit
 
-(** {6 Native compiler. } *)
-val native_name_from_filename : string -> string
-
 (** {6 Opaque accessors} *)
 val indirect_accessor : Declarations.cooking_info Opaqueproof.indirect_accessor

@@ -156,12 +156,7 @@ let library_is_loaded dir =
 let register_loaded_library m =
   let libname = m.libsum_name in
   let rec aux = function
-    | [] ->
-        if Flags.get_native_compiler () then begin
-            let dirname = Filename.dirname (library_full_filename libname) in
-            Nativelib.enable_library dirname libname
-          end;
-        [libname]
+    | [] -> [libname]
     | m'::_ as l when DirPath.equal m' libname -> l
     | m'::l' -> m' :: aux l' in
   libraries_loaded_list := aux !libraries_loaded_list;
@@ -295,11 +290,6 @@ and intern_mandatory_library ~lib_resolver caller from libs (dir,d) =
 let rec_intern_library ~lib_resolver libs (dir, f) =
   let _, libs = intern_library ~lib_resolver libs (dir, Some f) None in
   libs
-
-let native_name_from_filename f =
-  let ch = raw_intern_library f in
-  let (lmd : seg_sum), digest_lmd = ObjFile.marshal_in_segment ch ~segment:"summary" in
-  Nativecode.mod_uid_of_dirpath lmd.md_name
 
 (**********************************************************************)
 (*s [require_library] loads and possibly opens a library. This is a
@@ -493,18 +483,7 @@ let save_library_to todo_proofs ~output_native_objects dir f otab =
     error_recursively_dependent_library dir;
   (* Writing vo payload *)
   save_library_base f sd md utab tasks opaque_table;
-  (* Writing native code files *)
-  if output_native_objects then
-    let fn = Filename.dirname f ^"/"^ Nativecode.mod_uid_of_dirpath dir in
-    Nativelib.compile_library ast fn
+  ()
 
 let save_library_raw f sum lib univs proofs =
   save_library_base f sum lib (Some univs) None proofs
-
-let get_used_load_paths () =
-  String.Set.elements
-    (List.fold_left (fun acc m -> String.Set.add
-      (Filename.dirname (library_full_filename m)) acc)
-       String.Set.empty !libraries_loaded_list)
-
-let _ = Nativelib.get_load_paths := get_used_load_paths

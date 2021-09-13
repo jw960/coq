@@ -114,8 +114,6 @@ let libraries_table : string DPmap.t ref = ref DPmap.empty
 let register_loaded_library senv libname file =
   let () = assert (not @@ DPmap.mem libname !libraries_table) in
   let () = libraries_table := DPmap.add libname file !libraries_table in
-  let prefix = Nativecode.mod_uid_of_dirpath libname ^ "." in
-  let () = Nativecode.register_native_file prefix in
   senv
 
 let mk_library sd f md digests univs =
@@ -178,11 +176,7 @@ let register_library senv m =
   in
   register_loaded_library senv m.library_name m.library_file
 
-let save_library_to env dir f lib =
-  let mp = MPfile dir in
-  let ast = Nativelibrary.dump_library mp env lib in
-  let fn = Filename.dirname f ^"/"^ Nativecode.mod_uid_of_dirpath dir in
-  Nativelib.compile_library ast fn
+let save_library_to _ _ _ _ = ()
 
 let get_used_load_paths () =
   String.Set.elements
@@ -190,7 +184,6 @@ let get_used_load_paths () =
       (Filename.dirname f) acc)
        !libraries_table String.Set.empty)
 
-let _ = Nativelib.get_load_paths := get_used_load_paths
 end
 
 let add_path ~unix_path:dir ~coq_root:coq_dirpath =
@@ -343,8 +336,7 @@ let rec parse_args (args : string list) accu =
   | "-nI" :: dir :: rem ->
     let accu =  { accu with ml_path = dir :: accu.ml_path } in
     parse_args rem accu
-  |"-native-output-dir" :: dir :: rem ->
-    Nativelib.output_dir := dir;
+  |"-native-output-dir" :: _dir :: rem ->
     parse_args rem accu
   | "-coqlib" :: s :: rem ->
     if not (Minisys.exists_dir s) then
@@ -364,7 +356,6 @@ let () =
     let opts = { boot = false; vo_path = []; ml_path = [] } in
     let opts, in_file = parse_args (List.tl @@ Array.to_list Sys.argv) opts in
     let () = init_load_path ~boot:opts.boot ~vo_path:(List.rev opts.vo_path) in
-    let () = Nativelib.include_dirs := List.rev opts.ml_path in
     let senv = init_coq () in
     compile senv ~in_file
   with exn ->

@@ -127,7 +127,7 @@ type 'opaque pconstant_body = {
     const_body : (Constr.t, 'opaque) constant_def;
     const_type : types;
     const_relevance : Sorts.relevance;
-    const_body_code : Vmemitcodes.body_code option;
+    const_body_code : unit option;
     const_universes : universes;
     const_inline_code : bool;
     const_typing_flags : typing_flags; (** The typing options which
@@ -247,7 +247,7 @@ type one_inductive_body = {
 
     mind_nb_args : int; (** number of no constant constructor *)
 
-    mind_reloc_tbl :  Vmvalues.reloc_table;
+    mind_reloc_tbl : unit;
   }
 
 type recursivity_kind =

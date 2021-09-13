@@ -109,10 +109,6 @@ let init_runtime opts =
   Flags.set_native_compiler (match opts.config.native_compiler with NativeOff -> false | NativeOn _ -> true);
   Global.set_native_compiler (match opts.config.native_compiler with NativeOff -> false | NativeOn _ -> true);
 
-  (* Native output dir *)
-  Nativelib.output_dir := opts.config.native_output_dir;
-  Nativelib.include_dirs := opts.config.native_include_dirs;
-
   (* Paths for loading stuff *)
   let ml_load_path, vo_load_path = Coqargs.build_load_path opts in
   List.iter Mltop.add_ml_dir ml_load_path;
