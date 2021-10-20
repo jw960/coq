@@ -2133,6 +2133,8 @@ let vernac_check_guard ~pstate =
       (str ("Condition violated: ") ++ s ++ str ".")
   in message
 
+let add_ml_dir = Mltop.add_ml_dir
+
 (* We interpret vernacular commands to a DSL that specifies their
    allowed actions on proof states *)
 let translate_vernac ?loc ~atts v = let open Vernacextend in match v with
@@ -2300,7 +2302,7 @@ let translate_vernac ?loc ~atts v = let open Vernacextend in match v with
   | VernacAddLoadPath { implicit; physical_path; logical_path } ->
     vtdefault(fun () ->
         unsupported_attributes atts;
-        vernac_add_loadpath ~implicit physical_path logical_path)
+        vernac_add_loadpath ~add_ml_dir ~implicit physical_path logical_path)
   | VernacRemoveLoadPath s ->
     vtdefault(fun () ->
         unsupported_attributes atts;

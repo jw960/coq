@@ -83,4 +83,4 @@ type vo_path =
   (** [recursive] will determine whether we explore sub-directories  *)
   }
 
-val add_vo_path : vo_path -> unit
+val add_vo_path : add_ml_dir:(CUnix.physical_path -> unit) -> vo_path -> unit

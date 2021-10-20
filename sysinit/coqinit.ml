@@ -116,7 +116,7 @@ let init_runtime opts =
   (* Paths for loading stuff *)
   let ml_load_path, vo_load_path = Coqargs.build_load_path opts in
   List.iter Mltop.add_ml_dir ml_load_path;
-  List.iter Loadpath.add_vo_path vo_load_path;
+  List.iter (Loadpath.add_vo_path ~add_ml_dir:Mltop.add_ml_dir) vo_load_path;
 
   injection_commands opts
 

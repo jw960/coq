@@ -192,10 +192,10 @@ let locate_qualified_library ?root ?(warn = true) qid :
       let dir = Libnames.add_dirpath_suffix
           (CString.List.assoc lpath loadpath) base in
       (* Look if loaded *)
-      if Library.library_is_loaded dir
-      then Ok (LibLoaded, dir, Library.library_full_filename dir)
-      (* Otherwise, look for it in the file system *)
-      else Ok (LibInPath, dir, file)
+      (* if Library.library_is_loaded dir
+       * then Ok (LibLoaded, dir, Library.library_full_filename dir)
+       * (\* Otherwise, look for it in the file system *\) *)
+      Ok (LibInPath, dir, file)
     | Error fail -> Error fail
 
 let error_unmapped_dir qid =
@@ -253,7 +253,7 @@ let convert_string d =
     warn_cannot_use_directory d;
     raise Exit
 
-let add_vo_path lp =
+let add_vo_path ~add_ml_dir lp =
   let unix_path = lp.unix_path in
   let implicit = lp.implicit in
   let recursive = lp.recursive in
@@ -269,10 +269,10 @@ let add_vo_path lp =
     let dirs = List.map_filter convert_dirs dirs in
     let () =
       if lp.has_ml && not lp.recursive then
-        Mltop.add_ml_dir unix_path
+        add_ml_dir unix_path
       else if lp.has_ml && lp.recursive then
-        (List.iter (fun (lp,_) -> Mltop.add_ml_dir lp) dirs;
-         Mltop.add_ml_dir unix_path)
+        (List.iter (fun (lp,_) -> add_ml_dir lp) dirs;
+         add_ml_dir unix_path)
       else
         ()
     in
