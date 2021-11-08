@@ -25,8 +25,8 @@
 ###########################################################################
 
 # If Coq is not configured, we can't run the makefile.
-ifneq ($(wildcard ../config/Makefile ../_build/default/config/Makefile),)
--include ../_build/default/config/Makefile
+ifneq ($(wildcard ../config/Makefile ../_build/$(DUNE_CTX)/config/Makefile),)
+-include ../_build/$(DUNE_CTX)/config/Makefile
 -include ../config/Makefile
   COQ_NOT_CONFIGURED:=false
 else

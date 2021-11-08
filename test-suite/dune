@@ -51,4 +51,4 @@
    ; %{bin:fake_ide}
  (action
   (progn
-   (bash "make -j %{env:NJOBS=2} BIN=%{read:bin.inc} COQLIB=%{read:libpath.inc} PRINT_LOGS=1 UNIT_TESTS=%{env:COQ_UNIT_TEST=unit-tests}"))))
+   (bash "make -j %{env:NJOBS=2} BIN=%{read:bin.inc} COQLIB=%{read:libpath.inc} DUNE_CTX=%{context_name} PRINT_LOGS=1 UNIT_TESTS=%{env:COQ_UNIT_TEST=unit-tests}"))))
