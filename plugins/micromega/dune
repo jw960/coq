@@ -3,6 +3,7 @@
  (public_name coq-core.plugins.micromega)
  ; be careful not to link the executable to the plugin!
  (modules (:standard \ csdpcert g_zify zify))
+ (instrumentation (backend bisect_ppx))
  (synopsis "Coq's micromega plugin")
  (libraries coq-core.plugins.ltac))
 
@@ -11,6 +12,7 @@
  (public_name csdpcert)
  (package coq-core)
  (modules csdpcert)
+ (instrumentation (backend bisect_ppx))
  (flags :standard -open Micromega_plugin)
  (libraries coq-core.plugins.micromega))
 
@@ -18,6 +20,7 @@
  (name zify_plugin)
  (public_name coq-core.plugins.zify)
  (modules g_zify zify)
+ (instrumentation (backend bisect_ppx))
  (synopsis "Coq's zify plugin")
  (libraries coq-core.plugins.ltac))
 
