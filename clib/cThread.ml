@@ -119,7 +119,7 @@ let create f x =
 *)
 
 (* We inline the call to Mutex.unlock to avoid polling in bytecode mode *)
-external unlock: Mutex.t -> unit = "caml_mutex_unlock"
+let unlock = Mutex.unlock
 
 let[@inline never] with_lock m ~scope =
   let () = Mutex.lock m (* BEGIN ATOMIC *) in

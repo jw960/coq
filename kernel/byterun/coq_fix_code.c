@@ -29,6 +29,7 @@ char ** coq_instr_table;
 char * coq_instr_base;
 #endif /*  THREADED_CODE */
 
+void raise_out_of_memory() {}
 
 void * coq_stat_alloc (asize_t sz)
 {
