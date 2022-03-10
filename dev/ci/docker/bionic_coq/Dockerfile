@@ -34,8 +34,8 @@ RUN pip3 install docutils==0.16 sphinx==3.0.2 sphinx_rtd_theme==0.4.3 \
 RUN wget https://github.com/ocaml/opam/releases/download/2.0.6/opam-2.0.6-x86_64-linux -O /usr/bin/opam && chmod 755 /usr/bin/opam
 
 # Basic OPAM setup
-ENV NJOBS="2" \
-    OPAMJOBS="2" \
+ENV NJOBS="4" \
+    OPAMJOBS="4" \
     OPAMROOT=/root/.opamcache \
     OPAMROOTISOK="true" \
     OPAMYES="true"
