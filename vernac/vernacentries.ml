@@ -2296,8 +2296,9 @@ let translate_vernac ?loc ~atts v = let open Vernacextend in match v with
     anomaly (str "Load is not supported recursively")
 
   (* Just drop the proof, what to do about the obligations state tho? *)
-  | VernacAbort _ ->
-    vtcloseproof (fun ~lemma ~pm -> pm)
+  | VernacAbort ->
+    unsupported_attributes atts;
+    vtcloseproof vernac_abort
 
   (* Syntax *)
   | VernacReservedNotation (infix, sl) ->
@@ -2602,10 +2603,6 @@ let translate_vernac ?loc ~atts v = let open Vernacextend in match v with
   | VernacEndProof pe ->
     unsupported_attributes atts;
     vtcloseproof (vernac_end_proof pe)
-
-  | VernacAbort ->
-    unsupported_attributes atts;
-    vtcloseproof vernac_abort
 
   (* Extensions *)
   | VernacExtend (opn,args) ->
