@@ -1,6 +1,8 @@
 (executable
  (name scoqc)
+ (modules coqJson scoqc)
  (public_name coqc)
  (package coq)
- (libraries vernac)
+ (libraries vernac yojson)
+ (preprocess (pps ppx_deriving_yojson))
  (link_flags -linkall))

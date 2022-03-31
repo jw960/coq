@@ -81,9 +81,12 @@ let output_proof_data fmt loc st =
   match st.Vernacstate.lemmas with
   | None -> ()                  (* No proof open *)
   | Some pf ->
-    let loc = Option.get loc in
-    Format.fprintf fmt "@[There is an open proof at %a@]@\n%!"
-      Pp.pp_with (Loc.pr loc)
+    let pf = Vernacstate.LemmaStack.get_top pf |> Declare.Proof.get in
+    let pf = CoqJson.make pf in
+    Format.fprintf fmt "@[%a@]@\n" (Yojson.Safe.pretty_print ~std:true) (CoqJson.to_yojson pf)
+    (* let loc = Option.get loc in
+     * Format.fprintf fmt "@[There is an open proof at %a@]@\n%!"
+     *   Pp.pp_with (Loc.pr loc) *)
 
 (** fmt is used to output  *)
 let rec cloop ~fmt ~st pa =
