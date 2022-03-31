@@ -77,13 +77,24 @@ let parse ~st pa =
 
 let execute = Vernacinterp.interp
 
-let rec cloop ~st pa =
+let output_proof_data fmt loc st =
+  match st.Vernacstate.lemmas with
+  | None -> ()                  (* No proof open *)
+  | Some pf ->
+    let loc = Option.get loc in
+    Format.fprintf fmt "@[There is an open proof at %a@]@\n%!"
+      Pp.pp_with (Loc.pr loc)
+
+(** fmt is used to output  *)
+let rec cloop ~fmt ~st pa =
   match parse ~st pa with
   | None ->
     st
   | Some stm ->
     let st = execute ~st stm in
-    (cloop [@ocaml.tailcall]) ~st pa
+    let loc = stm.CAst.loc in
+    let () = output_proof_data fmt loc st in
+    (cloop [@ocaml.tailcall]) ~fmt ~st pa
 
 let touch_file f =
   let out = open_out f in
@@ -109,6 +120,20 @@ let start_glob ~in_file =
   (* Dumpglob.dump_string ("F" ^ Names.DirPath.to_string ldir ^ "\n"); *)
   ()
 
+module CoqJson = struct
+
+  let start ~in_file =
+    let json_out = Filename.(remove_extension in_file) ^ ".json" in
+    let out = open_out json_out in
+    let fmt = Format.formatter_of_out_channel out in
+    out, fmt
+
+  let end_ (out,fmt)=
+    Format.pp_print_flush fmt ();
+    close_out out
+
+end
+
 let version () =
   Printf.printf "The Coq Proof Assistant, version %s \n"
     Coq_config.version;
@@ -117,13 +142,15 @@ let version () =
 let compile ~vo_path ~ml_path ~require_libs ~in_file ~out_file =
   let f_in = open_in in_file in
   let () = start_glob ~in_file in
+  let out, fmt = CoqJson.start ~in_file in
   let st, ldir = init_coq ~vo_path ~ml_path ~require_libs in_file in
   let pa = Pcoq.Parsable.make (Stream.of_channel f_in) in
-  let _st = cloop ~st pa in
+  let _st : Vernacstate.t = cloop ~fmt ~st pa in
   (* Compact the heap, just in case. *)
   Gc.compact ();
   (* print_st_stats st; *)
   let () = save_library ldir in_file ~out_file in
+  let () = CoqJson.end_ (out,fmt) in
   Dumpglob.end_dump_glob ();
   ()
 
