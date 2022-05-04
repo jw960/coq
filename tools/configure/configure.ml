@@ -166,7 +166,6 @@ let msg_no_dynlink_cmxa prefs =
   cprintf prefs "and then run ./configure -natdynlink no"
 
 let check_native prefs camlenv =
-  let () = if prefs.byteonly then raise Not_found in
   let version, _ = tryrun camlexec.find ["opt";"-version"] in
   if version = "" then let () = msg_no_ocamlopt () in raise Not_found
   else if fst (tryrun camlexec.find ["query";"dynlink"]) = ""
@@ -186,25 +185,6 @@ let best_compiler prefs camlenv =
 let hasnatdynlink prefs best_compiler = prefs.natdynlink && best_compiler = "opt"
 
 (** * OS dependent libraries *)
-
-(** Check for dune *)
-
-let dune_install_warning () =
-  warn "You are using Dune < 2.9, the install procedure will not respect the -docdir and -configdir configure directives; please see dev/doc/INSTALL.make.md for more information"
-
-(* returns true if dune >= 2.9 *)
-let check_for_dune_29 () =
-  let dune_version, _  = tryrun "dune" ["--version"] in
-  let dune_version = generic_version_nums ~name:"dune" dune_version in
-  match dune_version with
-  (* Development version, consider it >= 2.9 *)
-  | [] -> true
-  | _ ->
-    if dune_version < [2;9;0] then
-      (dune_install_warning ();
-       false)
-    else
-      true
 
 (** Zarith library *)
 
@@ -424,9 +404,9 @@ let print_summary prefs arch camlenv best_compiler install_dirs coqide lablgtkdi
   pr "  Coq web site                : %s\n" prefs.coqwebsite;
   pr "  Bytecode VM enabled         : %B\n" prefs.bytecodecompiler;
   pr "  Native Compiler enabled     : %s\n\n" (pr_native prefs.nativecompiler);
-  (pr "  Paths for true installation:\n";
+  (pr "  Paths where installation is expected:\n";
    List.iter
-     (fun ((_,msg),(dir,_)) -> pr "  - %s will be copied in %s\n" msg (esc dir))
+     (fun ((_,msg),(dir,_)) -> pr "  - %s is expected in in %s\n" msg (esc dir))
      install_dirs);
   pr "\n";
   pr "If anything is wrong above, please restart './configure'.\n\n";
@@ -522,7 +502,7 @@ let write_configml camlenv coqenv caml_flags caml_version_nums arch arch_is_win3
 
 (** * Build the config/Makefile file *)
 
-let write_makefile prefs install_dirs best_compiler caml_flags coq_caml_flags coqide arch exe dune_29 o =
+let write_makefile prefs install_dirs best_compiler caml_flags coq_caml_flags coqide arch exe o =
   let pr s = fprintf o s in
   pr "###### config/Makefile : Configuration file for Coq ##############\n";
   pr "#                                                                #\n";
@@ -563,9 +543,6 @@ let write_makefile prefs install_dirs best_compiler caml_flags coq_caml_flags co
   pr "# Option to produce precompiled files for native_compute\n";
   pr "NATIVECOMPUTE=%s\n" (if prefs.nativecompiler = NativeYes then "-native-compiler yes" else "");
   pr "COQWARNERROR=%s\n" (if prefs.warn_error then "-w +default" else "");
-  pr "CONFIGURE_DPROFILE=%s\n" prefs.dune_profile;
-  pr "COQ_INSTALL_ENABLED=%b\n" prefs.install_enabled;
-  if dune_29 then pr "DUNE_29_PLUS=yes\n";
   ()
 
 let write_dune_c_flags cflags o =
@@ -582,7 +559,6 @@ let write_configpy o =
 let main () =
   let prefs = CmdArgs.parse_args () in
   Util.debug := prefs.debug;
-  let dune_29 = check_for_dune_29 () in
   let coq_annot_flag = coq_annot_flag prefs in
   let coq_bin_annot_flag = coq_bin_annot_flag prefs in
   let arch = arch prefs in
@@ -613,7 +589,7 @@ let main () =
   write_config_file ~file:"config/coq_config.ml"
     (write_configml camlenv coqenv caml_flags caml_version_nums arch arch_is_win32 hasnatdynlink browser idearchdef prefs);
   write_config_file ~file:"config/Makefile"
-    (write_makefile prefs install_dirs best_compiler caml_flags coq_caml_flags coqide arch exe dune_29);
+    (write_makefile prefs install_dirs best_compiler caml_flags coq_caml_flags coqide arch exe);
   write_config_file ~file:"config/dune.c_flags" (write_dune_c_flags cflags);
   write_config_file ~file:"config/coq_config.py" write_configpy;
   ()

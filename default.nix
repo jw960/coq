@@ -24,7 +24,7 @@
 { pkgs ? import ./dev/nixpkgs.nix {}
 , ocamlPackages ? pkgs.ocaml-ng.ocamlPackages_4_12
 , buildIde ? true
-, buildDoc ? true
+, buildDoc ? false
 , doInstallCheck ? true
 , shell ? false
   # We don't use lib.inNixShell because that would also apply
@@ -86,12 +86,18 @@ stdenv.mkDerivation rec {
 
   prefixKey = "-prefix ";
 
-  enableParallelBuilding = true;
+  enableParallelBuilding = false;
 
-  buildFlags = [ "world" ] ++ optional buildDoc "doc-html";
+  buildFlags = [ "world" ];
+
+  # TODO, building of documentation package when not in dev mode
+  # https://github.com/coq/coq/issues/16198
+  # buildFlags = [ "world" ] ++ optional buildDoc "refman-html";
 
   installTargets =
-    [ "install" ] ++ optional buildDoc "install-doc-html";
+    [ "install" ];
+    # fixme, do we have to do a target, or can we just do a copy?
+    # ++ optional buildDoc "install-doc-html";
 
   createFindlibDestdir = !shell;
 
