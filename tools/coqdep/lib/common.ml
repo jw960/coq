@@ -41,29 +41,13 @@ let canonize f =
 (** Queue operations *)
 let addQueue q v = q := v :: !q
 
-type what = Library | External
-let str_of_what = function Library -> "library" | External -> "external file"
-
-let warning_module_notfound ?(what=Library) from f s =
-  let what = str_of_what what in
-  match from with
-  | None ->
-    Warning.give "in file %s, %s %s is required and has not been found in the loadpath!"
-      f what (String.concat "." s)
-  | Some pth ->
-    Warning.give "in file %s, %s %s is required from root %s and has not been found in the loadpath!"
-      f what (String.concat "." s) (String.concat "." pth)
-
-let warning_declare f s =
-  Warning.give "in file %s, declared ML module %s has not been found!" f s
-
-let warn_if_clash ?(what=Library) exact file dir f1 = let open Format in function
+let warn_if_clash ?(what=Error.Library) exact file dir f1 = let open Format in function
   | f2::fl ->
       let f =
         match what with
         | Library -> Filename.basename f1 ^ ".v"
         | External -> Filename.basename f1 in
-      let what = str_of_what what in
+      let what = Error.str_of_what what in
       let d1 = Filename.dirname f1 in
       let d2 = Filename.dirname f2 in
       let dl = List.rev_map Filename.dirname fl in
@@ -85,7 +69,7 @@ let warn_if_clash ?(what=Library) exact file dir f1 = let open Format in functio
         end
   | [] -> ()
 
-let safe_assoc st ?(what=Library) from verbose file k =
+let safe_assoc st ?(what=Error.Library) from verbose file k =
   let search =
     match what with
     | Library -> Loadpath.search_v_known st
@@ -179,7 +163,7 @@ let rec find_dependencies st basename =
                     add_dep (Dep_info.Dep.Require file_str)) files
               | None ->
                 if verbose && not (Loadpath.is_in_coqlib st ?from str) then
-                  warning_module_notfound from f str
+                  Error.filenotfound f Library from str
             end
           in
           List.iter decl strl
@@ -199,7 +183,7 @@ let rec find_dependencies st basename =
                 | None ->
                   match Loadpath.search_mlpack_known st s with
                   | Some mldir -> declare ".cmo" mldir s
-                  | None -> warning_declare f str
+                  | None -> Error.mlnotfound f str
               end
           in
           List.iter decl sl
@@ -229,7 +213,7 @@ let rec find_dependencies st basename =
           begin match safe_assoc st ~what:External (Some from) verbose f [str] with
           | Some (file :: _) -> add_dep (Dep_info.Dep.Other (canonize file))
           | Some [] -> assert false
-          | None -> warning_module_notfound ~what:External (Some from) f [str]
+          | None -> Error.filenotfound f External (Some from) [str]
           end
       done;
       List.rev !dependencies
