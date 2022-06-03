@@ -45,11 +45,13 @@ let load_objs libs =
   let rq_file (dir, from, exp) =
     let mp = Libnames.qualid_of_string dir in
     let mfrom = Option.map Libnames.qualid_of_string from in
-    Flags.silently (Vernacentries.vernac_require mfrom exp) [mp]
+    Flags.silently (Vernacentries.vernac_require mfrom exp) [mp,Vernacexpr.ImportAll]
   in
   List.(iter rq_file (rev libs))
 
-let dft_require_libs = ["Coq.Init.Prelude", None, Some false]
+let dft_require_libs : (string * string option * Vernacexpr.export_with_cats option) list =
+  let export_with_cats = Lib.Import, None in
+  ["Coq.Init.Prelude", None, Some export_with_cats]
 
 let init_coq ~vo_path ~ml_path ~require_libs in_file =
   Lib.init ();
@@ -147,7 +149,7 @@ let compile ~vo_path ~ml_path ~require_libs ~in_file ~out_file =
   let () = start_glob ~in_file in
   let out, fmt = CoqJson.start ~in_file in
   let st, ldir = init_coq ~vo_path ~ml_path ~require_libs in_file in
-  let pa = Pcoq.Parsable.make (Stream.of_channel f_in) in
+  let pa = Pcoq.Parsable.make (Gramlib.Stream.of_channel f_in) in
   let _st : Vernacstate.t = cloop ~fmt ~st pa in
   (* Compact the heap, just in case. *)
   Gc.compact ();
