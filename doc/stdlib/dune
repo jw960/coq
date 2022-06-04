@@ -14,7 +14,7 @@
 (rule
   (targets html)
   (alias stdlib-html)
-  (package coq-doc)
+  ; (package coq-doc)
   (deps
    ; This will be replaced soon by `theories/**/*.v` soon, thanks to rgrinberg
    (source_tree %{project_root}/theories)
@@ -39,7 +39,7 @@
 ; generate the whole Coq documentation.  And the result under
 ; _build/install/default/doc/coq-doc looks just right!
 
-(install
- (files (html as html/stdlib))
- (section doc)
- (package coq-doc))
+; (install
+;  (files (html as html/stdlib))
+;  (section doc)
+;  (package coq-doc))
