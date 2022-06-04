@@ -26,7 +26,7 @@
 (rule
  (targets refman-html)
  (alias refman-html)
- (package coq-doc)
+ ; (package coq-doc)
  ; Cannot use this deps alias because of ocaml/dune#3415
  ; (deps (alias refman-deps))
  ; EJGA: note this should've been fixed in dune master as of 05/03/2021
@@ -44,7 +44,7 @@
 (rule
  (targets refman-pdf)
  (alias refman-pdf)
- (package coq-doc)
+ ; (package coq-doc)
  ; Cannot use this deps alias because of ocaml/dune#3415
  ; (deps (alias refman-deps))
  ; EJGA: note this should've been fixed in dune master as of 05/03/2021
@@ -65,10 +65,12 @@
 ; generate the whole Coq documentation.  And the result under
 ; _build/install/default/doc/coq-doc looks just right!
 
-(install
- (files (refman-html as html/refman) (refman-pdf as pdf/refman))
- (section doc)
- (package coq-doc))
+; Removed for coq-universe (for now)
+;
+; (install
+;  (files (refman-html as html/refman) (refman-pdf as pdf/refman))
+;  (section doc)
+;  (package coq-doc))
 
 (documentation
  (package coq-doc))
