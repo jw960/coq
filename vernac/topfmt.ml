@@ -105,7 +105,7 @@ module Tag = struct
 
   let error   = "message.error"
   let warning = "message.warning"
-  let debug   = "message.debug"
+  (* let debug   = "message.debug" *)
 
 end
 
@@ -130,8 +130,8 @@ module Emacs = struct
 
 end
 
-let  dbg_hdr = tag Tag.debug   (str "Debug:")   ++ spc ()
-let info_hdr = mt ()
+(* let  dbg_hdr = tag Tag.debug   (str "Debug:")   ++ spc ()
+ * let info_hdr = mt () *)
 let warn_hdr = tag Tag.warning (str "Warning:") ++ spc ()
 let  err_hdr = tag Tag.error   (str "Error:")   ++ spc ()
 
@@ -142,9 +142,11 @@ let make_body quoter info ?pre_hdr s =
 let noq x = x
 (* Generic logger *)
 let gen_logger dbg warn ?pre_hdr level msg = let open Feedback in match level with
-  | Debug   -> msgnl_with !std_ft (make_body dbg  dbg_hdr ?pre_hdr msg)
-  | Info    -> msgnl_with !std_ft (make_body dbg info_hdr ?pre_hdr msg)
-  | Notice  -> msgnl_with !std_ft (make_body noq info_hdr ?pre_hdr msg)
+  (* | Debug   -> msgnl_with !std_ft (make_body dbg  dbg_hdr ?pre_hdr msg)
+   * | Info    -> msgnl_with !std_ft (make_body dbg info_hdr ?pre_hdr msg)
+   * | Notice  -> msgnl_with !std_ft (make_body noq info_hdr ?pre_hdr msg) *)
+  (* Temporary noise removal *)
+  | Debug | Info | Notice -> ()
   | Warning -> Flags.if_warn (fun () ->
                msgnl_with !err_ft (make_body warn warn_hdr ?pre_hdr msg)) ()
   | Error   -> msgnl_with !err_ft (make_body noq   err_hdr ?pre_hdr msg)
