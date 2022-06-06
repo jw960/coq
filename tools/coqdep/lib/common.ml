@@ -191,7 +191,7 @@ let rec find_dependencies st basename =
             add_dep (Dep_info.Dep.Ml (base,suff))
           in
           let decl (meta_file,str) =
-            Option.iter add_dep_other meta_file;
+            (* Option.iter add_dep_other meta_file; *)
             let s = basename_noext str in
             if not (StrSet.mem s !visited_ml) then begin
                 visited_ml := StrSet.add s !visited_ml;
