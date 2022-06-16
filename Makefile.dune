@@ -115,10 +115,10 @@ _build/default/theories_dune _build/default/ltac2_dune .dune-stamp: FORCE
 	touch .dune-stamp
 
 theories/dune: .dune-stamp
-	cp -a _build/default/theories_dune $@ && chmod +w $@
+	cp -a _build/default/theories_dune $@ && chmod +w $@ && echo "(include dune.disabled)" >> $@
 
 user-contrib/Ltac2/dune: .dune-stamp
-	cp -a _build/default/ltac2_dune $@ && chmod +w $@
+	cp -a _build/default/ltac2_dune $@ && chmod +w $@ && echo "(include dune.disabled)" >> $@
 
 FORCE: ;
 

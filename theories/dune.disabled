@@ -1,13 +1,10 @@
-; For now we use coq_dune to generate the rules here
 (coq.theory
  (name Coq)
  (package coq-stdlib)
  (synopsis "Coq's Standard Library")
- (flags -q -w -deprecated-native-compiler-option)
- ; (mode native)
  (boot)
- ; (per_file
- ;  (Init/*.v -> -boot))
+; For now we use coq_dune to generate the rules here
+ (modules )
  (libraries
    coq-core.plugins.ltac
    coq-core.plugins.tauto
@@ -30,8 +27,3 @@
 
    coq-core.plugins.ssreflect
    coq-core.plugins.derive))
-
-(include_subdirs qualified)
-
-(documentation
- (package coq-stdlib))

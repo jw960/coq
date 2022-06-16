@@ -2,5 +2,6 @@
  (name Ltac2)
  (package coq-stdlib)
  (synopsis "Ltac2 tactic language")
- (flags -w -deprecated-native-compiler-option)
+ ; For now we use coq_dune to generate the rules here
+ (modules )
  (libraries coq-core.plugins.ltac2))
