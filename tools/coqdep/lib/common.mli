@@ -23,4 +23,4 @@ val treat_file_command_line : string -> unit
 
 val sort : State.t -> unit
 
-val compute_deps : State.t -> Dep_info.t list
+val compute_deps : make_separator_hack:bool -> State.t -> Dep_info.t list

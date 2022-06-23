@@ -247,7 +247,8 @@ module State = struct
   let loadpath x = x
 end
 
-let compute_deps st =
+let compute_deps ~make_separator_hack st =
+  separator_hack := make_separator_hack;
   let mk_dep (name, _orig_path) = Dep_info.make ~name ~deps:(find_dependencies st name) in
   !vAccu |> List.rev |> List.map mk_dep
 

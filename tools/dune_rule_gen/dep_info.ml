@@ -34,7 +34,9 @@ let make ~args ~(dir_info : _ Dir_info.t) =
     Dir_info.iter dir_info ~f:(fun ~prefix:_ files ->
         let files = List.map Coq_module.source files in
         List.iter coqdep_register_file files) in
-  CD.Common.compute_deps st |> from_list
+  (* We are sane w.r.t. path separators *)
+  let make_separator_hack = false in
+  CD.Common.compute_deps ~make_separator_hack st |> from_list
 
 let lookup ~dep_info file =
   if debug then Format.eprintf "lookup: %a@\n%!" Path.pp file;

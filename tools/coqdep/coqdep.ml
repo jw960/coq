@@ -51,7 +51,9 @@ let coqdep () =
   if args.Args.sort then
     sort st
   else
-    compute_deps st |> List.iter (Makefile.print_dep Format.std_formatter)
+    (* We are in makefile hack mode *)
+    let make_separator_hack = true in
+    compute_deps ~make_separator_hack st |> List.iter (Makefile.print_dep Format.std_formatter)
 
 let () =
   try
