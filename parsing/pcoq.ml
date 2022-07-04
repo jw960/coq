@@ -179,6 +179,9 @@ let rec remove_grammars n =
            camlp5_entries := EntryDataMap.add tag (EntryData.Ex entries) !camlp5_entries;
            remove_grammars (n - 1)
 
+let remove_grammars n =
+  Cstats.record ~kind:Cstats.Kind.Remove ~f:remove_grammars n |> fst
+
 let make_rule r = [None, None, r]
 
 (** An entry that checks we reached the end of the input. *)
@@ -455,8 +458,11 @@ let eq_grams (g1, _) (g2, _) = match g1, g2 with
 
 (* We compare the current state of the grammar and the state to unfreeze,
    by computing the longest common suffixes *)
-let factorize_grams l1 l2 =
+let factorize_grams (l1, l2) =
   if l1 == l2 then ([], [], l1) else List.share_tails eq_grams l1 l2
+
+let factorize_grams l1 l2 =
+  Cstats.record ~kind:Cstats.Kind.Factorize ~f:factorize_grams (l1,l2) |> fst
 
 let rec number_of_entries accu = function
 | [] -> accu
@@ -469,7 +475,9 @@ let unfreeze (grams, lex) =
   remove_grammars n;
   grammar_stack := common;
   CLexer.set_keyword_state lex;
-  List.iter extend_dyn_grammar (List.rev redo)
+  Cstats.record ~kind:Cstats.Kind.Extend ~f:(List.iter extend_dyn_grammar) (List.rev redo) |> fst
+
+let unfreeze g = Cstats.record ~kind:Cstats.Kind.UnFreeze ~f:unfreeze g |> fst
 
 (** No need to provide an init function : the grammar state is
     statically available, and already empty initially, while
