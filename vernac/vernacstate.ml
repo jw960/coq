@@ -25,7 +25,7 @@ module Parser = struct
 end
 
 module System : sig
-  type t
+  type t = Lib.frozen * Summary.frozen
   val protect : ('a -> 'b) -> 'a -> 'b
   val freeze : marshallable:bool -> t
   val unfreeze : t -> unit

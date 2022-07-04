@@ -45,9 +45,13 @@ type 'a summary_declaration = {
 
 val declare_summary : string -> 'a summary_declaration -> unit
 
+module type D = Dyn.MapS
+
+module Dyn : Dyn.S
+module Frozen : D with type 'a key = 'a Dyn.tag
+
 (** We provide safe projection from the summary to the types stored in
    it.*)
-module Dyn : Dyn.S
 
 val declare_summary_tag : string -> 'a summary_declaration -> 'a Dyn.tag
 
@@ -91,7 +95,14 @@ val nop : unit -> unit
 (** The type [frozen] is a snapshot of the states of all the registered
     tables of the system. *)
 
-type frozen
+type ml_modules = (string option * string) list
+
+type frozen = {
+  summaries : Frozen.t;
+  (** Ordered list w.r.t. the first component. *)
+  ml_module : ml_modules option;
+  (** Special handling of the ml_module summary. *)
+}
 
 val empty_frozen : frozen
 val freeze_summaries : marshallable:bool -> frozen

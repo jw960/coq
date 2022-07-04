@@ -8,6 +8,7 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+module type D = Dyn.MapS
 module Dyn = Dyn.Make ()
 
 module Stage = struct

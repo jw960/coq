@@ -22,7 +22,7 @@ end
 module System : sig
 
   (** The system state includes the summary and the libobject  *)
-  type t
+  type t = Lib.frozen * Summary.frozen
 
   (** [protect f x] runs [f x] and discards changes in the system state  *)
   val protect : ('a -> 'b) -> 'a -> 'b

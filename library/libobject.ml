@@ -132,6 +132,7 @@ let cache_tab = ref DynMap.empty
 
 let declare_object_full odecl =
   let na = odecl.object_name in
+  (* Format.eprintf "OBJ: %s@\n%!" na; *)
   let tag = Dyn.create na in
   let () = cache_tab := DynMap.add tag odecl !cache_tab in
   tag
