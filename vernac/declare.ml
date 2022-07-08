@@ -222,7 +222,7 @@ let update_tables c =
 let register_constant kn kind local =
   let id = Label.to_id (Constant.label kn) in
   let o = inConstant (id, { cst_kind = kind; cst_locl = local; }) in
-  let () = Lib.add_leaf o in
+  let () = Lib.add_leaf (Some id,o) in
   update_tables kn
 
 let register_side_effect (c, body, role) =
@@ -520,7 +520,7 @@ let declare_variable_core ~name ~kind d =
   in
   Nametab.GlobRef.push (Nametab.Until 1) (Libnames.make_path DirPath.empty name) (GlobRef.VarRef name);
   Decls.(add_variable_data name {opaque;kind});
-  Lib.add_leaf (inVariable name);
+  Lib.add_leaf (Some name, inVariable name);
   Impargs.declare_var_implicits ~impl name;
   Notation.declare_ref_arguments_scope Evd.empty (GlobRef.VarRef name)
 

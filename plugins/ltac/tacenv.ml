@@ -205,7 +205,7 @@ let inMD : tacdef -> obj =
      classify_function = classify_md}
 
 let register_ltac for_ml local ?deprecation id tac =
-  Lib.add_leaf (inMD {local; replace=NoReplace id; for_ml; expr=tac; depr=deprecation})
+  Lib.add_leaf (Some id, inMD {local; replace=NoReplace id; for_ml; expr=tac; depr=deprecation})
 
 let redefine_ltac local ?deprecation kn tac =
-  Lib.add_leaf (inMD {local; replace=Replace kn; for_ml=false; expr=tac; depr=deprecation})
+  Lib.add_leaf (None, inMD {local; replace=Replace kn; for_ml=false; expr=tac; depr=deprecation})

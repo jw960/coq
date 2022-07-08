@@ -128,7 +128,7 @@ and t =
   | IncludeObject of algebraic_objects
   | KeepObject of Names.Id.t * t list
   | ExportObject of { mpl : (Open_filter.t * Names.ModPath.t) list }
-  | AtomicObject of obj
+  | AtomicObject of Names.Id.t option * obj
 
 and substitutive_objects = Names.MBId.t list * algebraic_objects
 

@@ -75,7 +75,7 @@ let input_univ_names : universe_name_decl -> Libobject.obj =
 
 let input_univ_names (src, l) =
   if CList.is_empty l then ()
-  else Lib.add_leaf (input_univ_names (src, l))
+  else Lib.add_leaf (None, input_univ_names (src, l))
 
 let invent_name (named,cnt) u =
   let rec aux i =

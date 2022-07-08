@@ -434,7 +434,7 @@ let add_transitivity_lemma left lem =
   let sigma = Evd.from_env env in
   let lem',ctx (*FIXME*) = Constrintern.interp_constr env sigma lem in
   let lem' = EConstr.to_constr sigma lem' in
-  Lib.add_leaf (inTransitivity (left,lem'))
+  Lib.add_leaf (None, inTransitivity (left,lem'))
 
 }
 

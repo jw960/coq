@@ -91,7 +91,7 @@ let declare_tactic_option ?(default=CAst.make (Tacexpr.TacId[])) name =
         then CErrors.user_err ?loc
             Pp.(str "This locality is not supported inside sections by this command.")
     in
-    Lib.add_leaf (input (local, tac))
+    Lib.add_leaf (None, input (local, tac))
   in
   let get () = Tacinterp.eval_tactic !default_tactic in
   let print () = Pptactic.pr_glob_tactic (Global.env ()) !default_tactic in

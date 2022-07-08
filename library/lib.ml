@@ -63,7 +63,7 @@ let classify_segment seg =
           clean (substl, o::keepl, anticipl) stk
         | ExportObject _ ->
           clean (o::substl, keepl, anticipl) stk
-        | AtomicObject obj as o ->
+        | AtomicObject (id, obj) as o ->
           begin match classify_object obj with
             | Dispose -> clean acc stk
             | Keep ->
@@ -168,14 +168,14 @@ let add_leaf_entry leaf =
   in
   lib_state := { !lib_state with lib_stk }
 
-let add_discharged_leaf obj =
+let add_discharged_leaf (id, obj) =
   let newobj = Libobject.rebuild_object obj in
   Libobject.cache_object (prefix(),newobj);
-  add_leaf_entry (AtomicObject newobj)
+  add_leaf_entry (AtomicObject (id,newobj))
 
-let add_leaf obj =
+let add_leaf (id, obj) =
   Libobject.cache_object (prefix(),obj);
-  add_leaf_entry (AtomicObject obj)
+  add_leaf_entry (AtomicObject (id,obj))
 
 (* Modules. *)
 
@@ -387,7 +387,7 @@ let open_section id =
 let discharge_item = Libobject.(function
   | ModuleObject _ | ModuleTypeObject _ | IncludeObject _ | KeepObject _
   | ExportObject _ -> None
-  | AtomicObject obj -> discharge_object obj)
+  | AtomicObject (id,obj) -> Option.map (fun o -> id,o) (discharge_object obj))
 
 let close_section () =
   let (secdecls,mark,before) = split_lib_at_opening () in

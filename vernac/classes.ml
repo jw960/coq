@@ -182,7 +182,7 @@ let add_instance cl info global impl =
     inst_global = global ;
     inst_impl = impl;
   } in
-  Lib.add_leaf (instance_input i);
+  Lib.add_leaf (None,instance_input i);
   add_instance_base i
 
 let warning_not_a_class =
@@ -271,7 +271,7 @@ let class_input : typeclass -> obj =
       subst_function = subst_class }
 
 let add_class cl =
-  Lib.add_leaf (class_input cl)
+  Lib.add_leaf (None,class_input cl)
 
 let intern_info {hint_priority;hint_pattern} =
   let env = Global.env() in

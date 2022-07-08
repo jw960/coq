@@ -140,21 +140,72 @@ val ident_subst_function : substitution * 'a -> 'a
    will hand back two functions, the "injection" and "projection"
    functions for dynamically typed library-objects. *)
 
+(** Common metadata for objects that are stored in modules / .vo files *)
+module Data : sig
+
+  type t
+
+  val make : ?loc:Loc.t -> ?doc:string -> ?name:Id.t -> unit -> t
+
+end
+
+(** Behavior specification for a module object; maybe we could use
+   OCaml's row-typing here *)
+module Behavior : sig
+
+  module Kernel : sig
+
+    (** Objects that update the kernel enviroment. *)
+    type t
+
+    (** At some point this will be take a safe_transformer *)
+    val make : global:(unit -> unit) -> unit
+  end
+
+  module Nametab : sig
+    type t
+    val make : unit -> unit
+  end
+
+  module Summary : sig
+    type t
+    val with_ref : unit -> t
+    val with_map : unit -> t
+  end
+
+  type t
+
+  val with_nametab : unit -> t
+  val with_summary : Summary.t -> t
+
+end
+
 module Dyn : Dyn.S
 
 type obj = Dyn.t
 
+(** EJGA: Should we attach info to all objects? *)
 type algebraic_objects =
   | Objs of t list
   | Ref of ModPath.t * Mod_subst.substitution
 
 and t =
-  | ModuleObject of Id.t * substitutive_objects
-  | ModuleTypeObject of Id.t * substitutive_objects
+  | ModuleObject of Data.t * substitutive_objects
+  (** Information and contents for a Coq Module *)
+  | ModuleTypeObject of substitutive_objects
+  (** Similar but for module types *)
   | IncludeObject of algebraic_objects
-  | KeepObject of Id.t * t list
+  (** Similar but for include *)
+  | KeepObject of t list
+  (** A Keep Object is stored at module closing time after the
+     [ModuleObject] proper, and with the goal to register the objects
+     that survive the module with the [Declaremods] registration
+     table. Some other checks are also done. *)
   | ExportObject of { mpl : (Open_filter.t * ModPath.t) list }
-  | AtomicObject of obj
+  (** [ExportObject] stores a list of objects that must be opened in
+     the local context *)
+  | AtomicObject of Data.t * Behavior.t * obj
+  (** Regular  *)
 
 and substitutive_objects = MBId.t list * algebraic_objects
 

@@ -52,7 +52,7 @@ val add_leaf_entry : Libobject.t -> unit
 (** Adding operations (which call the [cache] method, and getting the
   current list of operations (most recent ones coming first). *)
 
-val add_leaf : Libobject.obj -> unit
+val add_leaf : Id.t option * Libobject.obj -> unit
 
 (** {6 ... } *)
 

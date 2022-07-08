@@ -580,11 +580,11 @@ let add_rew_rules ~locality base lrul =
       CErrors.user_err Pp.(str
         "This command does not support the global attribute in sections.");
     in
-    Lib.add_leaf (inGlobalHintRewrite (base,lrul))
+    Lib.add_leaf (None, inGlobalHintRewrite (base,lrul))
   | Export ->
     let () =
       if Global.sections_are_opened () then
         CErrors.user_err Pp.(str
           "This command does not support the export attribute in sections.");
     in
-    Lib.add_leaf (inExportHintRewrite (base,lrul))
+    Lib.add_leaf (None, inExportHintRewrite (base,lrul))

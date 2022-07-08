@@ -118,3 +118,14 @@ val debug_print_modtab : unit -> Pp.t
 
 val process_module_binding :
   MBId.t -> (Constr.t * Univ.AbstractContext.t option) Declarations.module_alg_expr -> unit
+
+(** Experimental *)
+type module_objects = private
+  { module_prefix : Nametab.object_prefix
+  ; module_substituted_objects : Libobject.t list
+  ; module_substituted_objects_map : Libobject.t Util.String.Map.t
+  ; module_keep_objects : Libobject.t list
+  ; module_keep_objects_map : Libobject.t Util.String.Map.t
+  }
+
+val modmap : unit -> module_objects Names.MPmap.t

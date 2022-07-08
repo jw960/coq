@@ -676,7 +676,7 @@ module MakeTable (E : Elt) = struct
   let register c =
     try
       let c = UnivGen.constr_of_monomorphic_global (Global.env ()) (Nametab.GlobRef.locate c) in
-      let _ = Lib.add_leaf (register_obj c) in
+      let _ = Lib.add_leaf (None, register_obj c) in
       ()
     with Not_found ->
       raise

@@ -363,7 +363,7 @@ let require_library_from_dirpath ~lib_resolver modrefl =
   let needed, contents = List.fold_left (rec_intern_library ~lib_resolver) ([], DPmap.empty) modrefl in
   let needed = List.rev_map (fun dir -> DPmap.find dir contents) needed in
   if Lib.is_module_or_modtype () then warn_require_in_module ();
-  Lib.add_leaf (in_require needed)
+  Lib.add_leaf (None,in_require needed)
 
 (************************************************************************)
 (*s Initializing the compilation of a library. *)

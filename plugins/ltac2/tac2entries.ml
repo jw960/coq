@@ -369,7 +369,7 @@ let register_ltac ?deprecation ?(local = false) ?(mut = false) isrec tactics =
       tacdef_type = t;
       tacdef_deprecation = deprecation;
     } in
-    Lib.add_leaf (inTacDef id def)
+    Lib.add_leaf (Some id, inTacDef id def)
   in
   List.iter iter defs
 
@@ -460,7 +460,7 @@ let register_typedef ?(local = false) isrec types =
     (id, typdef)
   in
   let types = List.map map types in
-  let iter (id, def) = Lib.add_leaf (inTypDef id def) in
+  let iter (id, def) = Lib.add_leaf (Some id, inTypDef id def) in
   List.iter iter types
 
 let register_primitive ?deprecation ?(local = false) {loc;v=id} t ml =
@@ -489,7 +489,7 @@ let register_primitive ?deprecation ?(local = false) {loc;v=id} t ml =
     tacdef_type = t;
     tacdef_deprecation = deprecation;
   } in
-  Lib.add_leaf (inTacDef id def)
+  Lib.add_leaf (Some id, inTacDef id def)
 
 let register_open ?(local = false) qid (params, def) =
   let kn =
@@ -546,7 +546,7 @@ let register_open ?(local = false) qid (params, def) =
       typext_prms = tparams;
       typext_expr = def;
     } in
-    Lib.add_leaf (inTypExt def)
+    Lib.add_leaf (None,inTypExt def)
   | CTydRec _ | CTydDef _ ->
     user_err ?loc:qid.CAst.loc (str "Extensions only accept inductive constructors")
 
@@ -752,7 +752,7 @@ let register_notation ?deprecation ?(local = false) tkn lev body = match tkn, le
   let () = check_lowercase CAst.(make ?loc id) in
   let body = Tac2intern.globalize Id.Set.empty body in
   let abbr = { abbr_body = body; abbr_depr = deprecation } in
-  Lib.add_leaf (inTac2Abbreviation id abbr)
+  Lib.add_leaf (Some id, inTac2Abbreviation id abbr)
 | _ ->
   (* Check that the tokens make sense *)
   let entries = List.map ParseToken.parse_token tkn in
@@ -780,7 +780,7 @@ let register_notation ?deprecation ?(local = false) tkn lev body = match tkn, le
     synext_loc = local;
     synext_depr = deprecation;
   } in
-  Lib.add_leaf (inTac2Notation ext)
+  Lib.add_leaf (None, inTac2Notation ext)
 
 type redefinition = {
   redef_kn : ltac_constant;
@@ -853,7 +853,7 @@ let register_redefinition qid old e =
     redef_body = e;
     redef_old = old;
   } in
-  Lib.add_leaf (inTac2Redefinition def)
+  Lib.add_leaf (None, inTac2Redefinition def)
 
 let perform_eval ~pstate e =
   let env = Global.env () in
@@ -1013,7 +1013,7 @@ let register_prim_alg name params def =
   } in
   let def = (params, GTydAlg alg) in
   let def = { typdef_local = false; typdef_expr = def } in
-  Lib.add_leaf (inTypDef id def)
+  Lib.add_leaf (None, inTypDef id def)
 
 let coq_def n = KerName.make Tac2env.coq_prefix (Label.make n)
 
@@ -1041,10 +1041,10 @@ let inTac2Init : unit -> obj =
 
 let () = Mltop.declare_cache_obj begin fun () ->
   let unit = Id.of_string "unit" in
-  Lib.add_leaf (inTypDef unit def_unit);
+  Lib.add_leaf (None, inTypDef unit def_unit);
   register_prim_alg "list" 1 [
     ("[]", []);
     ("::", [GTypVar 0; GTypRef (Other t_list, [GTypVar 0])]);
   ];
-  Lib.add_leaf (inTac2Init ());
+  Lib.add_leaf (None, inTac2Init ());
 end "coq-core.plugins.ltac2"

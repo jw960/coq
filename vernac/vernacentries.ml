@@ -1188,7 +1188,7 @@ let inExportNames = Libobject.declare_object
 let import_names ~export m ns =
   let ns = interp_names m ns in
   match export with
-  | Lib.Export -> Lib.add_leaf (inExportNames ns)
+  | Lib.Export -> Lib.add_leaf (None, inExportNames ns)
   | Lib.Import -> cache_names ns
 
 let interp_import_cats cats =
@@ -2081,7 +2081,18 @@ let vernac_print ~pstate =
   | PrintName (qid,udecl) ->
     dump_global qid;
     Prettyp.print_name env sigma qid udecl
-  | PrintGraph -> Prettyp.print_graph ()
+  | PrintGraph ->
+    (* Prettyp.print_graph (); *)
+    let mods = Declaremods.modmap () in
+    let pp_obj (name, (x : Libobject.t)) = Pp.(str name ++ cut ()) in
+    let pp_lobjs lobjs =
+      let lpp = List.map pp_obj (Util.String.Map.bindings lobjs) in
+      Pp.(v 0 (seq lpp)) in
+    let modnames = Names.MPmap.fold (fun modname lobj pp ->
+        let lobj = pp_lobjs lobj.Declaremods.module_substituted_objects_map in
+        Pp.(hov 1 (str (Names.ModPath.to_string modname) ++ spc () ++ lobj)) ++ cut () ++ pp) mods (mt ()) in
+    Pp.v 0 modnames
+
   | PrintClasses -> Prettyp.print_classes()
   | PrintTypeClasses -> Prettyp.print_typeclasses()
   | PrintInstances c -> Prettyp.print_instances (smart_global c)

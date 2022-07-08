@@ -699,7 +699,7 @@ let handle h (Libobject.Dyn.Dyn (tag, o)) = match DynHandle.find tag h with
    needs to be done in a more principled way. *)
 let gallina_print_library_leaf env sigma with_values mp lobj =
   match lobj with
-  | AtomicObject o ->
+  | AtomicObject (_,o) ->
     let handler =
       DynHandle.add Declare.Internal.objVariable begin fun id ->
           (* Outside sections, VARIABLES still exist but only with universes
@@ -867,7 +867,7 @@ let print_full_pure_atomic env sigma mp lobj =
   handleF handler lobj
 
 let print_full_pure_leaf env sigma mp = function
-  | AtomicObject lobj -> print_full_pure_atomic env sigma mp lobj
+  | AtomicObject (_,lobj) -> print_full_pure_atomic env sigma mp lobj
   | ModuleObject (id, _) ->
     (* TODO: make it reparsable *)
     print_module (MPdot (mp,Label.of_id id)) ++ str "." ++ fnl () ++ fnl ()
