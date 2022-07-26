@@ -149,5 +149,5 @@ bin
 .merlin
 
 .dune-stamp
-theories/dune
-user-contrib/Ltac2/dune
+# theories/dune
+# user-contrib/Ltac2/dune

@@ -99,6 +99,9 @@ let main () =
       List.iter (Dune_file.Subdir.pp ppr fmt) coqnative_rules
   end;
 
+  (* Register the theories *)
+  Format.fprintf fmt "(include dune_theory)@\n";
+
   Format.pp_print_flush fmt ();
   ()
 
