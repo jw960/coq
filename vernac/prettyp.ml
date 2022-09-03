@@ -426,15 +426,15 @@ let register_locatable name f =
 exception ObjFound of logical_name
 
 let locate_any_name qid =
-  try Term (Nametab.locate qid)
+  try Term (Nametab.GlobRef.locate qid)
   with Not_found ->
-  try Abbreviation (Nametab.locate_abbreviation qid)
+  try Abbreviation (Nametab.Abbrev.locate qid)
   with Not_found ->
-  try Dir (Nametab.locate_dir qid)
+  try Dir (Nametab.Dir.locate qid)
   with Not_found ->
-  try Module (Nametab.locate_module qid)
+  try Module (Nametab.Module.locate qid)
   with Not_found ->
-  try ModuleType (Nametab.locate_modtype qid)
+  try ModuleType (Nametab.ModType.locate qid)
   with Not_found ->
     let iter _ (Locatable info) = match info.locate qid with
     | None -> ()
@@ -450,9 +450,9 @@ let pr_located_qualid = function
         | IndRef _ -> "Inductive"
         | ConstructRef _ -> "Constructor"
         | VarRef _ -> "Variable" in
-      str ref_str ++ spc () ++ pr_path (Nametab.path_of_global ref)
+      str ref_str ++ spc () ++ pr_path (Nametab.GlobRef.path ref)
   | Abbreviation kn ->
-      str "Notation" ++ spc () ++ pr_path (Nametab.path_of_abbreviation kn)
+      str "Notation" ++ spc () ++ pr_path (Nametab.Abbrev.path kn)
   | Dir dir ->
       let s,mp =
         let open Nametab in
@@ -463,9 +463,9 @@ let pr_located_qualid = function
       in
       str s ++ spc () ++ str (ModPath.to_string mp)
   | Module mp ->
-    str "Module" ++ spc () ++ DirPath.print (Nametab.dirpath_of_module mp)
+    str "Module" ++ spc () ++ DirPath.print (Nametab.Module.path mp)
   | ModuleType mp ->
-      str "Module Type" ++ spc () ++ pr_path (Nametab.path_of_modtype mp)
+      str "Module Type" ++ spc () ++ pr_path (Nametab.ModType.path mp)
   | Other (obj, info) -> info.name obj
   | Undefined qid ->
       pr_qualid qid ++ spc () ++ str "not a defined object."
@@ -505,11 +505,11 @@ let locate_term qid =
   List.map expand (Nametab.locate_extended_all qid)
 
 let locate_module qid =
-  let all = Nametab.locate_extended_all_module qid in
+  let all = Nametab.Module.locate_all qid in
   let map mp = Module mp, Nametab.shortest_qualid_of_module mp in
   let mods = List.map map all in
   (* Don't forget the opened modules: they are not part of the same name tab. *)
-  let all = Nametab.locate_extended_all_dir qid in
+  let all = Nametab.Dir.locate_all qid in
   let map dir = let open Nametab.GlobDirRef in match dir with
   | DirOpenModule _ -> Some (Dir dir, qid)
   | _ -> None
@@ -517,11 +517,11 @@ let locate_module qid =
   mods @ List.map_filter map all
 
 let locate_modtype qid =
-  let all = Nametab.locate_extended_all_modtype qid in
+  let all = Nametab.ModType.locate_all qid in
   let map mp = ModuleType mp, Nametab.shortest_qualid_of_modtype mp in
   let modtypes = List.map map all in
   (* Don't forget the opened module types: they are not part of the same name tab. *)
-  let all = Nametab.locate_extended_all_dir qid in
+  let all = Nametab.Dir.locate_all qid in
   let map dir = let open Nametab.GlobDirRef in match dir with
   | DirOpenModtype _ -> Some (Dir dir, qid)
   | _ -> None

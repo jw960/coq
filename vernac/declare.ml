@@ -168,10 +168,10 @@ type constant_obj = {
 }
 
 let load_constant i ((sp,kn), obj) =
-  if Nametab.exists_cci sp then
+  if Nametab.GlobRef.exists sp then
     raise (DeclareUniv.AlreadyDeclared (None, Libnames.basename sp));
   let con = Global.constant_of_delta_kn kn in
-  Nametab.push (Nametab.Until i) sp (GlobRef.ConstRef con);
+  Nametab.GlobRef.push (Nametab.Until i) sp (GlobRef.ConstRef con);
   Dumpglob.add_constant_kind con obj.cst_kind;
   begin match obj.cst_locl with
     | Locality.ImportNeedQualified -> local_csts := Cset_env.add con !local_csts
@@ -185,7 +185,7 @@ let open_constant i ((sp,kn), obj) =
   | Locality.ImportNeedQualified -> ()
   | Locality.ImportDefaultBehavior ->
     let con = Global.constant_of_delta_kn kn in
-    Nametab.push (Nametab.Exactly i) sp (GlobRef.ConstRef con)
+    Nametab.GlobRef.push (Nametab.Exactly i) sp (GlobRef.ConstRef con)
 
 let exists_name id =
   Decls.variable_exists id || Global.exists_objlabel (Label.of_id id)
@@ -196,7 +196,7 @@ let check_exists id =
 
 let cache_constant ((sp,kn), obj) =
   let kn = Global.constant_of_delta_kn kn in
-  Nametab.push (Nametab.Until 1) sp (GlobRef.ConstRef kn);
+  Nametab.GlobRef.push (Nametab.Until 1) sp (GlobRef.ConstRef kn);
   Dumpglob.add_constant_kind kn obj.cst_kind
 
 let discharge_constant obj = Some obj
@@ -518,7 +518,7 @@ let declare_variable_core ~name ~kind d =
       let () = Global.push_named_def (name, se) in
       Glob_term.Explicit, de.proof_entry_opaque, de.proof_entry_universes
   in
-  Nametab.push (Nametab.Until 1) (Libnames.make_path DirPath.empty name) (GlobRef.VarRef name);
+  Nametab.GlobRef.push (Nametab.Until 1) (Libnames.make_path DirPath.empty name) (GlobRef.VarRef name);
   Decls.(add_variable_data name {opaque;kind});
   Lib.add_leaf (inVariable name);
   Impargs.declare_var_implicits ~impl name;

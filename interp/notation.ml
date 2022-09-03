@@ -1189,7 +1189,7 @@ let q_list () = qualid_of_ref "core.list.type"
 let q_byte () = qualid_of_ref "core.byte.type"
 
 let unsafe_locate_ind q =
-  match Nametab.locate q with
+  match Nametab.GlobRef.locate q with
   | GlobRef.IndRef i -> i
   | _ -> raise Not_found
 
@@ -1686,7 +1686,7 @@ let is_printing_inactive_rule rule pat =
   | NotationRule (scope,ntn) ->
     not (is_printing_active_in_scope (scope,ntn) pat)
   | AbbrevRule kn ->
-    try let _ = Nametab.path_of_abbreviation kn in false with Not_found -> true
+    try let _ = Nametab.Abbrev.path kn in false with Not_found -> true
 
 let availability_of_notation (ntn_scope,ntn) scopes =
   find_without_delimiters (has_active_parsing_rule_in_scope ntn) (ntn_scope,Some ntn) (make_current_scopes scopes)

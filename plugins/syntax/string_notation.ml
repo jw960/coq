@@ -86,7 +86,7 @@ let vernac_string_notation local ty f g via scope =
        { pt_local = local;
          pt_scope = scope;
          pt_interp_info = StringNotation o;
-         pt_required = Nametab.path_of_global (GlobRef.IndRef tyc),[];
+         pt_required = Nametab.GlobRef.path (GlobRef.IndRef tyc),[];
          pt_refs;
          pt_in_match = true }
   in

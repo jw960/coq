@@ -82,8 +82,8 @@ end
    the same object.
 *)
 module type NAMETREE = sig
-  type elt
   type t
+  type elt
   type user_name
 
   val empty : t
@@ -317,6 +317,7 @@ module ExtRefEqual = Globnames.ExtRefOrdered
 module MPEqual = Names.ModPath
 
 module ExtRefTab = Make(FullPath)(ExtRefEqual)
+
 module MPTab = Make(FullPath)(MPEqual)
 
 type ccitab = ExtRefTab.t
@@ -331,6 +332,7 @@ struct
 end
 
 module MPDTab = Make(DirPath')(MPEqual)
+
 module DirTab = Make(DirPath')(GlobDirRef)
 
 module UnivIdEqual =
@@ -338,7 +340,9 @@ struct
   type t = Univ.UGlobal.t
   let equal = Univ.UGlobal.equal
 end
+
 module UnivTab = Make(FullPath)(UnivIdEqual)
+
 type univtab = UnivTab.t
 let the_univtab = Summary.ref ~name:"univtab" (UnivTab.empty : univtab)
 
@@ -425,7 +429,7 @@ let push_cci visibility sp ref =
 let push_abbreviation visibility sp kn =
   push_xref visibility sp (Abbrev kn)
 
-let push = push_cci
+let _push = push_cci
 
 let push_modtype vis sp kn =
   let open Modules in
@@ -495,11 +499,11 @@ let locate_all qid =
 
 let locate_extended_all qid = ExtRefTab.find_prefixes qid !the_ccitab
 
-let locate_extended_all_dir qid = DirTab.find_prefixes qid Modules.(!nametab.dirtab)
+let _locate_extended_all_dir qid = DirTab.find_prefixes qid Modules.(!nametab.dirtab)
 
-let locate_extended_all_modtype qid = MPTab.find_prefixes qid Modules.(!nametab.modtypetab)
+let _locate_extended_all_modtype qid = MPTab.find_prefixes qid Modules.(!nametab.modtypetab)
 
-let locate_extended_all_module qid = MPDTab.find_prefixes qid Modules.(!nametab.modtab)
+let _locate_extended_all_module qid = MPDTab.find_prefixes qid Modules.(!nametab.modtab)
 
 (* Completion *)
 let completion_canditates qualid =
@@ -560,7 +564,7 @@ let basename_of_global ref =
 let path_of_abbreviation kn =
   Globnames.ExtRefMap.find (Abbrev kn) !the_globrevtab
 
-let dirpath_of_module mp =
+let _dirpath_of_module mp =
   MPmap.find mp Modules.(!nametab.modrevtab)
 
 let path_of_modtype mp =
@@ -609,3 +613,80 @@ let global_inductive qid =
   | ref ->
       CErrors.user_err ?loc:qid.CAst.loc
         Pp.(pr_qualid qid ++ spc () ++ str "is not an inductive type.")
+
+(** Type of nametabs (imperative) *)
+module type S = sig
+
+  type elt
+  type path
+
+  val push : visibility -> path -> elt -> unit
+  val locate : qualid -> elt
+  val locate_all : qualid -> elt list
+  val exists : path -> bool
+  val path : elt -> path
+
+  (* future work *)
+  (* val shortest_qualid : *)
+end
+
+module GlobRef_ = GlobRef
+module GlobRef : S
+  with type elt := GlobRef.t and type path := full_path =
+struct
+  let push = push_cci
+  let locate = locate
+  let locate_all = locate_all
+  let exists = exists_cci
+  let path = path_of_global
+end
+
+module Abbrev : S
+  with type elt := Globnames.abbreviation and type path := full_path =
+struct
+  let push = push_abbreviation
+  let locate = locate_abbreviation
+  let locate_all x = locate_extended_all x |> List.filter_map (fun x -> match x with Globnames.Abbrev a -> Some a | _ -> None)
+  let exists = exists_cci
+  let path = path_of_abbreviation
+end
+
+module ModType : S
+  with type elt := ModPath.t and type path := full_path =
+struct
+  let push = push_modtype
+  let locate = locate_modtype
+  let locate_all = Obj.magic
+  let exists = exists_modtype
+  let path = path_of_modtype
+end
+
+module Module : S
+  with type elt := ModPath.t and type path := DirPath.t =
+struct
+  let push = push_module
+  let locate = locate_module
+  let locate_all = Obj.magic
+  let exists = exists_module
+  let path = Obj.magic
+end
+
+module Dir : S
+  with type elt := GlobDirRef.t and type path := DirPath.t =
+struct
+  let push = push_dir
+  let locate = locate_dir
+  let locate_all = Obj.magic
+  let exists = exists_dir
+  let path = Obj.magic
+end
+
+module Universe : S
+  with type elt := Univ.UGlobal.t and type path := full_path =
+struct
+  let push = push_universe
+  let locate = locate_universe
+  let locate_all = Obj.magic
+  let exists = exists_universe
+  let path = path_of_universe
+end
