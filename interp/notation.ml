@@ -24,7 +24,7 @@ open NumTok
 
 (*i*)
 
-let notation_cat = Libobject.create_category "notations"
+let notation_cat = Libobject.Open_filter.Category.make "notations"
 
 
 (*s A scope is a set of notations; it includes
@@ -251,7 +251,7 @@ let classify_scope (local,_,_) =
 let inScope : bool * bool * scope_item -> obj =
   declare_object {(default_object "SCOPE") with
       cache_function = cache_scope;
-      open_function = simple_open ~cat:notation_cat open_scope;
+      open_function = Open_filter.simple_open ~cat:notation_cat open_scope;
       subst_function = subst_scope;
       discharge_function = discharge_scope;
       classify_function = classify_scope }
@@ -1363,7 +1363,7 @@ let open_prim_token_interpretation i o =
 
 let inPrimTokenInterp : prim_token_infos -> obj =
   declare_object {(default_object "PRIM-TOKEN-INTERP") with
-     open_function  = simple_open ~cat:notation_cat open_prim_token_interpretation;
+     open_function  = Open_filter.simple_open ~cat:notation_cat open_prim_token_interpretation;
      cache_function = cache_prim_token_interpretation;
      subst_function = subst_prim_token_interpretation;
      classify_function = classify_prim_token_interpretation}

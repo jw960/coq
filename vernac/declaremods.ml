@@ -314,12 +314,12 @@ and collect_objects f i prefix objs acc =
     (List.rev objs)
 
 and collect_export f (f',mp) (exports,objs as acc) =
-  match filter_and f f' with
+  match Open_filter.and_ f f' with
   | None -> acc
   | Some f ->
     let exports' = MPmap.update mp (function
         | None -> Some f
-        | Some f0 -> Some (filter_or f f0))
+        | Some f0 -> Some (Open_filter.or_ f f0))
         exports
     in
     (* If the map doesn't change there is nothing new to export.
@@ -368,7 +368,7 @@ let rec open_object f i (prefix, obj) =
 
 and open_module f i obj_dir obj_mp sobjs =
   consistency_checks true obj_dir;
-  if in_filter ~cat:None f then Nametab.push_module (Nametab.Exactly i) obj_dir obj_mp;
+  if Open_filter.in_ ~cat:None f then Nametab.push_module (Nametab.Exactly i) obj_dir obj_mp;
   (* If we're not a functor, let's iter on the internal components *)
   if sobjs_no_functor sobjs then begin
     let modobjs = ModObjs.get obj_mp in
@@ -394,7 +394,7 @@ and open_keep f i ((sp,kn),kobjs) =
 let cache_include (prefix, aobjs) =
   let o = expand_aobjs aobjs in
   load_objects 1 prefix o;
-  open_objects unfiltered 1 prefix o
+  open_objects Open_filter.unfiltered 1 prefix o
 
 and cache_keep ((sp,kn),kobjs) =
   anomaly (Pp.str "This module should not be cached!")
