@@ -60,7 +60,7 @@ let keyword s = tag_keyword (str s)
 let get_new_id locals id =
   let rec get_id l id =
     let dir = DirPath.make [id] in
-      if not (Nametab.exists_module dir || Nametab.exists_dir dir) then
+      if not (Nametab.Module.exists dir || Nametab.Module.exists dir) then
         id
       else
         get_id (Id.Set.add id l) (Namegen.next_ident_away id l)
@@ -167,15 +167,15 @@ let rec print_local_modpath locals = function
 
 let print_modpath locals mp =
   try (* must be with let because streams are lazy! *)
-    let qid = Nametab.shortest_qualid_of_module mp in
-      pr_qualid qid
+    let qid = Nametab.Module.shortest_qualid Id.Set.empty mp in
+    pr_qualid qid
   with
     | Not_found -> print_local_modpath locals mp
 
 let print_kn locals kn =
   try
-    let qid = Nametab.shortest_qualid_of_modtype kn in
-      pr_qualid qid
+    let qid = Nametab.ModType.shortest_qualid Id.Set.empty kn in
+    pr_qualid qid
   with
       Not_found ->
         try
@@ -186,7 +186,7 @@ let print_kn locals kn =
 let nametab_register_dir obj_mp =
   let id = mk_fake_top () in
   let obj_dir = DirPath.make [id] in
-  Nametab.(push_module (Until 1) obj_dir obj_mp)
+  Nametab.Module.push (Until 1) obj_dir obj_mp
 
 (** Nota: the [global_reference] we register in the nametab below
     might differ from internal ones, since we cannot recreate here
@@ -196,7 +196,7 @@ let nametab_register_dir obj_mp =
 
 let nametab_register_body mp dir (l,body) =
   let push id ref =
-    Nametab.push (Nametab.Until (1+List.length (DirPath.repr dir)))
+    Nametab.GlobRef.push (Nametab.Until (1+List.length (DirPath.repr dir)))
       (make_path dir id) ref
   in
   match body with
@@ -242,7 +242,7 @@ let nametab_register_modparam mbid mtb =
     with e when CErrors.noncritical e ->
       (* Otherwise, we try to play with the nametab ourselves *)
       let mp = MPbound mbid in
-      let check id = Nametab.exists_module (DirPath.make [id]) in
+      let check id = Nametab.Module.exists (DirPath.make [id]) in
       let id = Namegen.next_ident_away_from id check in
       let dir = DirPath.make [id] in
       nametab_register_dir mp;

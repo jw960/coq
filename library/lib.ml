@@ -189,8 +189,8 @@ let start_mod is_type export id mp fs =
   in
   let prefix = Nametab.{ obj_dir = dir; obj_mp = mp; } in
   let exists =
-    if is_type then Nametab.exists_cci (make_path id)
-    else Nametab.exists_module dir
+    if is_type then Nametab.GlobRef.exists (make_path id)
+    else Nametab.Module.exists dir
   in
   if exists then
     CErrors.user_err Pp.(Id.print id ++ str " already exists.");
@@ -373,12 +373,12 @@ let open_section id =
   let opp = !lib_state.path_prefix in
   let obj_dir = Libnames.add_dirpath_suffix opp.Nametab.obj_dir id in
   let prefix = Nametab.{ obj_dir; obj_mp = opp.obj_mp; } in
-  if Nametab.exists_dir obj_dir then
+  if Nametab.Dir.exists obj_dir then
     CErrors.user_err Pp.(Id.print id ++ str " already exists.");
   let fs = Summary.freeze_summaries ~marshallable:false in
   add_entry (OpenedSection (prefix, fs));
   (*Pushed for the lifetime of the section: removed by unfrozing the summary*)
-  Nametab.(push_dir (Until 1) obj_dir (GlobDirRef.DirOpenSection obj_dir));
+  Nametab.(Dir.push (Until 1) obj_dir (GlobDirRef.DirOpenSection obj_dir));
   lib_state := { !lib_state with path_prefix = prefix }
 
 (* Restore lib_stk and summaries as before the section opening, and

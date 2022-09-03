@@ -33,15 +33,15 @@ let add_abbreviation kn abbrev =
   abbrev_table := KNmap.add kn abbrev !abbrev_table
 
 let load_abbreviation i ((sp,kn),(_local,abbrev)) =
-  if Nametab.exists_cci sp then
+  if Nametab.GlobRef.exists sp then
     user_err
       (Id.print (basename sp) ++ str " already exists.");
   add_abbreviation kn abbrev;
-  Nametab.push_abbreviation (Nametab.Until i) sp kn
+  Nametab.Abbrev.push (Nametab.Until i) sp kn
 
 let is_alias_of_already_visible_name sp = function
   | _,NRef (ref,_) ->
-      let (dir,id) = repr_qualid (Nametab.shortest_qualid_of_global Id.Set.empty ref) in
+      let (dir,id) = repr_qualid (Nametab.GlobRef.shortest_qualid Id.Set.empty ref) in
       DirPath.is_empty dir && Id.equal id (basename sp)
   | _ ->
       false
@@ -49,7 +49,7 @@ let is_alias_of_already_visible_name sp = function
 let open_abbreviation i ((sp,kn),(_local,abbrev)) =
   let pat = abbrev.abbrev_pattern in
   if not (Int.equal i 1 && is_alias_of_already_visible_name sp pat) then begin
-    Nametab.push_abbreviation (Nametab.Exactly i) sp kn;
+    Nametab.Abbrev.push (Nametab.Exactly i) sp kn;
     if not abbrev.abbrev_onlyparsing then
       (* Redeclare it to be used as (short) name in case an other (distfix)
          notation was declared in between *)
@@ -89,7 +89,7 @@ let declare_abbreviation ~local ?(also_in_cases_pattern=true) deprecation id ~on
   in
   add_leaf (inAbbreviation id (local,abbrev))
 
-let pr_abbreviation kn = pr_qualid (Nametab.shortest_qualid_of_abbreviation Id.Set.empty kn)
+let pr_abbreviation kn = pr_qualid (Nametab.Abbrev.shortest_qualid Id.Set.empty kn)
 
 let warn_deprecated_abbreviation =
   Deprecation.create_warning ~object_name:"Notation" ~warning_name:"deprecated-syntactic-definition"
