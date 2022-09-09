@@ -1680,6 +1680,7 @@ module Entry = struct
       edesc = Dlevels []}
   let create = make
   let parse (e : 'a t) p : 'a =
+    Control.check_for_interrupt ();
     Parsable.parse_parsable e p
   let parse_token_stream (e : 'a t) ts : 'a =
     e.estart 0 ts
