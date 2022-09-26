@@ -39,7 +39,7 @@ let version () =
        \nGtk version is %s\
        \nThis is %s \n"
       (get_version ())
-      Coq_config.arch Sys.os_type
+      Config.arch Sys.os_type
       (let x,y,z = GMain.Main.version in Printf.sprintf "%d.%d.%d" x y z)
       (Filename.basename Sys.executable_name)
 

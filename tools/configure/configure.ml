@@ -65,15 +65,6 @@ let install_precommit_hook prefs =
     Unix.chmod f 0o775
   end
 
-(** * Browser command *)
-
-let browser prefs arch =
-  match prefs.browser with
-  | Some b -> b
-  | None when arch_is_win32 arch -> "start %s"
-  | None when arch = "Darwin" -> "open %s"
-  | _ -> "firefox -remote \"OpenURL(%s,new-tab)\" || firefox %s &"
-
 (** * OCaml programs *)
 module CamlConf = struct
   type t =
@@ -222,120 +213,6 @@ let check_doc () =
 (* Source code root *)
 let coqsrc = Sys.getcwd ()
 
-(** Variable name, description, ref in prefs, default dir, prefix-relative *)
-
-type path_style =
-  | Absolute of string (* Should start with a "/" *)
-  | Relative of string (* Should not start with a "/" *)
-
-module InstallDir = struct
-
-  type t =
-    { var : string
-    (** Makefile variable to write *)
-    ; msg : string
-    (** Description of the directory  *)
-    ; uservalue : string option
-    (** Value given explictly by the user *)
-    ; selfcontainedlayout : path_style
-    (** Path style when layout is "local" *)
-    ; unixlayout : path_style
-    (** Path style for installation *)
-    }
-
-  let make var msg uservalue selfcontainedlayout unixlayout =
-    { var; msg; uservalue; selfcontainedlayout; unixlayout }
-
-end
-
-let install prefs =
-  [ InstallDir.make "COQPREFIX" "Coq" prefs.prefix (Relative "") (Relative "")
-  ; InstallDir.make "COQLIBINSTALL" "the Coq library" prefs.libdir (Relative "lib") (Relative "lib/coq")
-  ; InstallDir.make "CONFIGDIR" "the Coqide configuration files" prefs.configdir (Relative "config") (Absolute "/etc/xdg/coq")
-  ; InstallDir.make "DATADIR" "the Coqide data files" prefs.datadir (Relative "share") (Relative "share/coq")
-  ; InstallDir.make "MANDIR" "the Coq man pages" prefs.mandir (Relative "man") (Relative "share/man")
-  ; InstallDir.make "DOCDIR" "documentation prefix path for all Coq packages" prefs.docdir (Relative "doc") (Relative "share/doc")
-  ]
-
-let strip_trailing_slash_if_any p =
-  if p.[String.length p - 1] = '/' then String.sub p 0 (String.length p - 1) else p
-
-let use_suffix prefix = function
-  | Relative "" -> prefix
-  | Relative suff -> prefix ^ "/" ^ suff
-  | Absolute path -> path
-
-let relativize = function
-  (* Turn a global layout based on some prefix to a relative layout *)
-  | Relative _ as suffix -> suffix
-  | Absolute path -> Relative (String.sub path 1 (String.length path - 1))
-
-let find_suffix prefix path = match prefix with
-  | None -> Absolute path
-  | Some p ->
-     let p = strip_trailing_slash_if_any p in
-     let lpath = String.length path in
-     let lp = String.length p in
-     if lpath > lp && String.sub path 0 lp = p then
-       Relative (String.sub path (lp+1) (lpath - lp - 1))
-     else
-       Absolute path
-
-(* This computes the actual effective path for an install directory,
-   based on the given prefix; if prefix is absent, it is assumed that
-   the profile is "local" *)
-let do_one_instdir ~prefix ~arch InstallDir.{var; msg; uservalue; selfcontainedlayout; unixlayout} =
-  (var,msg),
-  match uservalue, prefix with
-  | Some d, p -> d, find_suffix p d
-  | None, Some p ->
-    let suffix = if (arch_is_win32 arch) then selfcontainedlayout else relativize unixlayout in
-    use_suffix p suffix, suffix
-  | None, None ->
-    let suffix = if (unix arch) then unixlayout else selfcontainedlayout in
-    let base = if (unix arch) then "/usr/local" else "C:/coq" in
-    let dflt = use_suffix base suffix in
-    let () = printf "Where should I install %s [%s]? " msg dflt in
-    let line = read_line () in
-    if line = "" then (dflt,suffix) else (line,find_suffix None line)
-
-let install_dirs prefs arch =
-  let prefix =
-    match prefs.prefix with
-    | None ->
-      begin
-        try Some (Sys.getenv "COQ_CONFIGURE_PREFIX")
-        with
-        | Not_found when prefs.interactive -> None
-        | Not_found -> Some Sys.(getcwd () ^ "/../install/default")
-      end
-    | p -> p
-  in
-  List.map (do_one_instdir ~prefix ~arch) (install prefs)
-
-let select var install_dirs = List.find (fun ((v,_),_) -> v=var) install_dirs |> snd
-
-module CoqEnv = struct
-  (** Coq core paths, for libraries, documentation, configuration, and data *)
-  type t =
-    { coqlib : string
-    ; coqlibsuffix : path_style
-    ; docdir : string
-    ; docdirsuffix : path_style
-    ; configdir : string
-    ; configdirsuffix : path_style
-    ; datadir : string
-    ; datadirsuffix : path_style }
-end
-
-let resolve_coqenv install_dirs =
-  let coqlib, coqlibsuffix = select "COQLIBINSTALL" install_dirs in
-  let docdir, docdirsuffix = select "DOCDIR" install_dirs in
-  let configdir, configdirsuffix = select "CONFIGDIR" install_dirs in
-  let datadir,datadirsuffix = select "DATADIR" install_dirs in
-  { CoqEnv.coqlib; coqlibsuffix; docdir; docdirsuffix
-  ; configdir; configdirsuffix; datadir; datadirsuffix }
-
 (** * CC runtime flags *)
 
 (* Note that Coq's VM requires at least C99-compliant floating-point
@@ -382,7 +259,7 @@ let esc s = if String.contains s ' ' then "\"" ^ s ^ "\"" else s
 let pr_native = function
   | NativeYes -> "yes" | NativeNo -> "no" | NativeOndemand -> "ondemand"
 
-let print_summary prefs arch camlenv best_compiler install_dirs hasnatdynlink browser =
+let print_summary prefs arch camlenv best_compiler install_dirs hasnatdynlink =
   let { CamlConf.caml_version; camlbin; camllib } = camlenv in
   let pr s = printf s in
   pr "\n";
@@ -395,7 +272,6 @@ let print_summary prefs arch camlenv best_compiler install_dirs hasnatdynlink br
     pr "  Native dynamic link support : %B\n" hasnatdynlink;
   pr "  Documentation               : %s\n"
     (if prefs.withdoc then "All" else "None");
-  pr "  Web browser                 : %s\n" browser;
   pr "  Coq web site                : %s\n" prefs.coqwebsite;
   pr "  Bytecode VM enabled         : %B\n" prefs.bytecodecompiler;
   pr "  Native Compiler enabled     : %s\n\n" (pr_native prefs.nativecompiler);
@@ -421,7 +297,7 @@ let write_dbg_wrapper camlenv o =
 
 (** * Build the config/coq_config.ml file *)
 
-let write_configml camlenv coqenv caml_flags caml_version_nums arch arch_is_win32 hasnatdynlink browser prefs o =
+let write_configml camlenv coqenv caml_flags caml_version_nums arch arch_is_win32 hasnatdynlink prefs o =
   let { CoqEnv.coqlib; coqlibsuffix; configdir; configdirsuffix; docdir; docdirsuffix; datadir; datadirsuffix } = coqenv in
   let { CamlConf.caml_version } = camlenv in
   let pr s = fprintf o s in
@@ -429,14 +305,12 @@ let write_configml camlenv coqenv caml_flags caml_version_nums arch arch_is_win3
   let pr_b = pr "let %s = %B\n" in
   let pr_i32 = pr "let %s = %dl\n" in
   let pr_p s o = pr "let %s = %S\n" s
-    (match o with Relative s -> s | Absolute s -> s) in
+    (match o with CoqEnv.Relative s -> s | Absolute s -> s) in
   let pr_li n l = pr "let %s = [%s]\n" n (String.concat ";" (List.map string_of_int l)) in
   pr "(* DO NOT EDIT THIS FILE: automatically generated by ../configure *)\n";
   pr "(* Exact command that generated this file: *)\n";
   pr "(* %s *)\n\n" (String.concat " " (Array.to_list Sys.argv));
   pr_s "coqlib" coqlib;
-  pr_s "configdir" configdir;
-  pr_s "datadir" datadir;
   pr_s "docdir" docdir;
   pr_p "coqlibsuffix" coqlibsuffix;
   pr_p "configdirsuffix" configdirsuffix;
@@ -447,12 +321,10 @@ let write_configml camlenv coqenv caml_flags caml_version_nums arch arch_is_win3
   pr_s "version" coq_version;
   pr_s "caml_version" caml_version;
   pr_li "caml_version_nums" caml_version_nums;
-  pr_s "arch" arch;
   pr_b "arch_is_win32" arch_is_win32;
   pr_s "exec_extension" !exe;
   pr_b "has_natdynlink" hasnatdynlink;
   pr_i32 "vo_version" vo_magic;
-  pr_s "browser" browser;
   pr_s "wwwcoq" prefs.coqwebsite;
   pr_s "wwwbugtracker" (prefs.coqwebsite ^ "bugs/");
   pr_s "wwwrefman" (prefs.coqwebsite ^ "distrib/V" ^ coq_version ^ "/refman/");
@@ -557,7 +429,6 @@ let main () =
   let exe = resolve_binary_suffix arch in
   Util.exe := exe;
   install_precommit_hook prefs;
-  let browser = browser prefs arch in
   let camlenv = resolve_caml prefs in
   let caml_version_nums = caml_version_nums camlenv in
   check_caml_version prefs camlenv.CamlConf.caml_version caml_version_nums;
@@ -568,15 +439,15 @@ let main () =
   let hasnatdynlink = hasnatdynlink prefs best_compiler in
   check_for_zarith prefs;
   (if prefs.withdoc then check_doc ());
-  let install_dirs = install_dirs prefs arch in
-  let coqenv = resolve_coqenv install_dirs in
+  let install_dirs = CoqEnv.install_dirs prefs arch in
+  let coqenv = CoqEnv.resolve_coqenv install_dirs in
   let cflags, sse2_math = compute_cflags () in
   check_fmath sse2_math;
   if prefs.interactive then
-    print_summary prefs arch camlenv best_compiler install_dirs hasnatdynlink browser;
+    print_summary prefs arch camlenv best_compiler install_dirs hasnatdynlink;
   write_config_file ~file:"dev/ocamldebug-coq" ~bin:true (write_dbg_wrapper camlenv);
   write_config_file ~file:"config/coq_config.ml"
-    (write_configml camlenv coqenv caml_flags caml_version_nums arch arch_is_win32 hasnatdynlink browser prefs);
+    (write_configml camlenv coqenv caml_flags caml_version_nums arch arch_is_win32 hasnatdynlink prefs);
   write_config_file ~file:"config/Makefile"
     (write_makefile prefs install_dirs best_compiler caml_flags coq_caml_flags arch exe);
   write_config_file ~file:"config/dune.c_flags" (write_dune_c_flags cflags);

@@ -48,6 +48,21 @@ let log_pp ?(level = `DEBUG) msg =
 
 let log ?level str = log_pp ?level (Pp.str str)
 
+(** Add a local installation suffix (unless the suffix is itself
+    absolute in which case the prefix does not matter) *)
+let use_suffix prefix suffix =
+  if String.length suffix > 0 && suffix.[0] = '/' then suffix else Filename.concat prefix suffix
+
+let datadir () =
+  (* This assumes implicitly that the suffix is non-trivial *)
+  let path = use_suffix Envars.coqroot Coq_config.datadirsuffix in
+  if Sys.file_exists path then path else Config.datadir
+
+let configdir () =
+  (* This assumes implicitly that the suffix is non-trivial *)
+  let path = use_suffix Envars.coqroot Coq_config.configdirsuffix in
+  if Sys.file_exists path then path else Config.configdir
+
 let coqify d = Filename.concat d "coq"
 
 let coqide_config_home () =
@@ -56,13 +71,13 @@ let coqide_config_home () =
 let coqide_data_dirs () =
   coqify (Glib.get_user_data_dir ())
   :: List.map coqify (Glib.get_system_data_dirs ())
-  @ [Envars.datadir ()]
+  @ [datadir ()]
 
 let coqide_system_config_dirs () =
   List.map coqify (Glib.get_system_config_dirs ())
 
 let coqide_default_config_dir () =
-  Envars.configdir ()
+  configdir ()
 
 let coqide_config_dirs () =
   coqide_config_home () ::

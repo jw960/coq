@@ -66,7 +66,7 @@ type 'c entry = {
 
 let mC = [`CONTROL]
 let mM =
-  if Coq_config.arch = "Darwin" then
+  if Config.arch = "Darwin" then
     (* We add both MOD2 and META because both are
        returned when pressing Command on MacOS X *)
     [`CONTROL;`MOD2;`META]
@@ -83,7 +83,7 @@ let pr_keymod l =
     "Ctrl-"
   else
     if l = mM then
-      if Coq_config.arch = "Darwin" then "Ctrl-Cmd-" else "Meta-"
+      if Config.arch = "Darwin" then "Ctrl-Cmd-" else "Meta-"
     else
       ""
 

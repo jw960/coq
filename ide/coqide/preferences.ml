@@ -331,7 +331,7 @@ let modifier_for_templates =
   new preference ~name:["modifier_for_templates"] ~init:"<Control><Shift>" ~repr:Repr.(string)
 
 let select_arch m m_osx =
-  if Coq_config.arch = "Darwin" then m_osx else m
+  if Config.arch = "Darwin" then m_osx else m
 
 let modifier_for_display =
   new preference ~name:["modifier_for_display"]
@@ -360,7 +360,7 @@ let browser_cmd_fmt =
   let coq_netscape_remote_var = "COQREMOTEBROWSER" in
   Sys.getenv coq_netscape_remote_var
  with
-  Not_found -> Coq_config.browser
+  Not_found -> Config.browser
 
 let cmd_browse =
   new preference ~name:["cmd_browse"] ~init:browser_cmd_fmt ~repr:Repr.(string)
@@ -1037,7 +1037,7 @@ let configure ?(apply=(fun () -> ())) parent =
   in
   let cmd_browse =
     let predefined = [
-      Coq_config.browser;
+      Config.browser;
       "netscape -remote \"openURL(%s)\"";
       "mozilla -remote \"openURL(%s)\"";
       "firefox -remote \"openURL(%s,new-windows)\" || firefox %s &";
