@@ -9,3 +9,10 @@
 (************************************************************************)
 
 val gtk_platform : [`QUARTZ | `WIN32 | `X11]
+
+val arch : string
+(** architecture *)
+
+val browser : string
+(** default web browser to use, may be overridden by environment
+    variable COQREMOTEBROWSER *)

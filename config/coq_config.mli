@@ -25,7 +25,6 @@ val ocamlfind : string
 
 val caml_flags : string     (* arguments passed to ocamlc (ie. CAMLFLAGS) *)
 
-val arch : string       (* architecture *)
 val arch_is_win32 : bool
 
 val version : string    (* version number of Coq *)
@@ -36,10 +35,6 @@ val vo_version : int32
 val all_src_dirs : string list
 
 val exec_extension : string (* "" under Unix, ".exe" under MS-windows *)
-
-val browser : string
-(** default web browser to use, may be overridden by environment
-    variable COQREMOTEBROWSER *)
 
 val has_natdynlink : bool
 

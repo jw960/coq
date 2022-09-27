@@ -32,7 +32,7 @@ let set_help_tip wev = function
   | Some help -> GtkBase.Widget.Tooltip.set_text wev#as_widget help
 
 let select_arch m m_osx =
-  if Coq_config.arch = "Darwin" then m_osx else m
+  if Config.arch = "Darwin" then m_osx else m
 
 (* How the modifiers are named in the preference box *)
 let modifiers_to_string m =

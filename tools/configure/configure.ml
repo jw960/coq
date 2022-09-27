@@ -65,15 +65,6 @@ let install_precommit_hook prefs =
     Unix.chmod f 0o775
   end
 
-(** * Browser command *)
-
-let browser prefs arch =
-  match prefs.browser with
-  | Some b -> b
-  | None when arch_is_win32 arch -> "start %s"
-  | None when arch = "Darwin" -> "open %s"
-  | _ -> "firefox -remote \"OpenURL(%s,new-tab)\" || firefox %s &"
-
 (** * OCaml programs *)
 module CamlConf = struct
   type t =
@@ -382,7 +373,7 @@ let esc s = if String.contains s ' ' then "\"" ^ s ^ "\"" else s
 let pr_native = function
   | NativeYes -> "yes" | NativeNo -> "no" | NativeOndemand -> "ondemand"
 
-let print_summary prefs arch camlenv best_compiler install_dirs hasnatdynlink browser =
+let print_summary prefs arch camlenv best_compiler install_dirs hasnatdynlink =
   let { CamlConf.caml_version; camlbin; camllib } = camlenv in
   let pr s = printf s in
   pr "\n";
@@ -395,7 +386,6 @@ let print_summary prefs arch camlenv best_compiler install_dirs hasnatdynlink br
     pr "  Native dynamic link support : %B\n" hasnatdynlink;
   pr "  Documentation               : %s\n"
     (if prefs.withdoc then "All" else "None");
-  pr "  Web browser                 : %s\n" browser;
   pr "  Coq web site                : %s\n" prefs.coqwebsite;
   pr "  Bytecode VM enabled         : %B\n" prefs.bytecodecompiler;
   pr "  Native Compiler enabled     : %s\n\n" (pr_native prefs.nativecompiler);
@@ -421,7 +411,7 @@ let write_dbg_wrapper camlenv o =
 
 (** * Build the config/coq_config.ml file *)
 
-let write_configml camlenv coqenv caml_flags caml_version_nums arch arch_is_win32 hasnatdynlink browser prefs o =
+let write_configml camlenv coqenv caml_flags caml_version_nums arch_is_win32 hasnatdynlink prefs o =
   let { CoqEnv.coqlib; coqlibsuffix; configdir; configdirsuffix; docdir; docdirsuffix; datadir; datadirsuffix } = coqenv in
   let { CamlConf.caml_version } = camlenv in
   let pr s = fprintf o s in
@@ -447,12 +437,10 @@ let write_configml camlenv coqenv caml_flags caml_version_nums arch arch_is_win3
   pr_s "version" coq_version;
   pr_s "caml_version" caml_version;
   pr_li "caml_version_nums" caml_version_nums;
-  pr_s "arch" arch;
   pr_b "arch_is_win32" arch_is_win32;
   pr_s "exec_extension" !exe;
   pr_b "has_natdynlink" hasnatdynlink;
   pr_i32 "vo_version" vo_magic;
-  pr_s "browser" browser;
   pr_s "wwwcoq" prefs.coqwebsite;
   pr_s "wwwbugtracker" (prefs.coqwebsite ^ "bugs/");
   pr_s "wwwrefman" (prefs.coqwebsite ^ "distrib/V" ^ coq_version ^ "/refman/");
@@ -557,7 +545,6 @@ let main () =
   let exe = resolve_binary_suffix arch in
   Util.exe := exe;
   install_precommit_hook prefs;
-  let browser = browser prefs arch in
   let camlenv = resolve_caml prefs in
   let caml_version_nums = caml_version_nums camlenv in
   check_caml_version prefs camlenv.CamlConf.caml_version caml_version_nums;
@@ -573,10 +560,10 @@ let main () =
   let cflags, sse2_math = compute_cflags () in
   check_fmath sse2_math;
   if prefs.interactive then
-    print_summary prefs arch camlenv best_compiler install_dirs hasnatdynlink browser;
+    print_summary prefs arch camlenv best_compiler install_dirs hasnatdynlink;
   write_config_file ~file:"dev/ocamldebug-coq" ~bin:true (write_dbg_wrapper camlenv);
   write_config_file ~file:"config/coq_config.ml"
-    (write_configml camlenv coqenv caml_flags caml_version_nums arch arch_is_win32 hasnatdynlink browser prefs);
+    (write_configml camlenv coqenv caml_flags caml_version_nums arch_is_win32 hasnatdynlink prefs);
   write_config_file ~file:"config/Makefile"
     (write_makefile prefs install_dirs best_compiler caml_flags coq_caml_flags arch exe);
   write_config_file ~file:"config/dune.c_flags" (write_dune_c_flags cflags);
