@@ -490,9 +490,13 @@ let do_combined_scheme name schemes =
   let csts =
     List.map (fun {CAst.loc;v} ->
         let qualid = Libnames.qualid_of_ident v in
-        try Nametab.locate_constant qualid
+        try
+          match Nametab.GlobRef.locate qualid with
+          | Names.GlobRef.ConstRef r -> r
+          | _ -> raise Not_found
         with
-          Not_found -> CErrors.user_err ?loc
+        | Not_found ->
+          CErrors.user_err ?loc
             Pp.(Libnames.pr_qualid qualid ++ str " is not declared."))
       schemes
   in
