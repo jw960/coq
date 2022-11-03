@@ -357,21 +357,8 @@ let push_xref visibility sp xref =
   | Until _ ->
     the_ccitab := ExtRefTab.push visibility sp xref !the_ccitab;
     the_globrevtab := Globnames.ExtRefMap.add xref sp !the_globrevtab
-  | _ ->
-    begin
-      if ExtRefTab.exists sp !the_ccitab then
-        let open GlobRef in
-        match extended_global_of_path sp with
-        | TrueGlobal( ConstRef _)
-        | TrueGlobal( IndRef _)
-        | TrueGlobal( ConstructRef _) as xref ->
-          the_ccitab := ExtRefTab.push visibility sp xref !the_ccitab;
-        | TrueGlobal( VarRef _ )
-        | Abbrev _ ->
-          the_ccitab := ExtRefTab.push visibility sp xref !the_ccitab;
-      else
-        the_ccitab := ExtRefTab.push visibility sp xref !the_ccitab;
-    end
+  | Exactly _ ->
+    the_ccitab := ExtRefTab.push visibility sp xref !the_ccitab
 
 (* This should be used when syntactic definitions are allowed *)
 let locate_extended qid = ExtRefTab.locate qid !the_ccitab
