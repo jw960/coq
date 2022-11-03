@@ -99,6 +99,8 @@ module type NAMETREE = sig
 
   (** Matches a prefix of [qualid], useful for completion *)
   val match_prefixes : qualid -> t -> elt list
+
+  val find_level : qualid -> t -> int
 end
 
 module Make (U : UserName) (E : EqualityType) : NAMETREE
@@ -212,6 +214,13 @@ let push visibility uname o tab =
     let ptab = modify () empty_tree in
     Id.Map.add id ptab tab
 
+let rec level tree = function
+  | modid :: path -> 1 + (level (ModIdmap.find modid tree.map) path)
+  | [] -> 0
+
+let find_level qid tab =
+  let (dir,id) = repr_qualid qid in
+  level (Id.Map.find id tab) (DirPath.repr dir)
 
 let rec search tree = function
   | modid :: path -> search (ModIdmap.find modid tree.map) path
@@ -340,81 +349,44 @@ struct
     id, (DirPath.repr dir)
 end
 
-module ExtRefEqual = Globnames.ExtRefOrdered
-module ExtRefTab = Make(FullPath)(ExtRefEqual)
-type ccitab = ExtRefTab.t
-let the_ccitab = Summary.ref ~name:"ccitab" (ExtRefTab.empty : ccitab)
+module GlobRefTab = Make(FullPath)(Names.GlobRef.UserOrd)
 
-(* This table translates extended_global_references back to section paths *)
-type globrevtab = full_path Globnames.ExtRefMap.t
-let the_globrevtab =
-  Summary.ref ~name:"globrevtab" (Globnames.ExtRefMap.empty : globrevtab)
-
-let extended_global_of_path sp = ExtRefTab.find sp !the_ccitab
-
-let push_xref visibility sp xref =
-  match visibility with
-  | Until _ ->
-    the_ccitab := ExtRefTab.push visibility sp xref !the_ccitab;
-    the_globrevtab := Globnames.ExtRefMap.add xref sp !the_globrevtab
-  | Exactly _ ->
-    the_ccitab := ExtRefTab.push visibility sp xref !the_ccitab
-
-(* This should be used when syntactic definitions are allowed *)
-let locate_extended qid = ExtRefTab.locate qid !the_ccitab
-let locate_extended_all qid = ExtRefTab.find_prefixes qid !the_ccitab
+let the_globtab = Summary.ref ~name:"ccitab" (GlobRefTab.empty : GlobRefTab.t)
+let the_globrevtab =  Summary.ref ~name:"globrevtab" (GlobRef.Map_env.empty : full_path GlobRef.Map_env.t)
 
 module GlobRef : SR
   with type elt := GlobRef.t and type path := full_path =
 struct
-
   let push visibility sp ref =
-    push_xref visibility sp (TrueGlobal ref)
+    the_globtab := GlobRefTab.push visibility sp ref !the_globtab;
+    match visibility with
+    | Until _ ->
+      the_globrevtab := GlobRef.Map_env.add ref sp !the_globrevtab
+    | Exactly _ ->
+      ()
 
-  (* This should be used when no syntactic definitions is expected *)
-  let locate qid = match locate_extended qid with
-    | TrueGlobal ref -> ref
-    | Abbrev _ -> raise Not_found
+  let locate qid = GlobRefTab.locate qid !the_globtab
+  let locate_all qid = GlobRefTab.find_prefixes qid !the_globtab
+  let exists sp = GlobRefTab.exists sp !the_globtab
 
-  let locate_all qid =
-    locate_extended_all qid
-    |> List.filter_map (fun x -> match x with Globnames.TrueGlobal a -> Some a | _ -> None)
-
-  let exists sp = ExtRefTab.exists sp !the_ccitab
   let path ref =
-    let open GlobRef in
     match ref with
-    | VarRef id -> make_path DirPath.empty id
-    | _ -> Globnames.ExtRefMap.find (TrueGlobal ref) !the_globrevtab
+    | GlobRef.VarRef id -> make_path DirPath.empty id
+    | _ -> GlobRef.Map_env.find ref !the_globrevtab
 
   (* XXX: refactor with the above *)
   let shortest_qualid ?loc ctx ref =
     match ref with
     | GlobRef.VarRef id -> make_qualid ?loc DirPath.empty id
     | _ ->
-      let sp =  Globnames.ExtRefMap.find (TrueGlobal ref) !the_globrevtab in
-      ExtRefTab.shortest_qualid ?loc ctx sp !the_ccitab
+      let sp =  GlobRef.Map_env.find ref !the_globrevtab in
+      GlobRefTab.shortest_qualid ?loc ctx sp !the_globtab
 end
 
 (* Completion *)
-let completion_canditates qualid = ExtRefTab.match_prefixes qualid !the_ccitab
+let completion_canditates qualid = GlobRefTab.match_prefixes qualid !the_globtab
 
-let global_of_path sp =
-  match extended_global_of_path sp with
-  | TrueGlobal ref -> ref
-  | _ -> raise Not_found
-
-let global qid =
-  try match locate_extended qid with
-    | TrueGlobal ref -> ref
-    | Abbrev _ ->
-      CErrors.user_err ?loc:qid.CAst.loc
-        Pp.(str "Unexpected reference to a notation: " ++
-           pr_qualid qid ++ str ".")
-  with
-  | Not_found as exn ->
-    let _, info = Exninfo.capture exn in
-    error_global_not_found ~info qid
+let global_of_path sp = GlobRefTab.find sp !the_globtab
 
 let pr_global_env env ref =
   try pr_qualid (GlobRef.shortest_qualid env ref)
@@ -423,36 +395,108 @@ let pr_global_env env ref =
     if CDebug.(get_flag misc) then Feedback.msg_debug (Pp.str "pr_global_env not found");
     Exninfo.iraise (exn, info)
 
-let global_inductive qid =
-  match global qid with
-  | IndRef ind -> ind
-  | ref ->
-    CErrors.user_err ?loc:qid.CAst.loc
-      Pp.(pr_qualid qid ++ spc () ++ str "is not an inductive type.")
-
 (***********************************************************************)
 (* Syntactic Definitions. *)
+module AbbrevTab = Make(FullPath)(Names.KerName)
+
+let the_abbrevtab = Summary.ref ~name:"abbrevtab" (AbbrevTab.empty : AbbrevTab.t)
+let the_abbrevrevtab =  Summary.ref ~name:"abbrevrevtab" (Names.KNmap.empty : full_path Names.KNmap.t)
+
 module Abbrev : SR
   with type elt := Globnames.abbreviation and type path := full_path =
 struct
 
-  let push visibility sp kn = push_xref visibility sp (Abbrev kn)
+  let push visibility sp kn =
+    the_abbrevtab := AbbrevTab.push visibility sp kn !the_abbrevtab;
+    match visibility with
+    | Until _ ->
+      the_abbrevrevtab := Names.KNmap.add kn sp !the_abbrevrevtab
+    | Exactly _ ->
+      ()
 
-  let locate qid = match locate_extended qid with
-    | TrueGlobal _ -> raise Not_found
-    | Abbrev kn -> kn
+  let locate qid = AbbrevTab.locate qid !the_abbrevtab
 
-  let locate_all qid =
-    locate_extended_all qid
-    |> List.filter_map (fun x -> match x with Globnames.Abbrev a -> Some a | _ -> None)
+  let locate_all qid = AbbrevTab.find_prefixes qid !the_abbrevtab
 
-  let exists sp = ExtRefTab.exists sp !the_ccitab
-  let path kn = Globnames.ExtRefMap.find (Abbrev kn) !the_globrevtab
+  let exists sp = AbbrevTab.exists sp !the_abbrevtab
+  let path kn = Names.KNmap.find kn !the_abbrevrevtab
 
   let shortest_qualid ?loc ctx kn =
     let sp = path kn in
-    ExtRefTab.shortest_qualid ?loc ctx sp !the_ccitab
+    AbbrevTab.shortest_qualid ?loc ctx sp !the_abbrevtab
 end
+
+(***********************************************************************)
+(* Common layer for globref + abbrev *)
+let global qid =
+  try
+    let ref = GlobRef.locate qid in
+    (try
+       let _ab = Abbrev.locate qid in
+       Feedback.msg_warning Pp.(str "clash in global: " ++ pr_qualid qid);
+       CErrors.user_err ?loc:qid.CAst.loc
+         Pp.(str "Unexpected reference to a notation: " ++
+             pr_qualid qid ++ str ".")
+     with
+     | Not_found -> ref)
+  with
+  | Not_found as exn ->
+    let _, info = Exninfo.capture exn in
+    error_global_not_found ~info qid
+
+let global qid =
+  let r = global qid in
+  (* Feedback.msg_warning Pp.(str "global trace: " ++ pr_global_env Id.Set.empty r); *)
+  r
+
+let global_inductive qid =
+  (* XXX: Do we need this for inductive abbrevs ? Likely *)
+  match global qid with
+  | Names.GlobRef.IndRef ind -> ind
+  | ref ->
+    CErrors.user_err ?loc:qid.CAst.loc
+      Pp.(pr_qualid qid ++ spc () ++ str "is not an inductive type.")
+
+let mp_level mp = Names.ModPath.dp mp |> Names.DirPath.repr |> List.length
+let gr_level = function
+  | Names.GlobRef.VarRef _ -> 0
+  | ConstRef c -> Names.Constant.modpath c |> mp_level
+  | IndRef _ -> 0
+  | ConstructRef _ -> 0
+
+let locate_extended qid =
+  match Abbrev.locate qid with
+  | ab ->
+    (match GlobRef.locate qid with
+     | ref ->
+       let lr = gr_level ref in
+       let la = Names.KerName.modpath ab |> mp_level in
+       (* Feedback.msg_warning Pp.(str "clash in locate_extended [lr/la]: " ++ pr_qualid qid ++ str "[" ++ int lr ++ str "/" ++ int la ++ str "]"); *)
+       if lr >= la then
+         Globnames.TrueGlobal ref
+       else
+         Globnames.Abbrev ab
+     | exception Not_found ->
+       Globnames.Abbrev ab)
+  | exception Not_found ->
+    Globnames.TrueGlobal (GlobRef.locate qid)
+
+let locate_extended_all qid =
+  let refs = List.map (fun r -> Globnames.TrueGlobal r) (GlobRef.locate_all qid) in
+  let abbrevs = List.map (fun r -> Globnames.Abbrev r) (Abbrev.locate_all qid) in
+  refs @ abbrevs
+
+let extended_global_of_path sp =
+  match AbbrevTab.find sp !the_abbrevtab with
+  | ab ->
+    (match GlobRefTab.find sp !the_globtab with
+     | ref ->
+       Feedback.msg_warning Pp.(str "clash in global_of_path: " ++ pr_path sp);
+       Globnames.TrueGlobal ref
+     | exception Not_found ->
+       Globnames.Abbrev ab)
+  | exception Not_found ->
+    Globnames.TrueGlobal (GlobRefTab.find sp !the_globtab)
 
 (***********************************************************************)
 (* For modules *)

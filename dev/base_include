@@ -174,7 +174,7 @@ open Declarations;;
 open Declareops;;
 
 let constbody_of_string s =
-  let b = Global.lookup_constant (Nametab.locate_constant (qualid_of_string s)) in
+  let b = Global.lookup_constant (Nametab.GlobRef.locate (qualid_of_string s) |> Libnames.basename) in
   Option.get (Global.body_of_constant_body Library.indirect_accessor b);;
 
 (* Get the current goal *)

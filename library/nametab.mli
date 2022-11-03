@@ -150,6 +150,12 @@ val global_of_path : full_path -> GlobRef.t
     @raise Not_found when the reference is not in the global tables. *)
 val pr_global_env : Id.Set.t -> GlobRef.t -> Pp.t
 
+(** [completion_canditates qualid] will return the list of global
+    references that have [qualid] as a prefix. UI usually will want to
+    compose this with [shortest_qualid_of_global].
+    Experimental API, note that it is _unstable_ *)
+val completion_canditates : qualid -> GlobRef.t list
+
 module GlobRef : SR with type elt := GlobRef.t and type path := full_path
 
 (***********************************************************************)
@@ -164,12 +170,6 @@ module Abbrev : SR with type elt := Globnames.abbreviation and type path := full
 val locate_extended : qualid -> Globnames.extended_global_reference
 val locate_extended_all : qualid -> Globnames.extended_global_reference list
 val extended_global_of_path : full_path -> Globnames.extended_global_reference
-
-(** [completion_canditates qualid] will return the list of global
-    references that have [qualid] as a prefix. UI usually will want to
-    compose this with [shortest_qualid_of_global].
-    Experimental API, note that it is _unstable_ *)
-val completion_canditates : qualid -> Globnames.extended_global_reference list
 
 (***********************************************************************)
 (** Modules *)
@@ -219,6 +219,7 @@ module type NAMETREE = sig
   val shortest_qualid : ?loc:Loc.t -> Id.Set.t -> user_name -> t -> qualid
   val find_prefixes : qualid -> t -> elt list
   val match_prefixes : qualid -> t -> elt list
+  val find_level : qualid -> t -> int
 end
 
 module Make (U : UserName) (E : EqualityType) :
