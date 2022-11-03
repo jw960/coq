@@ -363,7 +363,6 @@ let push_xref visibility sp xref =
 (* This should be used when syntactic definitions are allowed *)
 let locate_extended qid = ExtRefTab.locate qid !the_ccitab
 let locate_extended_all qid = ExtRefTab.find_prefixes qid !the_ccitab
-let full_name_cci qid = ExtRefTab.user_name qid !the_ccitab
 
 module GlobRef : SR
   with type elt := GlobRef.t and type path := full_path =

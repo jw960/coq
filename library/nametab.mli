@@ -165,9 +165,6 @@ val locate_extended : qualid -> Globnames.extended_global_reference
 val locate_extended_all : qualid -> Globnames.extended_global_reference list
 val extended_global_of_path : full_path -> Globnames.extended_global_reference
 
-(** Locate qualids into full user names *)
-val full_name_cci : qualid -> full_path
-
 (** [completion_canditates qualid] will return the list of global
     references that have [qualid] as a prefix. UI usually will want to
     compose this with [shortest_qualid_of_global].
