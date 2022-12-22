@@ -319,7 +319,8 @@ initial_opam_packages="num ocamlfind dune"
 # $2 = compiler name
 # $3 = git hash of Coq to be installed
 # $4 = directory of coq opam archive
-# $5 = use flambda if nonempty
+# $5 = packages to install
+# $6 = use flambda if nonempty
 create_opam() {
 
     local RUNNER="$1"
@@ -327,9 +328,8 @@ create_opam() {
     local OCAML_VER="$2"
     local COQ_HASH="$3"
     local OPAM_COQ_DIR="$4"
-    local USE_FLAMBDA="$5"
-
-    local OPAM_COMP=ocaml-base-compiler.$OCAML_VER
+    local OPAM_COMP="$5"
+    local USE_FLAMBDA="$6"
 
     export OPAMROOT="$OPAM_DIR"
     export COQ_RUNNER="$RUNNER"
@@ -347,6 +347,7 @@ create_opam() {
     else flambda=
     fi
 
+    echo opam switch create -qy -j$number_of_processors "ocaml-$RUNNER" "$OPAM_COMP" $flambda
     opam switch create -qy -j$number_of_processors "ocaml-$RUNNER" "$OPAM_COMP" $flambda
     eval $(opam env)
 
@@ -408,11 +409,11 @@ create_opam() {
 }
 
 # Create an OPAM-root to which we will install the NEW version of Coq.
-create_opam "NEW" "$new_ocaml_version" "$new_coq_commit" "$new_coq_opam_archive_dir"
+create_opam "NEW" "$new_ocaml_version" "$new_coq_commit" "$new_coq_opam_archive_dir" "--packages=ocaml-base-compiler.$new_ocaml_version"
 new_coq_commit_long="$COQ_HASH_LONG"
 
 # Create an OPAM-root to which we will install the OLD version of Coq.
-create_opam "OLD" "$old_ocaml_version" "$old_coq_commit" "$old_coq_opam_archive_dir"
+create_opam "OLD" "$old_ocaml_version" "$old_coq_commit" "$old_coq_opam_archive_dir" "--packages=ocaml-variants.$old_ocaml_version+options,ocaml-option-nnp"
 old_coq_commit_long="$COQ_HASH_LONG"
 
 # Packages which appear in the rendered table
