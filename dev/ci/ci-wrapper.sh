@@ -16,4 +16,4 @@ cd "${DIR}/../.."
 export TIMED=1
 bash "${DIR}/${CI_SCRIPT}" 2>&1 | tee time-of-build.log
 echo 'Aggregating timing log...'
-python ./tools/make-one-time-file.py time-of-build.log
+python3 ./tools/make-one-time-file.py time-of-build.log

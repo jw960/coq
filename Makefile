@@ -195,6 +195,16 @@ clean:
 	rm -f .dune-stamp
 	dune clean
 
+# Auxiliary target
+_build_ci/coq_lsp/editor/code/node_modules: ci-coq_lsp
+	( cd _build_ci/coq_lsp/editor/code && npm i )
+
+_build_ci/coq_lsp/editor/code/out: _build_ci/coq_lsp/editor/code/node_modules
+	( cd _build_ci/coq_lsp/editor/code && npm run compile )
+
+code: #_build_ci/coq_lsp/editor/code/out
+	export OCAMLPATH=_build/install/default/lib && export PATH=_build_ci/coq_lsp/_build/install/default/bin/:$(PATH) && echo $$PATH && which coq-lsp && code --extensions-dir _build_ci/coq_lsp/editor theories
+
 # docgram
 
 DOC_GRAM:=_build/default/doc/tools/docgram/doc_grammar.exe
