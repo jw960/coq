@@ -116,81 +116,89 @@ type typed_vernac =
       outprog : 'outprog OutProg.t;
       inproof : 'inproof InProof.t;
       outproof : 'outproof OutProof.t;
-      run : pm:'inprog -> proof:'inproof -> 'outprog * 'outproof;
+      run : pm:'inprog -> proof:'inproof
+        -> intern:(Names.DirPath.t -> Library.library_t)
+        -> 'outprog * 'outproof;
     } -> typed_vernac
 
 let vtdefault f =
   TypedVernac { inprog = Ignore; outprog = No; inproof = Ignore; outproof = No;
-                run = (fun ~pm:() ~proof:() ->
+                run = (fun ~pm:() ~proof:() ~intern:_ ->
                     let () = f () in
                     (), ()) }
 
 let vtnoproof f =
   TypedVernac { inprog = Ignore; outprog = No; inproof = Ignore; outproof = No;
-                run = (fun ~pm:() ~proof:() ->
+                run = (fun ~pm:() ~proof:() ~intern:_ ->
                     let () = f () in
                     (), ())
               }
 
+let vtintern f =
+  TypedVernac { inprog = Ignore; outprog = No; inproof = Ignore; outproof = No;
+                run = (fun ~pm:() ~proof:() ~intern->
+                    let () = f ~intern in
+                    (), ()) }
+
 let vtcloseproof f =
   TypedVernac { inprog = Use; outprog = Yes; inproof = Use; outproof = Close;
-                run = (fun ~pm ~proof ->
+                run = (fun ~pm ~proof ~intern:_ ->
                     let pm = f ~lemma:proof ~pm in
                     pm, ())
               }
 
 let vtopenproof f =
   TypedVernac { inprog = Ignore; outprog = No; inproof = Ignore; outproof = New;
-                run = (fun ~pm:() ~proof:() ->
+                run = (fun ~pm:() ~proof:() ~intern:_ ->
                     let proof = f () in
                     (), proof)
               }
 
 let vtmodifyproof f =
   TypedVernac { inprog = Ignore; outprog = No; inproof = Use; outproof = Update;
-                run = (fun ~pm:() ~proof ->
+                run = (fun ~pm:() ~proof ~intern:_ ->
                     let proof = f ~pstate:proof in
                     (), proof)
               }
 
 let vtreadproofopt f =
   TypedVernac { inprog = Ignore; outprog = No; inproof = UseOpt; outproof = No;
-                run = (fun ~pm:() ~proof ->
+                run = (fun ~pm:() ~proof ~intern:_ ->
                     let () = f ~pstate:proof in
                     (), ())
               }
 
 let vtreadproof f =
   TypedVernac { inprog = Ignore; outprog = No; inproof = Use; outproof = No;
-                run = (fun ~pm:() ~proof ->
+                run = (fun ~pm:() ~proof ~intern:_ ->
                     let () = f ~pstate:proof in
                     (), ())
               }
 
 let vtreadprogram f =
   TypedVernac { inprog = Use; outprog = No; inproof = Ignore; outproof = No;
-                run = (fun ~pm ~proof:() ->
+                run = (fun ~pm ~proof:() ~intern:_ ->
                     let () = f ~pm in
                     (), ())
               }
 
 let vtmodifyprogram f =
   TypedVernac { inprog = Use; outprog = Yes; inproof = Ignore; outproof = No;
-                run = (fun ~pm ~proof:() ->
+                run = (fun ~pm ~proof:() ~intern:_ ->
                     let pm = f ~pm in
                     pm, ())
               }
 
 let vtdeclareprogram f =
   TypedVernac { inprog = Use; outprog = No; inproof = Ignore; outproof = New;
-                run = (fun ~pm ~proof:() ->
+                run = (fun ~pm ~proof:() ~intern:_ ->
                     let proof = f ~pm in
                     (), proof)
               }
 
 let vtopenproofprogram f =
   TypedVernac { inprog = Use; outprog = Yes; inproof = Ignore; outproof = New;
-                run = (fun ~pm ~proof:() ->
+                run = (fun ~pm ~proof:() ~intern:_ ->
                     let pm, proof = f ~pm in
                     pm, proof)
               }

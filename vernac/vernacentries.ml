@@ -1435,7 +1435,7 @@ let vernac_end_segment ~pm ~proof ({v=id} as lid) =
 let vernac_end_segment lid =
   Vernacextend.TypedVernac {
     inprog = Use; outprog = Pop; inproof = UseOpt; outproof = No;
-    run = (fun ~pm ~proof ->
+    run = (fun ~pm ~proof ~intern:_ ->
         let () = vernac_end_segment ~pm ~proof lid in
         (), ())
   }
@@ -1445,7 +1445,7 @@ let vernac_begin_segment ~interactive f =
   let outprog = Vernacextend.OutProg.(if interactive then Push else No) in
   Vernacextend.TypedVernac {
     inprog = Ignore; outprog; inproof; outproof = No;
-    run = (fun ~pm ~proof ->
+    run = (fun ~pm ~proof ~intern:_ ->
         let () = f () in
         (), ())
   }
@@ -1466,7 +1466,7 @@ let warn_require_in_section =
     (fun () -> strbrk "Use of “Require” inside a section is fragile." ++ spc() ++
                strbrk "It is not recommended to use this functionality in finished proof scripts.")
 
-let vernac_require from export qidl =
+let vernac_require ~intern from export qidl =
   if Global.sections_are_opened () then warn_require_in_section ();
   let root = match from with
   | None -> None
@@ -1492,8 +1492,7 @@ let vernac_require from export qidl =
   let modrefl = List.map locate qidl in
   if Dumpglob.dump () then
     List.iter2 (fun ({CAst.loc},_) dp -> Dumpglob.dump_libref ?loc dp "lib") qidl modrefl;
-  let lib_resolver = Loadpath.try_locate_absolute_library in
-  let needed = Library.require_library_syntax_from_dirpath ~lib_resolver modrefl in
+  let needed = Library.require_library_syntax_from_dirpath ~intern modrefl in
   Library.require_library_from_dirpath needed;
   Option.iter (fun (export,cats) ->
       let cats = interp_import_cats cats in
@@ -2471,9 +2470,9 @@ let translate_vernac ?loc ~atts v = let open Vernacextend in match v with
         unsupported_attributes atts;
         vernac_extra_dep ?loc from file id)
   | VernacRequire (from, export, qidl) ->
-    vtdefault(fun () ->
+    vtintern(fun ~intern ->
         unsupported_attributes atts;
-        vernac_require from export qidl)
+        vernac_require ~intern from export qidl)
   | VernacImport (export,qidl) ->
     vtdefault(fun () ->
         unsupported_attributes atts;

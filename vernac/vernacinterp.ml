@@ -12,7 +12,7 @@ open Vernacexpr
 
 let vernac_pperr_endline = CDebug.create ~name:"vernacinterp" ()
 
-let interp_typed_vernac (Vernacextend.TypedVernac { inprog; outprog; inproof; outproof; run })
+let interp_typed_vernac ~intern (Vernacextend.TypedVernac { inprog; outprog; inproof; outproof; run })
     ~pm ~stack =
   let open Vernacextend in
   let module LStack = Vernacstate.LemmaStack in
@@ -20,6 +20,7 @@ let interp_typed_vernac (Vernacextend.TypedVernac { inprog; outprog; inproof; ou
   let pm', proof' = run
       ~pm:(InProg.cast (NeList.head pm) inprog)
       ~proof:(InProof.cast proof inproof)
+      ~intern
   in
   let pm = OutProg.cast pm' outprog pm in
   let stack = let open OutProof in
@@ -140,7 +141,7 @@ let with_generic_atts atts f =
  * is the outdated/deprecated "Local" attribute of some vernacular commands
  * still parsed as the obsolete_locality grammar entry for retrocompatibility.
  * loc is the Loc.t of the vernacular command being interpreted. *)
-let rec interp_expr ?loc ~atts ~st c =
+let rec interp_expr ~intern ?loc ~atts ~st c =
   vernac_pperr_endline Pp.(fun () -> str "interpreting: " ++ Ppvernac.pr_vernac_expr c);
   match c with
 
@@ -157,14 +158,14 @@ let rec interp_expr ?loc ~atts ~st c =
 
   | VernacLoad (verbosely, fname) ->
     Attributes.unsupported_attributes atts;
-    vernac_load ~verbosely fname
+    vernac_load ~intern ~verbosely fname
   | v ->
     let fv = Vernacentries.translate_vernac ?loc ~atts v in
     let stack = st.Vernacstate.lemmas in
     let program = st.Vernacstate.program in
-    interp_typed_vernac ~pm:program ~stack fv
+    interp_typed_vernac ~intern ~pm:program ~stack fv
 
-and vernac_load ~verbosely fname =
+and vernac_load ~intern ~verbosely fname =
   (* Note that no proof should be open here, so the state here is just token for now *)
   let st = Vernacstate.freeze_interp_state ~marshallable:false in
   let fname =
@@ -185,7 +186,8 @@ and vernac_load ~verbosely fname =
     match parse_sentence proof_mode input with
     | None -> stack, pm
     | Some stm ->
-      let stack, pm = v_mod (interp_control ~st:{ st with Vernacstate.lemmas = stack; program = pm }) stm in
+      let st = { st with Vernacstate.lemmas = stack; program = pm } in
+      let stack, pm = v_mod (interp_control ~intern ~st) stm in
       (load_loop [@ocaml.tailcall]) ~stack ~pm
   in
   let stack, pm =
@@ -197,13 +199,13 @@ and vernac_load ~verbosely fname =
     CErrors.user_err Pp.(str "Files processed by Load cannot leave open proofs.");
   stack, pm
 
-and interp_control ~st ({ CAst.v = cmd; loc }) =
+and interp_control ~intern ~st ({ CAst.v = cmd; loc }) =
   List.fold_right (fun flag fn -> interp_control_flag ~loc flag fn)
     cmd.control
     (fun ~st ->
        let before_univs = Global.universes () in
        let pstack, pm = with_generic_atts cmd.attrs (fun ~atts ->
-           interp_expr ?loc ~atts ~st cmd.expr)
+           interp_expr ~intern ?loc ~atts ~st cmd.expr)
        in
        let after_univs = Global.universes () in
        if before_univs == after_univs then pstack, pm
@@ -265,8 +267,8 @@ let interp_gen ~verbosely ~st ~interp_fn cmd =
     Exninfo.iraise exn
 
 (* Regular interp *)
-let interp ?(verbosely=true) ~st cmd =
-  interp_gen ~verbosely ~st ~interp_fn:interp_control cmd
+let interp ~intern ?(verbosely=true) ~st cmd =
+  interp_gen ~verbosely ~st ~interp_fn:(interp_control ~intern) cmd
 
 let interp_qed_delayed_proof ~proof ~st ~control pe : Vernacstate.t =
   interp_gen ~verbosely:false ~st

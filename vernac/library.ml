@@ -126,11 +126,12 @@ let loaded_native_libraries = Summary.ref DPset.empty ~stage:Summary.Stage.Inter
 (* various requests to the tables *)
 
 let find_library dir =
-  DPmap.find dir !libraries_table
+  DPmap.find_opt dir !libraries_table
 
 let try_find_library dir =
-  try find_library dir
-  with Not_found ->
+  match find_library dir with
+  | Some lib -> lib
+  | None ->
     user_err
       (str "Unknown library " ++ DirPath.print dir ++ str ".")
 
@@ -254,7 +255,7 @@ let mk_intern_library sum lib digest_lib univs digest_univs proofs =
   | Some (_,false) ->
     mk_library sum lib (Dvo_or_vi digest_lib) Univ.ContextSet.empty
 
-let intern_from_file lib_resolver dir =
+let intern_from_file ~lib_resolver dir =
   let f = lib_resolver dir in
   Feedback.feedback(Feedback.FileDependency (Some f, DirPath.to_string dir));
   let ch = raw_intern_library f in
@@ -272,18 +273,22 @@ let intern_from_file lib_resolver dir =
        DirPath.print lsd.md_name ++ spc () ++ str "and not library" ++
        spc() ++ DirPath.print dir ++ str ".");
   Feedback.feedback (Feedback.FileLoaded(DirPath.to_string dir, f));
-  lsd, lmd, digest_lmd, univs, digest_u, del_opaque
+  mk_intern_library lsd lmd digest_lmd univs digest_u del_opaque
 
+(* Returns the digest of a library, checks both caches to see what is loaded *)
 let rec intern_library ~intern (needed, contents as acc) dir =
   (* Look if in the current logical environment *)
-  try (find_library dir).libsum_digests, acc
-  with Not_found ->
-  (* Look if already listed and consequently its dependencies too *)
-  try (DPmap.find dir contents).library_digests, acc
-  with Not_found ->
-  let lsd, lmd, digest_lmd, univs, digest_u, del_opaque = intern dir in
-  let m = mk_intern_library lsd lmd digest_lmd univs digest_u del_opaque in
-  m.library_digests, intern_library_deps ~intern acc dir m
+  match find_library dir with
+  | Some loaded_lib -> loaded_lib.libsum_digests, acc
+  | None ->
+    (* Look if already listed in the accumulator *)
+    match DPmap.find_opt dir contents with
+    | Some interned_lib ->
+      interned_lib.library_digests, acc
+    | None ->
+      (* We intern the library, and then intern the deps *)
+      let m = intern dir in
+      m.library_digests, intern_library_deps ~intern acc dir m
 
 and intern_library_deps ~intern libs dir m =
   let needed, contents =
@@ -303,8 +308,7 @@ and intern_mandatory_library ~intern caller libs (dir,d) =
   in
   libs
 
-let rec_intern_library ~lib_resolver libs dir =
-  let intern dir = intern_from_file lib_resolver dir in
+let rec_intern_library ~intern libs dir =
   let _, libs = intern_library ~intern libs dir in
   libs
 
@@ -407,8 +411,8 @@ let require_library_from_dirpath needed =
   if Lib.is_module_or_modtype () then warn_require_in_module ();
   Lib.add_leaf (in_require needed)
 
-let require_library_syntax_from_dirpath ~lib_resolver modrefl =
-  let needed, contents = List.fold_left (rec_intern_library ~lib_resolver) ([], DPmap.empty) modrefl in
+let require_library_syntax_from_dirpath ~intern modrefl =
+  let needed, contents = List.fold_left (rec_intern_library ~intern) ([], DPmap.empty) modrefl in
   let needed = List.rev_map (fun dir -> DPmap.find dir contents) needed in
   Lib.add_leaf (in_require_syntax needed);
   needed
@@ -497,6 +501,11 @@ let save_library_struct ~output_native_objects dir =
   if Array.exists (fun (d,_) -> DirPath.equal d dir) sd.md_deps then
     error_recursively_dependent_library dir;
   sd, md, ast
+
+let save_library dir : library_t =
+  let sd, md, _ast = save_library_struct ~output_native_objects:false dir in
+  let digest = Safe_typing.Dvo_or_vi (Digest.string "") in
+  mk_library sd md digest Univ.ContextSet.empty
 
 let save_library_to todo_proofs ~output_native_objects dir f =
   assert(
