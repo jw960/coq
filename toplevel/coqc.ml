@@ -48,11 +48,6 @@ let coqc_main ((copts,_),stm_opts) injections ~opts =
   Topfmt.(in_phase ~phase:CompilationPhase)
     Ccompile.compile_file opts stm_opts copts injections;
 
-  (* Careful this will modify the load-path and state so after this
-     point some stuff may not be safe anymore. *)
-  Topfmt.(in_phase ~phase:CompilationPhase)
-    Vio_compile.do_vio opts copts injections;
-
   flush_all();
 
   if copts.Coqcargs.output_context then begin
@@ -74,7 +69,7 @@ let coqc_run copts ~opts injections =
     exit exit_code
 
 let fix_stm_opts opts stm_opts = match opts.Coqcargs.compilation_mode with
-  | BuildVio | BuildVos ->
+  | BuildVos ->
     (* We need to disable error resiliency, otherwise some errors
        will be ignored in batch mode. c.f. #6707
 
@@ -87,7 +82,7 @@ let fix_stm_opts opts stm_opts = match opts.Coqcargs.compilation_mode with
       async_proofs_cmd_error_resilience = false;
       async_proofs_tac_error_resilience = FNone;
     }
-  | BuildVo | BuildVok | Vio2Vo -> stm_opts
+  | BuildVo | BuildVok -> stm_opts
 
 let custom_coqc : ((Coqcargs.t * Colors.color) * Stm.AsyncOpts.stm_opt, 'b) Coqtop.custom_toplevel
  = Coqtop.{

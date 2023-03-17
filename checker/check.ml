@@ -124,12 +124,12 @@ let check_one_lib admit senv (dir,m) =
     if LibrarySet.mem dir admit then
       (Flags.if_verbose Feedback.msg_notice
          (str "Admitting library: " ++ pr_dirpath dir);
-       Safe_checking.unsafe_import (fst senv) md m.library_extra_univs dig),
+       Safe_checking.unsafe_import (fst senv) md dig),
       (snd senv)
     else
       (Flags.if_verbose Feedback.msg_notice
          (str "Checking library: " ++ pr_dirpath dir);
-       Safe_checking.import (fst senv) (snd senv) md m.library_extra_univs dig)
+       Safe_checking.import (fst senv) (snd senv) md dig)
   in
     register_loaded_library m; senv
 
@@ -363,8 +363,8 @@ let intern_from_file ~intern_mode (dir, f) =
       Flags.if_verbose chk_pp (str" done]" ++ fnl ());
       let digest =
         let open ObjFile in
-        if opaque_csts <> None then Safe_typing.Dvivo (seg_md.hash, seg_univs.hash)
-        else (Safe_typing.Dvo_or_vi seg_md.hash) in
+        if opaque_csts <> None then seg_md.hash
+        else seg_md.hash in
       sd,md,table,opaque_csts,digest
     with e -> Flags.if_verbose chk_pp (str" failed!]" ++ fnl ()); raise e in
   depgraph := LibraryMap.add sd.md_name sd.md_deps !depgraph;

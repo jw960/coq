@@ -22,7 +22,7 @@
   This trick is useful to avoid the need for the user to compile .vos version
   when an up to date .vo version is already available.
 *)
-type compilation_mode = BuildVo | BuildVio | Vio2Vo | BuildVos | BuildVok
+type compilation_mode = BuildVo | BuildVos | BuildVok
 
 type t =
   { compilation_mode : compilation_mode

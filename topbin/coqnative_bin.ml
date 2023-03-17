@@ -106,7 +106,6 @@ type library_t = {
   library_data : Safe_typing.compiled_library;
   library_deps : (compilation_unit_name * Safe_typing.vodigest) array;
   library_digests : Safe_typing.vodigest;
-  library_extra_univs : Univ.ContextSet.t;
 }
 
 let libraries_table : string DPmap.t ref = ref DPmap.empty
@@ -118,30 +117,22 @@ let register_loaded_library senv libname file =
   let () = Nativecode.register_native_file prefix in
   senv
 
-let mk_library sd f md digests univs =
+let mk_library sd f md digests =
   {
     library_name     = sd.md_name;
     library_file     = f;
     library_data     = md;
     library_deps     = sd.md_deps;
     library_digests  = digests;
-    library_extra_univs = univs;
   }
 
 let intern_from_file f =
   let ch = System.with_magic_number_check (fun file -> ObjFile.open_in ~file) f in
   let (lsd : summary_disk), digest_lsd = ObjFile.marshal_in_segment ch ~segment:"summary" in
   let ((lmd : library_disk), digest_lmd) = ObjFile.marshal_in_segment ch ~segment:"library" in
-  let (univs : (Univ.ContextSet.t * bool) option), digest_u = ObjFile.marshal_in_segment ch ~segment:"universes" in
   ObjFile.close_in ch;
   System.check_caml_version ~caml:lsd.md_ocaml ~file:f;
-  let open Safe_typing in
-  match univs with
-  | None -> mk_library lsd f lmd.md_compiled (Dvo_or_vi digest_lmd) Univ.ContextSet.empty
-  | Some (uall,true) ->
-      mk_library lsd f lmd.md_compiled (Dvivo (digest_lmd,digest_u)) uall
-  | Some (_,false) ->
-      mk_library lsd f lmd.md_compiled (Dvo_or_vi digest_lmd) Univ.ContextSet.empty
+  mk_library lsd f lmd.md_compiled digest_lmd
 
 let rec intern_library (needed, contents) dir =
   (* Look if already listed and consequently its dependencies too *)
@@ -171,7 +162,7 @@ and intern_mandatory_library caller from libs (dir,d) =
 
 let register_library senv m =
   let mp = MPfile m.library_name in
-  let mp', senv = Safe_typing.import m.library_data m.library_extra_univs m.library_digests senv in
+  let mp', senv = Safe_typing.import m.library_data m.library_digests senv in
   let () =
     if not (ModPath.equal mp mp') then
       anomaly (Pp.str "Unexpected disk module name.")

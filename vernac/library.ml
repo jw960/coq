@@ -100,7 +100,6 @@ type library_t = {
   library_data : library_disk;
   library_deps : (compilation_unit_name * Safe_typing.vodigest) array;
   library_digests : Safe_typing.vodigest;
-  library_extra_univs : Univ.ContextSet.t;
 }
 
 type library_summary = {
@@ -224,19 +223,12 @@ let indirect_accessor = {
 (************************************************************************)
 (* Internalise libraries *)
 
-type seg_sum = summary_disk
-type seg_lib = library_disk
-type seg_univ = (* true = vivo, false = vi *)
-  Univ.ContextSet.t * bool
-type seg_proofs = Opaques.opaque_disk
-
-let mk_library sd md digests univs =
+let mk_library sd md digests =
   {
     library_name     = sd.md_name;
     library_data     = md;
     library_deps     = sd.md_deps;
     library_digests  = digests;
-    library_extra_univs = univs;
   }
 
 let mk_summary m = {
@@ -244,24 +236,17 @@ let mk_summary m = {
   libsum_digests = m.library_digests;
 }
 
-let mk_intern_library sum lib digest_lib univs digest_univs proofs =
+let mk_intern_library sum lib digest_lib proofs =
   add_opaque_table sum.md_name (ToFetch proofs);
-  let open Safe_typing in
-  match univs with
-  | None -> mk_library sum lib (Dvo_or_vi digest_lib) Univ.ContextSet.empty
-  | Some (uall,true) ->
-    mk_library sum lib (Dvivo (digest_lib, digest_univs)) uall
-  | Some (_,false) ->
-    mk_library sum lib (Dvo_or_vi digest_lib) Univ.ContextSet.empty
+  mk_library sum lib digest_lib
 
 let intern_from_file lib_resolver dir =
   let f = lib_resolver dir in
   Feedback.feedback(Feedback.FileDependency (Some f, DirPath.to_string dir));
   let ch = raw_intern_library f in
-  let (lsd : seg_sum), digest_lsd = ObjFile.marshal_in_segment ch ~segment:"summary" in
-  let ((lmd : seg_lib), digest_lmd) = ObjFile.marshal_in_segment ch ~segment:"library" in
-  let (univs : seg_univ option), digest_u = ObjFile.marshal_in_segment ch ~segment:"universes" in
-  let ((del_opaque : seg_proofs delayed),_) = in_delayed f ch ~segment:"opaques" in
+  let (lsd : summary_disk), digest_lsd = ObjFile.marshal_in_segment ch ~segment:"summary" in
+  let ((lmd : library_disk), digest_lmd) = ObjFile.marshal_in_segment ch ~segment:"library" in
+  let ((del_opaque : Opaques.opaque_disk delayed),_) = in_delayed f ch ~segment:"opaques" in
   ObjFile.close_in ch;
   System.check_caml_version ~caml:lsd.md_ocaml ~file:f;
   register_library_filename lsd.md_name f;
@@ -272,7 +257,7 @@ let intern_from_file lib_resolver dir =
        DirPath.print lsd.md_name ++ spc () ++ str "and not library" ++
        spc() ++ DirPath.print dir ++ str ".");
   Feedback.feedback (Feedback.FileLoaded(DirPath.to_string dir, f));
-  lsd, lmd, digest_lmd, univs, digest_u, del_opaque
+  lsd, lmd, digest_lmd, del_opaque
 
 let rec intern_library ~intern (needed, contents as acc) dir =
   (* Look if in the current logical environment *)
@@ -281,8 +266,8 @@ let rec intern_library ~intern (needed, contents as acc) dir =
   (* Look if already listed and consequently its dependencies too *)
   try (DPmap.find dir contents).library_digests, acc
   with Not_found ->
-  let lsd, lmd, digest_lmd, univs, digest_u, del_opaque = intern dir in
-  let m = mk_intern_library lsd lmd digest_lmd univs digest_u del_opaque in
+  let lsd, lmd, digest_lmd, del_opaque = intern dir in
+  let m = mk_intern_library lsd lmd digest_lmd del_opaque in
   m.library_digests, intern_library_deps ~intern acc dir m
 
 and intern_library_deps ~intern libs dir m =
@@ -310,7 +295,7 @@ let rec_intern_library ~lib_resolver libs dir =
 
 let native_name_from_filename f =
   let ch = raw_intern_library f in
-  let (lmd : seg_sum), digest_lmd = ObjFile.marshal_in_segment ch ~segment:"summary" in
+  let (lmd : summary_disk), digest_lmd = ObjFile.marshal_in_segment ch ~segment:"summary" in
   Nativecode.mod_uid_of_dirpath lmd.md_name
 
 (**********************************************************************)
@@ -336,8 +321,7 @@ let register_library m =
     m.library_name
     l.md_compiled
     l.md_objects
-    m.library_digests
-    m.library_extra_univs;
+    m.library_digests;
   register_native_library m.library_name
 
 let register_library_syntax m =
@@ -416,25 +400,6 @@ let require_library_syntax_from_dirpath ~lib_resolver modrefl =
 (************************************************************************)
 (*s Initializing the compilation of a library. *)
 
-type ('uid, 'doc) tasks = (('uid, 'doc) Stateid.request * bool) list
-
-let load_library_todo f =
-  let ch = raw_intern_library f in
-  let (s0 : seg_sum), _ = ObjFile.marshal_in_segment ch ~segment:"summary" in
-  let (s1 : seg_lib), _ = ObjFile.marshal_in_segment ch ~segment:"library" in
-  let (s2 : seg_univ option), _ = ObjFile.marshal_in_segment ch ~segment:"universes" in
-  let (tasks : (Opaqueproof.opaque_handle option, 'doc) tasks option), _ = ObjFile.marshal_in_segment ch ~segment:"tasks" in
-  let (s4 : seg_proofs), _ = ObjFile.marshal_in_segment ch ~segment:"opaques" in
-  ObjFile.close_in ch;
-  System.check_caml_version ~caml:s0.md_ocaml ~file:f;
-  if tasks = None then user_err (str "Not a .vio file.");
-  if s2 = None then user_err (str "Not a .vio file.");
-  if snd (Option.get s2) then user_err (str "Not a .vio file.");
-  s0, s1, Option.get s2, Option.get tasks, s4
-
-(************************************************************************)
-(*s [save_library dir] ends library [dir] and save it to the disk. *)
-
 let current_deps () =
   let map name =
     let m = try_find_library name in
@@ -450,8 +415,7 @@ let error_recursively_dependent_library dir =
 
 type 'doc todo_proofs =
  | ProofsTodoNone (* for .vo *)
- | ProofsTodoSomeEmpty of Future.UUIDSet.t (* for .vos *)
- | ProofsTodoSome of Future.UUIDSet.t * (Future.UUID.t, 'doc) tasks (* for .vio *)
+ | ProofsTodoSome of Future.UUIDSet.t (* for .vos *)
 
 (* We now use two different digests in a .vo file. The first one
    only covers half of the file, without the opaque table. It is
@@ -464,14 +428,15 @@ type 'doc todo_proofs =
 (* Security weakness: file might have been changed on disk between
    writing the content and computing the checksum... *)
 
-let save_library_base f sum lib univs tasks proofs =
+(************************************************************************)
+(*s [save_library dir] ends library [dir] and save it to the disk. *)
+
+let save_library_base f sum lib univs proofs =
   let ch = raw_extern_library f in
   try
-    ObjFile.marshal_out_segment ch ~segment:"summary" (sum    : seg_sum);
-    ObjFile.marshal_out_segment ch ~segment:"library" (lib    : seg_lib);
-    ObjFile.marshal_out_segment ch ~segment:"universes" (univs  : seg_univ option);
-    ObjFile.marshal_out_segment ch ~segment:"tasks" (tasks : (Opaqueproof.opaque_handle option, 'doc) tasks option);
-    ObjFile.marshal_out_segment ch ~segment:"opaques" (proofs : seg_proofs);
+    ObjFile.marshal_out_segment ch ~segment:"summary" (sum    : summary_disk);
+    ObjFile.marshal_out_segment ch ~segment:"library" (lib    : library_disk);
+    ObjFile.marshal_out_segment ch ~segment:"opaques" (proofs : Opaques.opaque_disk);
     ObjFile.close_out ch
   with reraise ->
     let reraise = Exninfo.capture reraise in
@@ -502,14 +467,12 @@ let save_library_to todo_proofs ~output_native_objects dir f =
   assert(
     let expected_extension = match todo_proofs with
       | ProofsTodoNone -> ".vo"
-      | ProofsTodoSomeEmpty _ -> ".vos"
-      | ProofsTodoSome _ -> ".vio"
+      | ProofsTodoSome _ -> ".vos"
       in
     Filename.check_suffix f expected_extension);
   let except = match todo_proofs with
     | ProofsTodoNone -> Future.UUIDSet.empty
-    | ProofsTodoSomeEmpty except -> except
-    | ProofsTodoSome (except,l) -> except
+    | ProofsTodoSome except -> except
     in
   (* Ensure that the call below is performed with all opaques joined *)
   let () = Opaques.Summary.join ~except () in
@@ -517,30 +480,19 @@ let save_library_to todo_proofs ~output_native_objects dir f =
   let () = assert (not (Future.UUIDSet.is_empty except) ||
     Safe_typing.is_joined_environment (Global.safe_env ()))
   in
-  let tasks, utab =
+  let utab =
     match todo_proofs with
-    | ProofsTodoNone -> None, None
-    | ProofsTodoSomeEmpty _except ->
-      None, Some (Univ.ContextSet.empty,false)
-    | ProofsTodoSome (_except, tasks) ->
-      let tasks =
-        List.map Stateid.(fun (r,b) ->
-            try { r with uuid = Some (Future.UUIDMap.find r.uuid f2t_map) }, b
-            with Not_found -> assert b; { r with uuid = None }, b)
-          tasks in
-      Some tasks,
+    | ProofsTodoNone -> None
+    | ProofsTodoSome _except ->
       Some (Univ.ContextSet.empty,false)
   in
   let sd, md, ast = save_library_struct ~output_native_objects dir in
   (* Writing vo payload *)
-  save_library_base f sd md utab tasks opaque_table;
+  save_library_base f sd md utab opaque_table;
   (* Writing native code files *)
   if output_native_objects then
     let fn = Filename.dirname f ^"/"^ Nativecode.mod_uid_of_dirpath dir in
     Nativelib.compile_library ast fn
-
-let save_library_raw f sum lib univs proofs =
-  save_library_base f sum lib (Some univs) None proofs
 
 let get_used_load_paths () =
   String.Set.elements

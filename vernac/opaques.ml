@@ -129,20 +129,6 @@ let get_current_opaque i =
       Some (c, ctx)
   with Not_found -> None
 
-let get_current_constraints i =
-  try
-    let pf = Opaqueproof.HandleMap.find i !current_opaques in
-    match pf with
-    | OpaqueValue _ -> None
-    | OpaqueCertif cert ->
-      let _, ctx = Safe_typing.repr_certificate (force cert) in
-      let ctx = match ctx with
-      | Opaqueproof.PrivateMonomorphic ctx -> ctx
-      | Opaqueproof.PrivatePolymorphic _ -> Univ.ContextSet.empty
-      in
-      Some ctx
-  with Not_found -> None
-
 let dump ?(except=Future.UUIDSet.empty) () =
   let n =
     if Opaqueproof.HandleMap.is_empty !current_opaques then 0

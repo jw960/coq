@@ -8,7 +8,7 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-type compilation_mode = BuildVo | BuildVio | Vio2Vo | BuildVos | BuildVok
+type compilation_mode = BuildVo | BuildVos | BuildVok
 
 type t =
   { compilation_mode : compilation_mode
@@ -101,14 +101,6 @@ let set_vio_checking_j opts opt j =
     prerr_endline "setting the J variable like in 'make vio2vo J=3'";
     exit 1
 
-let set_compilation_mode opts mode =
-  match opts.compilation_mode with
-  | BuildVo -> { opts with compilation_mode = mode }
-  | mode' when mode <> mode' ->
-    prerr_endline "Options -vio and -vio2vo are exclusive";
-    exit 1
-  | _ -> opts
-
 let get_task_list s =
   List.map (fun s ->
       try int_of_string s
@@ -127,11 +119,6 @@ let rec add_vio_args peek next oval =
     let oval = add_vio_file oval (next ()) in
     add_vio_args peek next oval
   else oval
-
-let warn_deprecated_quick =
-  CWarnings.create ~name:"deprecated-quick" ~category:"deprecated"
-         (fun () ->
-          Pp.strbrk "The -quick option is renamed -vio. Please consider using the -vos feature instead.")
 
 let parse arglist : t =
   let echo = ref false in
@@ -173,11 +160,6 @@ let parse arglist : t =
           { oval with compilation_output_name = Some (next ()) }
         | "-fake-source" ->
           { oval with fake_source = Some (next ()) }
-        | "-quick" ->
-          warn_deprecated_quick();
-          set_compilation_mode oval BuildVio
-        | "-vio" ->
-          set_compilation_mode oval BuildVio
         |"-vos" ->
           Flags.load_vos_libraries := true;
           { oval with compilation_mode = BuildVos }
@@ -200,10 +182,6 @@ let parse arglist : t =
           let oval = set_vio_checking_j oval opt (next ()) in
           let oval = add_vio_file oval (next ()) in
           add_vio_args peek_next next oval
-
-        | "-vio2vo" ->
-          let oval = add_compile ~echo:false oval (next ()) in
-          set_compilation_mode oval Vio2Vo
 
         (* Glob options *)
         |"-no-glob" | "-noglob" ->
