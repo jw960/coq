@@ -117,7 +117,7 @@ type typed_vernac =
       inproof : 'inproof InProof.t;
       outproof : 'outproof OutProof.t;
       run : pm:'inprog -> proof:'inproof
-        -> intern:(Names.DirPath.t -> Library.library_t)
+        -> intern:(Names.DirPath.t -> Library.t)
         -> 'outprog * 'outproof;
     } -> typed_vernac
 

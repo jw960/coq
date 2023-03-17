@@ -10,7 +10,7 @@
 
 (** The main interpretation function of vernacular expressions *)
 val interp
-  : intern:(Names.DirPath.t -> Library.library_t)
+  : intern:(Names.DirPath.t -> Library.t)
   -> ?verbosely:bool
   -> st:Vernacstate.t
   -> Vernacexpr.vernac_control

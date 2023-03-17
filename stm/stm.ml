@@ -1609,7 +1609,7 @@ and Slaves : sig
   val info_tasks : 'a tasks -> (string * float * int) list
   val finish_task :
     string ->
-    Library.seg_univ -> Library.seg_proofs ->
+    Library.seg_univ -> Opaques.opaque_disk ->
     Opaqueproof.opaque_handle option tasks -> int -> Library.seg_univ
 
   val cancel_worker : WorkerPool.worker_id -> unit

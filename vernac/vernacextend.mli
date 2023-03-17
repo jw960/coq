@@ -121,7 +121,7 @@ type typed_vernac =
       inproof : 'inproof InProof.t;
       outproof : 'outproof OutProof.t;
       run : pm:'inprog -> proof:'inproof
-        -> intern:(Names.DirPath.t -> Library.library_t)
+        -> intern:(Names.DirPath.t -> Library.t)
         -> 'outprog * 'outproof;
     } -> typed_vernac
 
@@ -129,7 +129,7 @@ type typed_vernac =
 
 val vtdefault : (unit -> unit) -> typed_vernac
 val vtnoproof : (unit -> unit) -> typed_vernac
-val vtintern : (intern:(Names.DirPath.t -> Library.library_t) -> unit) -> typed_vernac
+val vtintern : (intern:(Names.DirPath.t -> Library.t) -> unit) -> typed_vernac
 val vtcloseproof : (lemma:Declare.Proof.t -> pm:Declare.OblState.t -> Declare.OblState.t) -> typed_vernac
 val vtopenproof : (unit -> Declare.Proof.t) -> typed_vernac
 val vtmodifyproof : (pstate:Declare.Proof.t -> Declare.Proof.t) -> typed_vernac
