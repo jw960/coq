@@ -1352,7 +1352,7 @@ let vernac_end_segment ~pm ~proof ({v=id} as lid) =
 let vernac_end_segment lid =
   Vernacextend.TypedVernac {
     inprog = Use; outprog = Pop; inproof = UseOpt; outproof = No;
-    run = (fun ~pm ~proof ->
+    run = (fun ~pm ~proof ~intern:_ ->
         let () = vernac_end_segment ~pm ~proof lid in
         (), ())
   }
@@ -1362,7 +1362,7 @@ let vernac_begin_segment ~interactive f =
   let outprog = Vernacextend.OutProg.(if interactive then Push else No) in
   Vernacextend.TypedVernac {
     inprog = Ignore; outprog; inproof; outproof = No;
-    run = (fun ~pm ~proof ->
+    run = (fun ~pm ~proof ~intern:_ ->
         let () = f () in
         (), ())
   }
@@ -1376,6 +1376,15 @@ let warn_require_in_section =
 
 let vernac_require_interp needed modrefl export qidl =
   if Lib.sections_are_opened () then warn_require_in_section ();
+
+(* let vernac_require ~intern from export qidl = *)
+(*   if Global.sections_are_opened () then warn_require_in_section (); *)
+(*   let root = match from with *)
+(*   | None -> None *)
+(*   | Some from -> *)
+(*     let (hd, tl) = Libnames.repr_qualid from in *)
+(*     Some (Libnames.add_dirpath_suffix hd tl) *)
+(*   in *)
   let () = match export with
     | None -> List.iter (function
         | _, ImportAll -> ()
@@ -1386,6 +1395,7 @@ let vernac_require_interp needed modrefl export qidl =
   in
   if Dumpglob.dump () then
     List.iter2 (fun ({CAst.loc},_) dp -> Dumpglob.dump_libref ?loc dp "lib") qidl modrefl;
+  (* let needed = Library.require_library_syntax_from_dirpath ~intern modrefl in *)
   Library.require_library_from_dirpath needed;
   Option.iter (fun (export,cats) ->
       let cats = interp_import_cats cats in
@@ -2341,7 +2351,18 @@ let translate_pure_vernac ?loc ~atts v = let open Vernacextend in match v with
     vtdefault(fun () ->
         unsupported_attributes atts;
         vernac_name_sec_hyp lid set)
-
+  | VernacExtraDependency(from,file,id) ->
+    vtdefault(fun () ->
+        unsupported_attributes atts;
+        vernac_extra_dep ?loc from file id)
+  | VernacRequire (from, export, qidl) ->
+    vtintern(fun ~intern ->
+        unsupported_attributes atts;
+        vernac_require ~intern from export qidl)
+  | VernacImport (export,qidl) ->
+    vtdefault(fun () ->
+        unsupported_attributes atts;
+        vernac_import export qidl)
   | VernacCanonical qid ->
     vtdefault(fun () ->
         vernac_canonical ~local:(only_locality atts) qid)

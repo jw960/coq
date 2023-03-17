@@ -120,13 +120,16 @@ type typed_vernac =
       outprog : 'outprog OutProg.t;
       inproof : 'inproof InProof.t;
       outproof : 'outproof OutProof.t;
-      run : pm:'inprog -> proof:'inproof -> 'outprog * 'outproof;
+      run : pm:'inprog -> proof:'inproof
+        -> intern:(Names.DirPath.t -> Library.library_t)
+        -> 'outprog * 'outproof;
     } -> typed_vernac
 
 (** Some convenient typed_vernac constructors *)
 
 val vtdefault : (unit -> unit) -> typed_vernac
 val vtnoproof : (unit -> unit) -> typed_vernac
+val vtintern : (intern:(Names.DirPath.t -> Library.library_t) -> unit) -> typed_vernac
 val vtcloseproof : (lemma:Declare.Proof.t -> pm:Declare.OblState.t -> Declare.OblState.t) -> typed_vernac
 val vtopenproof : (unit -> Declare.Proof.t) -> typed_vernac
 val vtmodifyproof : (pstate:Declare.Proof.t -> Declare.Proof.t) -> typed_vernac
