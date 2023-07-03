@@ -366,7 +366,7 @@ type header = {
   (** Size in words when loaded on 64-bit systems *)
   objects : int;
   (** Number of blocks defined in the marshalled structure *)
-}
+} [@@ocaml.warning "-69"]
 
 let dummy_header = {
   magic = "\000\000\000\000";
@@ -393,7 +393,7 @@ type segment = {
   len : int64;
   hash : Digest.t;
   mutable header : header;
-}
+} [@@ocaml.warning "-69"]
 
 let input_int32 ch =
   let accu = ref 0l in

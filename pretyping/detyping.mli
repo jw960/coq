@@ -91,3 +91,4 @@ module PrintingInductiveMake :
       val member_message : t -> bool -> Pp.t
       val synchronous : bool
     end
+  [@@ocaml.warning "-67"]

@@ -69,7 +69,7 @@ module MakeStringTable :
 sig
   val v : unit -> CString.Set.t
   val active : string -> bool
-end
+end [@@ocaml.warning "-67"]
 
 (** The functor [MakeRefTable] declares a new table of objects of type
    [A.t] practically denoted by [reference]; the encoding function

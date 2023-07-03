@@ -457,7 +457,7 @@ module Search = struct
       search_cut : hints_path;
       search_hints : hint_db;
       search_best_effort : bool;
-      }
+      } [@@ocaml.warning "-69"]
 
   (** Local hints *)
   let autogoal_cache = Summary.ref ~name:"autogoal_cache"

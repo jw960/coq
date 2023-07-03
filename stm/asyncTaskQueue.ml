@@ -253,7 +253,7 @@ module Make(T : Task) () = struct
     active : Pool.pool;
     queue : (T.task * cancel_switch) TQueue.t;
     cleaner : Thread.t option;
-  }
+  } [@@ocaml.warning "-69"]
 
   let create size priority =
     let cleaner queue =

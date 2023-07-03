@@ -61,6 +61,7 @@ type library_t = {
   library_deps : (compilation_unit_name * Safe_typing.vodigest) array;
   library_digest : Safe_typing.vodigest;
   library_extra_univs : Univ.ContextSet.t }
+[@@ocaml.warning "-69"]
 
 module LibraryOrdered =
   struct
@@ -282,7 +283,7 @@ type library_disk = {
   md_compiled : Safe_typing.compiled_library;
   md_syntax_objects : library_objects;
   md_objects : library_objects;
-}
+} [@@ocaml.warning "-69"]
 
 let mk_library sd md f table digest cst = {
   library_name = sd.md_name;

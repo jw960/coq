@@ -944,7 +944,7 @@ type notation_modifier = {
 
   (* common to syn_data below *)
   format        : lstring option;
-}
+} [@@ocaml.warning "-69"]
 
 let default = {
   assoc         = None;

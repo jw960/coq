@@ -1572,6 +1572,7 @@ type ('option, 'a, 'prf, 'model) prover =
   ; (* pretting printing of proof *)
     pp_f : out_channel -> 'a -> unit
         (* pretty printing of the formulas (polynomials)*) }
+ [@@ocaml.warning "-69"]
 
 (**
   * Given a  prover and a disjunction of atoms, find a proof of any of

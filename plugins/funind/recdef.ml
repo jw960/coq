@@ -336,6 +336,7 @@ type 'a infos =
   ; acc_inv : constr lazy_t
   ; acc_id : Id.t
   ; args_assoc : (constr list * constr) list }
+ [@@ocaml.warning "-69"]
 
 type ('a, 'b) journey_info_tac =
      'a
@@ -368,6 +369,7 @@ type journey_info =
   ; apP : (constr * constr list, constr) journey_info_tac
   ; app_reC : (constr * constr list, constr) journey_info_tac
   ; message : string }
+ [@@ocaml.warning "-69"]
 
 let add_vars sigma forbidden e =
   let rec aux forbidden e =

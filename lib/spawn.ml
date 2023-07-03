@@ -162,7 +162,7 @@ type process = {
   pid : int;
   mutable watch : ML.watch_id option;
   mutable alive : bool;
-}
+} [@@ocaml.warning "-69"]
 
 type callback = ML.condition list -> read_all:(unit -> string) -> bool
 type handle = process

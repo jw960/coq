@@ -28,6 +28,6 @@ end
 
 module Hashcons (M : OrderedType) (H : HashedType with type t = M.t) : Hashcons.S with
   type t = Set.Make(M).t
-  and type u = M.t -> M.t
+  and type u = M.t -> M.t [@@ocaml.warning "-67"]
 (** Create hash-consing for sets. The hashing function provided must be
     compatible with the comparison function. *)

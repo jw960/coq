@@ -764,6 +764,7 @@ type static_fix_info =
   ; nb_realargs : int
   ; body_with_param : constr
   ; num_in_block : int }
+ [@@ocaml.warning "-69"]
 
 let prove_rec_hyp_for_struct fix_info eq_hyps =
   let open Tacticals in

@@ -80,3 +80,4 @@ module Make :
   functor (S:SetS) ->
     functor (M:MapS with type key = S.elt) ->
       PartitionSig with type elt = S.elt and type set = S.t
+  [@@ocaml.warning "-67"]

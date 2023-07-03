@@ -38,7 +38,7 @@ type args = {
   show_warn : bool;
   verbose : bool;
   verify : bool;
-}
+} [@@ocaml.warning "-69"]
 
 let default_args = {
   mlg_files = [];

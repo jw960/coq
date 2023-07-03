@@ -34,7 +34,7 @@ type worker = {
   cancel : bool ref;
   manager : Thread.t;
   process : Model.process;
-}
+} [@@ocaml.warning "-69"]
 
 type pre_pool = {
   workers : worker list ref;

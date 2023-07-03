@@ -219,7 +219,7 @@ module MakeWorker(T : Task) () : sig
   (** [main_loop ()] is called at [Coqtop.toploop_run] time. *)
   val main_loop : unit -> unit
 
-end
+end [@@ocaml.warning "-67"]
 
 (** convenience exception to marshall to master *)
 exception RemoteException of Pp.t

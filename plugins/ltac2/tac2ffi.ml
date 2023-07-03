@@ -77,7 +77,7 @@ type 'a repr = {
   r_of : 'a -> valexpr;
   r_to : valexpr -> 'a;
   r_id : bool;
-}
+} [@@ocaml.warning "-69"]
 
 let repr_of r x = r.r_of x
 let repr_to r x = r.r_to x

@@ -46,6 +46,7 @@ type 'a number_spec =
   ; unit : 'a
   ; mult : 'a -> 'a -> 'a
   ; eqb : 'a -> 'a -> bool }
+  [@@ocaml.warning "-69"]
 
 let z_spec =
   { bigint_to_number = Ml2C.bigint

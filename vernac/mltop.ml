@@ -409,7 +409,7 @@ type ml_module_object =
   { mlocal : Vernacexpr.locality_flag
   ; mnames : PluginSpec.t list
   ; mdigests : Digest.t list
-  }
+  } [@@ocaml.warning "-69"]
 
 let cache_ml_objects mnames =
   let iter obj = trigger_ml_object ~verbose:true ~cache:true ~reinit:true obj in

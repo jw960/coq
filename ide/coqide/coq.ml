@@ -229,7 +229,7 @@ type coqtop = {
   mutable basename : string;
   mutable set_script_editable : bool -> unit;
   mutable restore_bpts : unit -> unit
-}
+} [@@ocaml.warning "-69"]
 
 let return (x : 'a) : 'a task =
   (); fun _ k -> k x

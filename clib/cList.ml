@@ -19,7 +19,7 @@ include List
 type 'a cell = {
   head : 'a;
   mutable tail : 'a list;
-}
+} [@@ocaml.warning "-69"]
 
 external cast : 'a cell -> 'a list = "%identity"
 

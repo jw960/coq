@@ -54,7 +54,7 @@ type t = {
   mutable concat_pcdata : bool;
   source : Lexing.lexbuf;
   stack : Xml_lexer.token Stack.t;
-}
+} [@@ocaml.warning "-69"]
 
 type source =
   | SChannel of in_channel

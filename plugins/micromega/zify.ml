@@ -163,7 +163,7 @@ module EInjT = struct
       pred : EConstr.t
     ; (* T -> Prop *)
       cstr : EConstr.t option (* forall x, pred (inj x) *) }
-end
+end [@@ocaml.warning "-69"]
 
 (** [classify_op] classify injected operators and detect special cases. *)
 
@@ -294,7 +294,7 @@ module ECstOpT = struct
     ; cst : EConstr.t
     ; cstinj : EConstr.t
     ; is_construct : bool }
-end
+end [@@ocaml.warning "-69"]
 
 module EUnOpT = struct
   type t =
@@ -324,11 +324,11 @@ end
 
 module EPropBinOpT = struct
   type t = {op : EConstr.t; op_iff : EConstr.t}
-end
+end [@@ocaml.warning "-69"]
 
 module EPropUnOpT = struct
   type t = {op : EConstr.t; op_iff : EConstr.t}
-end
+end [@@ocaml.warning "-69"]
 
 module ESatT = struct
   type t = {parg1 : EConstr.t; parg2 : EConstr.t; satOK : EConstr.t}
@@ -1065,6 +1065,7 @@ let decompose_app env evd e =
   | _ -> (EConstr.whd_evar evd e, [||])
 
 type 'op propop = {op : 'op; op_constr : EConstr.t; op_iff : EConstr.t}
+ [@@ocaml.warning "-69"]
 
 let mk_propop op c1 c2 = {op; op_constr = c1; op_iff = c2}
 

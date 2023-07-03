@@ -92,7 +92,7 @@ type compilation_unit_name = DirPath.t
 type library_disk = {
   md_compiled : Safe_typing.compiled_library;
   md_objects : library_objects;
-}
+} [@@ocaml.warning "-69"]
 
 type summary_disk = {
   md_name : compilation_unit_name;
