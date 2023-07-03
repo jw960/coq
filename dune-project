@@ -1,5 +1,12 @@
-(lang dune 2.9)
+(lang dune 3.5)
+; 3.5 lower bound is due to (install (dirs ...)) stanza support
+
 (name coq)
+
+; We use directory targets in documentation
+(using directory-targets 0.1)
+
+; We need this due to `(coq.pp )` declarations
 (using coq 0.3)
 
 (formatting
