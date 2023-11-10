@@ -21,17 +21,19 @@
 # all tests to be run, use the "clean" target.
 
 ###########################################################################
-# Includes
+# Includes, see below for generation
 ###########################################################################
 
-# If Coq is not configured, we can't run the makefile.
-ifneq ($(wildcard ../config/Makefile ../_build/default/config/Makefile),)
--include ../_build/default/config/Makefile
--include ../config/Makefile
-  COQ_NOT_CONFIGURED:=false
+# Generate test-suite, when INSIDE_DUNE the file is guaranteed to
+# exist, when called directly by make we need to look into the build
+# directory.
+ifeq ($(INSIDE_DUNE),)
+TEST_SUITE_CONFIG:=../_build/default/test-suite/test_suite_config.inc
 else
-  COQ_NOT_CONFIGURED:=true
+TEST_SUITE_CONFIG:=test_suite_config.inc
 endif
+
+include $(TEST_SUITE_CONFIG)
 
 #######################################################################
 # Variables
@@ -144,6 +146,7 @@ VSUBSYSTEMS := prerequisite success failure bugs bugs-nocoqchk output output-coq
 # All subsystems
 SUBSYSTEMS := $(VSUBSYSTEMS) misc ide ide vio coqchk output-coqchk coqwc coq-makefile tools $(UNIT_TESTS)
 
+# EJGA: This seems dangerous as first target...
 .csdp.cache: .csdp.cache.test-suite
 	cp $< $@
 	chmod u+w $@
@@ -157,15 +160,6 @@ PREREQUISITELOG = $(addsuffix .log,$(wildcard prerequisite/*.v)) .csdp.cache
 .DELETE_ON_ERROR:
 .PHONY: all run clean $(SUBSYSTEMS)
 
-ifeq ($(COQ_NOT_CONFIGURED),true)
-all:
-	@echo ""
-	@echo "Coq has not been configured, please run: "
-	@echo "  - make check"
-	@echo "Before running the test suite"
-	@echo ""
-	@false
-else
 ifeq ($(COQLIB_NOT_FOUND),true)
 all:
 	@echo ""
@@ -176,7 +170,6 @@ all:
 else
 all: run
 	$(MAKE) report
-endif
 endif
 
 # do nothing
@@ -259,6 +252,22 @@ summary.log:
 
 report: summary.log
 	$(HIDE)bash report.sh
+
+#######################################################################
+# Test suite configuration, to eventually go away
+#######################################################################
+
+# Not inside Dune, build by hand
+ifeq ($(INSIDE_DUNE),)
+# EGJA: using $(ROOT)/_build/default/... here confuses make due to quotes...
+TESTCONFIGURE:=../_build/default/test-suite/tools/coq_config_to_make.exe
+$(TESTCONFIGURE): tools/coq_config_to_make.ml
+	dune build ./tools/coq_config_to_make.exe
+
+$(TEST_SUITE_CONFIG): $(TESTCONFIGURE)
+	chmod u+w $@ || true # Be more user-friendly w.r.t. Dune cache read-only stuff
+	$(TESTCONFIGURE) > $@
+endif
 
 #######################################################################
 # Unit tests
